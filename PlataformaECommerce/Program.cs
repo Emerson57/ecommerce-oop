@@ -7,3 +7,6 @@ Console.WriteLine(p1);
 p1.DisminuirStock(2);
 Console.WriteLine("Después de vender 2 unidades:");
 Console.WriteLine(p1);
+
+Usuario usuario1 = new Usuario(1, "Emerson", "emerson@email.com", "12345");
+usuario1.MostrarInformacion();
