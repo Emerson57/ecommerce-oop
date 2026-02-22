@@ -44,9 +44,8 @@ namespace PlataformaECommerce
                 var usuario = new Usuario(1, "Juan Pérez", "juan@email.com", "12345");
                 PrintUser(usuario);
 
-                // Prueba de modificación de datos del usuario (si tienes setters/propiedades)
+                // Prueba de modificación de datos del usuario
                 Info("Actualizando nombre del usuario para evidenciar setters...");
-                // Ajusta el nombre de la propiedad si cambia en tu clase:
                 usuario.Nombre = "Juan Pérez Gómez";
                 PrintUser(usuario);
 
@@ -57,7 +56,7 @@ namespace PlataformaECommerce
 
                 var carrito = new CarritoCompra();
                 Success("Carrito creado correctamente.");
-                Info($"Total inicial del carrito: {FormatMoney(carrito.Total)}"); // Ajusta propiedad si se llama diferente.
+                Info($"Total inicial del carrito: {FormatMoney(carrito.Total)}");
 
                 // ==========================================
                 // 4) AGREGAR PRODUCTOS (Pruebas de AgregarProducto + CalcularTotal)
@@ -77,7 +76,7 @@ namespace PlataformaECommerce
                 Section("5) Remover un producto del carrito (RemoverProducto + total actualizado)");
 
                 Info("Intentando remover el producto con ID = 2 (Teclado Mecánico)...");
-                bool removido = carrito.RemoverProducto(2); // Ajusta nombre del método si cambia.
+                bool removido = carrito.RemoverProducto(2);
                 if (removido) Success("Producto removido correctamente.");
                 else Warning("No se removió el producto (no encontrado).");
 
@@ -104,7 +103,6 @@ namespace PlataformaECommerce
                 Info("Actualizando precio y stock del Mouse (ID = 1) para evidenciar setters...");
                 var mouse = productosCatalogo[0];
 
-                // Ajusta propiedades según tu implementación:
                 mouse.Precio = 90000m;
                 mouse.Stock = 7;
 
@@ -112,7 +110,7 @@ namespace PlataformaECommerce
                 PrintSingleProduct(mouse);
 
                 Info("Recalculando total del carrito...");
-                carrito.CalcularTotal(); // Ajusta si tu total se calcula automático; si no existe, quita esta línea.
+                carrito.CalcularTotal();
                 Info($"Total del carrito (recalculado): {FormatMoney(carrito.Total)}");
 
                 // ==========================================
@@ -151,7 +149,7 @@ namespace PlataformaECommerce
                 Console.WriteLine($"Cantidad de productos en carrito: {GetCartCount(carrito)}");
                 Console.WriteLine($"Total final: {FormatMoney(carrito.Total)}");
 
-                PrintFooter("Fin de la demostración ✅");
+                PrintFooter("Fin de la demostración");
             }
             catch (Exception ex)
             {
@@ -203,7 +201,6 @@ namespace PlataformaECommerce
 
         static string FormatMoney(decimal value)
         {
-            // "C0" -> moneda sin decimales. En es-CO muestra $ y separadores.
             return value.ToString("C0", CultureInfo.CurrentCulture);
         }
 
@@ -218,13 +215,11 @@ namespace PlataformaECommerce
 
         static void PrintSingleProduct(Producto p)
         {
-            // Ajusta nombres de propiedades según tu clase:
             Console.WriteLine($" - ID: {p.Id} | {p.Nombre} | {FormatMoney(p.Precio)} | Stock: {p.Stock} | Desc: {p.Descripcion}");
         }
 
         static void PrintUser(Usuario u)
         {
-            // Ajusta nombres de propiedades según tu clase:
             Console.WriteLine($"Usuario -> ID: {u.Id} | Nombre: {u.Nombre} | Correo: {u.Correo} | Password: {"*".PadLeft(u.Contrasena?.Length ?? 4, '*')}");
         }
 
@@ -232,17 +227,12 @@ namespace PlataformaECommerce
         {
             carrito.AgregarProducto(p);
             Success($"Producto agregado: {p.Nombre}");
-            // Si tu total se calcula solo, esto ya funcionará. Si no, llama CalcularTotal()
             carrito.CalcularTotal();
             Info($"Total actual: {FormatMoney(carrito.Total)}");
         }
 
         static void PrintCart(CarritoCompra carrito)
         {
-            // Ajusta esto según cómo expongas la lista de productos en tu carrito:
-            // Opción A: carrito.Productos
-            // Opción B: carrito.ListaProductos
-            // Opción C: un método carrito.ObtenerProductos()
 
             var productos = GetCartProducts(carrito);
 
@@ -263,14 +253,7 @@ namespace PlataformaECommerce
 
         static IReadOnlyList<Producto> GetCartProducts(CarritoCompra carrito)
         {
-            // ✅ ADAPTA ESTA FUNCIÓN A TU IMPLEMENTACIÓN REAL
-            // ------------------------------------------------
-            // Si tu CarritoCompra tiene una propiedad pública List<Producto> Productos:
             return carrito.Productos;
-
-            // Si se llama diferente, comenta la línea anterior y usa la tuya, por ejemplo:
-            // return carrito.ListaProductos;
-            // return carrito.ObtenerProductos();
         }
 
         static int GetCartCount(CarritoCompra carrito)
