@@ -6,13 +6,13 @@ namespace PlataformaECommerce.Dominio
 {
     public class Usuario
     {
-        // 🔹 Campos privados (encapsulación)
+        // Campos privados (encapsulación)
         private int _id;
         private string _nombre;
         private string _correo;
         private string _contrasena;
 
-        // 🔹 Propiedades públicas
+        // Propiedades públicas
         public int Id
         {
             get { return _id; }
@@ -52,7 +52,7 @@ namespace PlataformaECommerce.Dominio
             }
         }
 
-        // 🔹 Constructor
+        // Constructor
         public Usuario(int id, string nombre, string correo, string contrasena)
         {
             Id = id;
@@ -61,7 +61,7 @@ namespace PlataformaECommerce.Dominio
             Contrasena = contrasena;
         }
 
-        // 🔹 Método para mostrar información básica
+        // Método para mostrar información básica
         public void MostrarInformacion()
         {
             Console.WriteLine($"ID: {Id}");
@@ -69,11 +69,9 @@ namespace PlataformaECommerce.Dominio
             Console.WriteLine($"Correo: {Correo}");
         }
 
-        // 🔹 Destructor (opcional)
+        // Destructor
         ~Usuario()
         {
-            // En .NET raramente se usa.
-            // Se incluye solo con fines académicos.
             Console.WriteLine($"Usuario {Nombre} eliminado de memoria.");
         }
     }
