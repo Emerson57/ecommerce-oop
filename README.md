@@ -124,30 +124,7 @@ Este flujo permite verificar que las clases interactúan correctamente entre sí
 
 ---
 
-## 7. Capturas de Pantalla
-
-A continuación, se incluyen evidencias del funcionamiento del proyecto:
-
-### Estructura del Proyecto
-![Estructura](imagenes/estructura.png)
-
-### Clase Producto
-![Producto](imagenes/producto.png)
-
-### Clase Usuario
-![Usuario](imagenes/usuario.png)
-
-### Clase CarritoCompra
-![Carrito](imagenes/carrito.png)
-
-### Ejecución en Consola
-![Ejecucion](imagenes/ejecucion.png)
-
-> Nota: Las imágenes deben almacenarse en una carpeta llamada `imagenes` dentro del repositorio.
-
----
-
-## 8. Desafíos Encontrados y Soluciones
+## 7. Desafíos Encontrados y Soluciones
 
 Uno de los principales desafíos fue definir correctamente la responsabilidad de cada clase sin mezclar lógica entre entidades. Inicialmente, el cálculo del total del carrito se encontraba fuera de la clase CarritoCompra. Sin embargo, aplicando el principio de responsabilidad única, se trasladó esta funcionalidad a la clase correspondiente.
 
@@ -157,7 +134,7 @@ Asimismo, se implementaron validaciones básicas para evitar inconsistencias com
 
 ---
 
-## 9. Cómo Ejecutar el Proyecto
+## 8. Cómo Ejecutar el Proyecto
 
 1. Clonar el repositorio: git clone URL_DEL_REPOSITORIO
 2. Abrir la solución en Visual Studio 2026.
@@ -166,7 +143,7 @@ Asimismo, se implementaron validaciones básicas para evitar inconsistencias com
 
 ---
 
-## 10. Autor
+## 9. Autor
 
 Nombre del estudiante: Emerson Andrey Rodríguez Rincón
 Curso: Programación Orientada a Objetos  
