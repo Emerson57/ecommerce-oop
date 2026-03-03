@@ -1,0 +1,174 @@
+﻿@page
+@model PlataformaECommerce.Web.Pages.Registro.IndexModel
+@{
+    ViewData["Title"] = "Registro de Usuario";
+}
+
+<div class="min-h-screen bg-slate-950 text-slate-100">
+    <!-- Toast (notificaciones tipo SaaS) -->
+    <div id="toast"
+         class="pointer-events-none fixed right-4 top-4 z-50 hidden w-[340px] rounded-2xl border border-slate-800 bg-slate-900/90 p-4 shadow-2xl backdrop-blur">
+        <div class="flex items-start gap-3">
+            <div id="toastIcon"
+                 class="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/20">
+                ✓
+            </div>
+            <div class="min-w-0 flex-1">
+                <p id="toastTitle" class="text-sm font-semibold text-slate-100">Listo</p>
+                <p id="toastMessage" class="mt-1 text-sm text-slate-300">Mensaje</p>
+            </div>
+        </div>
+    </div>
+    <div class="mx-auto max-w-3xl px-4 py-10">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl">
+            <div class="p-6 sm:p-8">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-semibold tracking-tight">Registro de nuevo usuario</h1>
+                        <p class="mt-1 text-sm text-slate-300">
+                            Completa tus datos. La validación se realiza en tiempo real del lado del cliente.
+                        </p>
+                    </div>
+                    <span class="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300 border border-emerald-500/20">
+                        Cliente · ES6
+                    </span>
+                </div>
+
+                <!-- Resumen de alertas -->
+                <div id="alertSummary" class="mt-6 hidden rounded-xl border border-rose-500/30 bg-rose-500/10 p-4">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium text-rose-200">Hay errores por corregir</p>
+                        <button type="button" id="btnCloseAlert"
+                                class="text-xs text-rose-200/80 hover:text-rose-100 underline">
+                            Cerrar
+                        </button>
+                    </div>
+                    <ul id="alertList" class="mt-3 list-disc space-y-1 pl-5 text-sm text-rose-100/90"></ul>
+                </div>
+
+                <form id="formRegistro" class="mt-6 space-y-6" novalidate>
+                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+
+                        <!-- Nombres -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="nombres">Nombres *</label>
+                            <input id="nombres" name="nombres" type="text"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70"
+                                   placeholder="Ej: Emerson Andrey" />
+                            <p id="msg-nombres" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Apellidos -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="apellidos">Apellidos *</label>
+                            <input id="apellidos" name="apellidos" type="text"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70"
+                                   placeholder="Ej: Rodríguez Rincón" />
+                            <p id="msg-apellidos" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="correo">Correo electrónico *</label>
+                            <input id="correo" name="correo" type="email"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70"
+                                   placeholder="correo@dominio.com" />
+                            <p id="msg-correo" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Usuario -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="usuario">Usuario (alias) *</label>
+                            <input id="usuario" name="usuario" type="text"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70"
+                                   placeholder="Ej: emerson57" />
+                            <p id="msg-usuario" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Contraseña -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="contrasena">Contraseña *</label>
+                            <input id="contrasena" name="contrasena" type="password"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70"
+                                   placeholder="Mínimo 8, mayúscula, número y símbolo" />
+                            <div class="mt-3">
+                                <div class="h-2 w-full rounded-full bg-slate-800">
+                                    <div id="pwdBar" class="h-2 w-1/12 rounded-full bg-slate-500 transition-all"></div>
+                                </div>
+                                <p id="pwdHint" class="mt-2 text-xs text-slate-400"></p>
+                            </div>
+                            <p id="msg-contrasena" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Confirmar -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="confirmarContrasena">Confirmar contraseña *</label>
+                            <input id="confirmarContrasena" name="confirmarContrasena" type="password"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70"
+                                   placeholder="Repite la contraseña" />
+                            <p id="msg-confirmarContrasena" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Fecha nacimiento -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="fechaNacimiento">Fecha de nacimiento *</label>
+                            <input id="fechaNacimiento" name="fechaNacimiento" type="date"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70" />
+                            <p id="msg-fechaNacimiento" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Edad (calculada automáticamente) -->
+                        <div>
+                            <label class="text-sm font-medium text-slate-200" for="edad">Edad *</label>
+                            <input id="edad" name="edad" type="number" readonly
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-800/40 px-4 py-3 text-slate-200 outline-none cursor-not-allowed"
+                                   placeholder="Se calcula automáticamente" />
+                            <p id="msg-edad" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+
+                        <!-- Teléfono -->
+                        <div class="sm:col-span-2">
+                            <label class="text-sm font-medium text-slate-200" for="telefono">Teléfono (opcional)</label>
+                            <input id="telefono" name="telefono" type="text"
+                                   class="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3 text-slate-100 outline-none focus:border-emerald-400/70"
+                                   placeholder="Ej: 3001234567" />
+                            <p id="msg-telefono" class="mt-2 text-xs text-slate-400"></p>
+                        </div>
+                    </div>
+
+                    <!-- Términos -->
+                    <div class="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-950/30 p-4">
+                        <input id="terminos" name="terminos" type="checkbox"
+                               class="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-400" />
+                        <div>
+                            <p class="text-sm text-slate-200">
+                                Acepto los términos y condiciones *
+                            </p>
+                            <p id="msg-terminos" class="mt-1 text-xs text-slate-400"></p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                        <button type="button" id="btnLimpiar"
+                                class="rounded-xl border border-slate-700 bg-slate-950/30 px-5 py-3 text-sm font-medium text-slate-200 hover:bg-slate-950/60">
+                            Limpiar
+                        </button>
+
+                        <button type="submit" id="btnRegistrar"
+                                class="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400">
+                            Registrar
+                        </button>
+                    </div>
+
+                    <p class="text-xs text-slate-500">
+                        * Campos obligatorios. Validación en tiempo real con JavaScript ES6.
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/registro/app.js"></script>
+}

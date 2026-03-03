@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="PlataformaECommerce.Web/PlataformaECommerce.Web.csproj" Id="3a341ac6-f397-4306-85f6-7a9bd4c0131c" />
   <Project Path="PlataformaECommerce/PlataformaECommerce.csproj" />
 </Solution>
