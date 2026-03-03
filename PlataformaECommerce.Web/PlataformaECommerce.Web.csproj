@@ -7,9 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Pages\Registro\" />
     <Folder Include="wwwroot\css\registro\" />
-    <Folder Include="wwwroot\js\registro\" />
   </ItemGroup>
 
 </Project>

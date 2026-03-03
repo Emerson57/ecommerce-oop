@@ -1,151 +1,220 @@
-# Plataforma e-Commerce - Implementación de Clases Básicas
+#Plataforma e-Commerce – Arquitectura OOP + Validador Dinámico Web
+##1. Descripción General del Proyecto
+Este repositorio integra el desarrollo de dos asignaciones académicas correspondientes a diferentes materias del programa:
+- Asignación No. 2 – Programación Orientada a Objetos
+- Asignación No. 3 – Programming the Internet (Validador de Formularios Dinámico)
 
-## 1. Descripción del Proyecto
+El proyecto modela una plataforma e-Commerce básica implementada bajo principios de Programación Orientada a Objetos (POO) en C#, y complementa dicha arquitectura con una aplicación web que implementa un validador dinámico del lado del cliente utilizando JavaScript ES6+.
 
-Este proyecto corresponde a la Asignación No. 2 del curso de Programación Orientada a Objetos. Su propósito es implementar clases básicas que modelen una plataforma e-Commerce, aplicando principios fundamentales del paradigma orientado a objetos.
+La integración permite demostrar la relación entre:
+- Modelado de dominio (backend estructural)
+- Validación dinámica del lado del cliente
+- Interacción entre frontend y backend en aplicaciones modernas
 
-El sistema simula el comportamiento básico de una tienda en línea mediante la implementación de tres clases principales:
-
-- Producto
-- Usuario
-- CarritoCompra
-
-El desarrollo se realizó utilizando C# y .NET, enfocándose en la correcta definición de atributos, propiedades, constructores y métodos que permitan representar el dominio del negocio de manera estructurada.
-
----
-
-## 2. Objetivo Académico
-
-Aplicar los conceptos fundamentales de Programación Orientada a Objetos mediante:
-
+#PARTE I
+##Asignación No. 2 – Implementación de Clases Básicas (POO)
+##2. Objetivo Académico
+Aplicar los principios fundamentales de la Programación Orientada a Objetos mediante:
 - Definición de clases y objetos
-- Encapsulación de atributos
+- Encapsulación
 - Uso de propiedades (get/set)
 - Implementación de constructores
 - Manejo de colecciones (List<T>)
-- Aplicación del principio de responsabilidad única
+- Separación de responsabilidades
 
-El proyecto busca demostrar la correcta estructuración de clases que representen entidades reales dentro de un sistema e-Commerce.
-
----
-
-## 3. Tecnologías Utilizadas
-
-- Lenguaje de programación: C#
+##3. Tecnologías Utilizadas (Asignación 2)
+- Lenguaje: C#
 - Framework: .NET
-- Entorno de desarrollo: Visual Studio 2026
+- Entorno: Visual Studio 2026
 - Control de versiones: Git
 - Repositorio remoto: GitHub
 
----
-
-## 4. Estructura del Proyecto
-/PlataformaEcommerce
+##4. Estructura del Proyecto (POO)
+/PlataformaECommerce
 │
 ├── Dominio
-│ ├── Producto.cs
-│ ├── Usuario.cs
-│ ├── CarritoCompra.cs
+│   ├── Producto.cs
+│   ├── Usuario.cs
+│   ├── CarritoCompra.cs
 │
 ├── Program.cs
 └── README.md
 
-
-La carpeta **Dominio** contiene las clases que representan las entidades principales del sistema.  
-El archivo `Program.cs` permite ejecutar una simulación básica para validar el funcionamiento.
-
----
-
-## 5. Implementación de Clases
-
-### Clase Producto
-
+##5. Implementación de Clases
+###Clase Producto
 Representa los artículos disponibles para la venta.
 
-**Atributos principales:**
-- id
-- nombre
-- descripción
-- precio
-- stock
+Atributos:
+- Id
+- Nombre
+- Descripción
+- Precio
+- Stock
 
-**Funcionalidades:**
-- Constructor para inicializar valores
-- Propiedades para acceder y modificar atributos
-- Validación básica para evitar valores negativos en precio y stock
+Funcionalidades:
+- Constructor parametrizado
+- Validación para evitar valores negativos
+- Propiedades encapsuladas
 
----
+###Clase Usuario
+Modela la información básica del cliente.
 
-### Clase Usuario
+Atributos:
+- Id
+- Nombre
+- Correo electrónico
+- Contraseña
 
-Modela la información de los usuarios del sistema.
-
-**Atributos principales:**
-- id
-- nombre
-- correo electrónico
-- contraseña
-
-**Funcionalidades:**
-- Constructor para inicializar el objeto
-- Métodos para actualizar información
+Funcionalidades:
+- Constructor de inicialización
+- Métodos de actualización
 - Destructor opcional con fines académicos
 
----
+###Clase CarritoCompra
+Representa la colección de productos seleccionados por el usuario.
 
-### Clase CarritoCompra
-
-Representa el conjunto de productos seleccionados por el usuario.
-
-**Atributos principales:**
+Atributos:
 - Lista de productos
-- Total del carrito
+- Total calculado dinámicamente
 
-**Métodos implementados:**
+Métodos:
 - AgregarProducto()
 - RemoverProducto()
 - CalcularTotal()
 
-El total del carrito se calcula recorriendo la lista de productos almacenados.
+##6. Funcionamiento (POO)
+En Program.cs se realiza una simulación que:
+1. Crea productos.
+2. Instancia un carrito.
+3. Agrega y elimina productos.
+4. Calcula el total final.
 
----
+##7. Desafíos Encontrados (Asignación 2)
+- Separación correcta de responsabilidades.
+- Cálculo dinámico del total dentro de la clase correspondiente.
+- Manejo adecuado de colecciones.
 
-## 6. Funcionamiento de la Aplicación
+#PARTE II
+##Asignación No. 3 – Validador Dinámico del Lado del Cliente
+##8. Objetivo Académico
+Desarrollar un formulario de registro de usuario con validaciones dinámicas en tiempo real utilizando JavaScript ES6+, integrándolo a una aplicación web construida con .NET Razor Pages.
 
-En el archivo `Program.cs` se realiza una simulación básica del sistema:
+El propósito es demostrar:
+- Validación del lado del cliente
+- Uso de módulos ES6
+- Arquitectura limpia de JavaScript
+- Retroalimentación instantánea al usuario
+- Buenas prácticas modernas en desarrollo web
 
-1. Se crean instancias de productos.
-2. Se crea un carrito de compras.
-3. Se agregan productos al carrito.
-4. Se eliminan productos.
-5. Se calcula y muestra el total final en consola.
+##9. Tecnologías Utilizadas (Asignación 3)
+- ASP.NET Core Razor Pages (.NET 8)
+- JavaScript ES6 (módulos)
+- Tailwind CSS (CDN)
+- HTML5
+- CSS moderno
+- Git
 
-Este flujo permite verificar que las clases interactúan correctamente entre sí.
+##10. Estructura Web del Proyecto
+/PlataformaECommerce.Web
+│
+├── Pages
+│   └── Registro
+│       ├── Index.cshtml
+│       └── Index.cshtml.cs
+│
+├── wwwroot
+│   └── js
+│       └── registro
+│           ├── app.js
+│           ├── reglas.js
+│           ├── validadores.js
+│           ├── utilidades.js
+│           └── toast.js
 
----
+##11. Campos del Formulario
+El formulario de registro incluye:
+- Nombres
+- Apellidos
+- Correo electrónico
+- Usuario (alias)
+- Contraseña
+- Confirmación de contraseña
+- Fecha de nacimiento
+- Edad (calculada automáticamente)
+- Teléfono (opcional)
+- Aceptación de términos
 
-## 7. Desafíos Encontrados y Soluciones
+##12. Validaciones Implementadas
+Campo:				Validaciones Aplicadas
+Nombres:			Obligatorio, mínimo 2 caracteres, solo letras
+Apellidos:			Obligatorio, mínimo 2 caracteres, solo letras
+Correo:				Formato válido + simulación async de “ya registrado”
+Usuario:			4–16 caracteres, sin espacios, letras/números/_ .
+Contraseña:			Mínimo 8, mayúscula, número y símbolo
+Confirmación:		Debe coincidir con contraseña
+Fecha nacimiento:	No futura, mayor o igual a 18 años
+Edad:				Calculada automáticamente
+Teléfono:			Opcional, 10 dígitos
+Términos:			Obligatorio
 
-Uno de los principales desafíos fue definir correctamente la responsabilidad de cada clase sin mezclar lógica entre entidades. Inicialmente, el cálculo del total del carrito se encontraba fuera de la clase CarritoCompra. Sin embargo, aplicando el principio de responsabilidad única, se trasladó esta funcionalidad a la clase correspondiente.
+##13. Funcionalidades Dinámicas Implementadas
+- Validación en tiempo real (input, blur, change)
+- Motor de reglas centralizadas
+- Arquitectura modular ES6
+- Separación UI vs lógica
+- Barra de fortaleza de contraseña
+- Edad calculada automáticamente
+- Resumen de errores
+- Toast dinámico tipo SaaS
+- Estado de carga en botón "Registrar"
 
-Otro reto fue manejar adecuadamente la colección de productos dentro del carrito. Se resolvió utilizando la clase `List<Producto>` de C#, lo que permitió almacenar objetos y recorrerlos para calcular el total dinámicamente.
+##14. Arquitectura JavaScript
+El sistema de validación fue estructurado bajo principios de separación de responsabilidades:
+- utilidades.js → funciones auxiliares
+- validadores.js → reglas individuales
+- reglas.js → configuración centralizada por campo
+- ui.js → manipulación visual
+- app.js → orquestador principal
+- toast.js → sistema de notificaciones
+Esta estructura facilita mantenimiento y escalabilidad.
 
-Asimismo, se implementaron validaciones básicas para evitar inconsistencias como precios negativos o stock inválido.
+##15. Integración con el Proyecto OOP
+Aunque el validador funciona del lado del cliente, su diseño está preparado para integrarse con el modelo de dominio desarrollado en la Asignación 2.
+La arquitectura permite que el formulario pueda enviar posteriormente datos hacia una API REST basada en las clases Usuario y CarritoCompra.
 
----
+##16. Desafíos Encontrados (Asignación 3)
+1. Separar la lógica de validación de la manipulación visual.
+2. Implementar validación asíncrona simulada sin bloquear la interfaz.
+3. Calcular la edad dinámicamente evitando manipulación manual.
+4. Diseñar una arquitectura modular limpia con ES6.
+Las soluciones aplicadas permitieron construir un sistema mantenible, escalable y profesional.
 
-## 8. Cómo Ejecutar el Proyecto
+##17. Cómo Ejecutar el Proyecto
+###Parte Consola (Asignación 2)
+1. Clonar el repositorio:
+	git clone URL_DEL_REPOSITORIO
+2. Abrir en Visual Studio.
+3. Ejecutar PlataformaECommerce.
 
-1. Clonar el repositorio: git clone URL_DEL_REPOSITORIO
-2. Abrir la solución en Visual Studio 2026.
-3. Compilar el proyecto.
-4. Ejecutar la aplicación desde `Program.cs`.
+###Parte Web (Asignación 3)
+1. Abrir solución en Visual Studio.
+2. Establecer PlataformaECommerce.Web como proyecto de inicio.
+3. Ejecutar.
+4. Navegar a:
+	https://localhost:PUERTO/Registro
+	
+##18. Conclusión Académica
+El proyecto demuestra la aplicación práctica de:
+- Principios de Programación Orientada a Objetos.
+- Desarrollo de interfaces web modernas.
+- Validación dinámica del lado del cliente.
+- Buenas prácticas de arquitectura en JavaScript.
+- Separación de responsabilidades.
+- Diseño profesional de experiencia de usuario.
+La integración entre backend estructural (POO) y frontend dinámico (ES6) permite comprender la arquitectura completa de una aplicación web moderna.
 
----
-
-## 9. Autor
-
+##19. Autor
 Nombre del estudiante: Emerson Andrey Rodríguez Rincón
-Curso: Programación Orientada a Objetos  
-Asignación No. 2  
+Curso: Programación Orientada a Objetos / Programming the Internet
+Asignación No. 2 y Asignación No. 3
 Año: 2026
