@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
 using PlataformaECommerce.Dominio;
 
@@ -9,152 +8,173 @@ namespace PlataformaECommerce
     {
         static void Main(string[] args)
         {
-            // Para imprimir moneda en formato Colombia (COP) en consola.
+            // Configuración cultural para formato de moneda en Colombia (COP).
             CultureInfo.CurrentCulture = new CultureInfo("es-CO");
 
-            Console.Title = "Demo e-Commerce OOP - Asignación No. 2";
+            Console.Title = "Demo e-Commerce OOP - Asignación No. 3 (Herencia)";
 
             PrintHeader(
                 "Demo e-Commerce OOP",
-                "Pruebas de clases: Producto, Usuario, CarritoCompra",
-                "Asignación No. 2 - Implementación de clases básicas"
+                "Herencia y Polimorfismo: Productos y Usuarios",
+                "Asignación No. 3 - Extensión de funcionalidades mediante herencia"
             );
 
             try
             {
-                // ==========================================
-                // 1) CREAR PRODUCTOS (Prueba de constructor + propiedades)
-                // ==========================================
-                Section("1) Creación de Productos (constructor + propiedades)");
+                // ==========================================================
+                // 1) CREACIÓN DE PRODUCTOS DERIVADOS (HERENCIA)
+                // ==========================================================
+                Section("1) Creación de Productos Derivados (ProductoDigital / ProductoFisico)");
 
-                var productosCatalogo = new List<Producto>
-                {
-                    new Producto(1, "Mouse Logitech", "Mouse inalámbrico", 80000m, 10),
-                    new Producto(2, "Teclado Mecánico", "Switch Blue, retroiluminado", 180000m, 5),
-                    new Producto(3, "Audífonos", "Cancelación de ruido", 120000m, 8)
-                };
+                // Producto digital (descargable)
+                var ebook = new ProductoDigital(
+                    id: 1,
+                    nombre: "Ebook: Guía de C#",
+                    descripcion: "Aprende C# desde cero con ejemplos prácticos.",
+                    precio: 29900m,
+                    stock: 50,             // En digital puede interpretarse como licencias/cupos.
+                    formatoArchivo: "PDF",
+                    tamanoMB: 12.5m
+                );
 
-                PrintProductCatalog(productosCatalogo);
+                // Producto físico (requiere logística de envío)
+                var mouse = new ProductoFisico(
+                    id: 2,
+                    nombre: "Mouse Gamer",
+                    descripcion: "Mouse con DPI ajustable y retroiluminación.",
+                    precio: 79900m,
+                    stock: 15,
+                    pesoKg: 0.18m,
+                    altoCm: 4.0m,
+                    anchoCm: 6.5m,
+                    largoCm: 12.0m
+                );
 
-                // ==========================================
-                // 2) CREAR USUARIO (Prueba de constructor + getters/setters)
-                // ==========================================
-                Section("2) Creación de Usuario (constructor + gestión de datos)");
+                PrintProduct(ebook);
+                PrintProduct(mouse);
 
-                var usuario = new Usuario(1, "Juan Pérez", "juan@email.com", "12345");
-                PrintUser(usuario);
+                // ==========================================================
+                // 2) CREACIÓN DE USUARIOS DERIVADOS (HERENCIA)
+                // ==========================================================
+                Section("2) Creación de Usuarios Derivados (Cliente / Administrador)");
 
-                // Prueba de modificación de datos del usuario
-                Info("Actualizando nombre del usuario para evidenciar setters...");
-                usuario.Nombre = "Juan Pérez Gómez";
-                PrintUser(usuario);
+                var cliente = new Cliente(
+                    id: 101,
+                    nombre: "Juan Pérez",
+                    correo: "juan@email.com",
+                    contrasena: "123456"
+                );
 
-                // ==========================================
-                // 3) CREAR CARRITO (Prueba de constructor + total inicial)
-                // ==========================================
-                Section("3) Creación de CarritoCompra (constructor + total inicial)");
+                var admin = new Administrador(
+                    id: 201,
+                    nombre: "Admin Operaciones",
+                    correo: "admin@techmarket.com",
+                    contrasena: "Admin123",
+                    area: "Inventario"
+                );
+
+                // Mostrar perfil (polimorfismo: cada clase define su rol)
+                Info("Perfil Cliente:");
+                Console.WriteLine(cliente.MostrarPerfil());
+
+                Info("Perfil Administrador:");
+                Console.WriteLine(admin.MostrarPerfil());
+
+                // ==========================================================
+                // 3) CLIENTE: PREFERENCIAS + HISTORIAL
+                // ==========================================================
+                Section("3) Cliente: Preferencias e Historial de Compras");
+
+                Info("Agregando preferencias al cliente...");
+                cliente.AgregarPreferencia("Gaming");
+                cliente.AgregarPreferencia("Tecnología");
+                Success("Preferencias agregadas.");
+
+                Info("Registrando compras (IDs de pedidos)...");
+                cliente.AgregarCompra(5001);
+                cliente.AgregarCompra(5002);
+                Success("Compras registradas.");
+
+                Console.WriteLine(cliente.MostrarPerfil());
+                Console.WriteLine(cliente.VerHistorial());
+
+                // ==========================================================
+                // 4) CARRITO: POLIMORFISMO (List<Producto> con derivados)
+                // ==========================================================
+                Section("4) CarritoCompra: Polimorfismo con ProductoDigital/ProductoFisico");
 
                 var carrito = new CarritoCompra();
                 Success("Carrito creado correctamente.");
-                Info($"Total inicial del carrito: {FormatMoney(carrito.Total)}");
+                Info($"Total inicial: {FormatMoney(carrito.Total)}");
 
-                // ==========================================
-                // 4) AGREGAR PRODUCTOS (Pruebas de AgregarProducto + CalcularTotal)
-                // ==========================================
-                Section("4) Agregar productos al carrito (AgregarProducto + CalcularTotal)");
+                Info("Agregando productos derivados al carrito...");
+                carrito.AgregarProducto(ebook);
+                Success($"Agregado: {ebook.Nombre}");
 
-                AddToCart(carrito, productosCatalogo[0]); // Mouse
-                AddToCart(carrito, productosCatalogo[1]); // Teclado
-                AddToCart(carrito, productosCatalogo[2]); // Audífonos
+                carrito.AgregarProducto(mouse);
+                Success($"Agregado: {mouse.Nombre}");
 
-                Info("Contenido del carrito después de agregar:");
-                PrintCart(carrito);
+                Info($"Items: {carrito.CantidadItems}");
+                Info($"Total carrito: {FormatMoney(carrito.Total)}");
 
-                // ==========================================
-                // 5) REMOVER PRODUCTOS (Pruebas de RemoverProducto + CalcularTotal)
-                // ==========================================
-                Section("5) Remover un producto del carrito (RemoverProducto + total actualizado)");
-
-                Info("Intentando remover el producto con ID = 2 (Teclado Mecánico)...");
-                bool removido = carrito.RemoverProducto(2);
-                if (removido) Success("Producto removido correctamente.");
-                else Warning("No se removió el producto (no encontrado).");
-
-                Info("Contenido del carrito después de remover:");
-                PrintCart(carrito);
-
-                // ==========================================
-                // 6) PRUEBA DE REMOVER INEXISTENTE (evidencia de control de casos)
-                // ==========================================
-                Section("6) Prueba: Remover producto inexistente (caso de error controlado)");
-
-                Info("Intentando remover el producto con ID = 999 (no existe)...");
-                bool removidoInexistente = carrito.RemoverProducto(999);
-                if (removidoInexistente)
-                    Warning("Se removió algo inesperadamente. Revisa tu lógica.");
-                else
-                    Success("Correcto: el producto no existía y no se removió nada.");
-
-                // ==========================================
-                // 7) PRUEBA DE ACTUALIZAR PRODUCTO (precio/stock) Y RECALCULAR
-                // ==========================================
-                Section("7) Prueba: Modificar precio/stock de un producto y recalcular");
-
-                Info("Actualizando precio y stock del Mouse (ID = 1) para evidenciar setters...");
-                var mouse = productosCatalogo[0];
-
-                mouse.Precio = 90000m;
-                mouse.Stock = 7;
-
-                Success("Producto actualizado:");
-                PrintSingleProduct(mouse);
-
-                Info("Recalculando total del carrito...");
-                carrito.CalcularTotal();
-                Info($"Total del carrito (recalculado): {FormatMoney(carrito.Total)}");
-
-                // ==========================================
-                // 8) PRUEBA DE VALIDACIONES (si tu clase lanza excepciones)
-                // ==========================================
-                Section("8) Pruebas de validación (si aplican): precio/stock inválidos");
-
-                Info("Intentando crear un producto con precio negativo para validar control...");
-                try
+                Console.WriteLine();
+                Console.WriteLine("Detalle (Descripción detallada - método virtual sobrescrito):");
+                foreach (var p in carrito.Productos)
                 {
-                    var invalido = new Producto(99, "Producto inválido", "Prueba", -100m, 1);
-                    Warning("Se creó un producto con precio negativo. Si no tienes validación, está bien, pero podrías mejorarla.");
-                }
-                catch (Exception ex)
-                {
-                    Success($"Validación correcta: se evitó crear el producto. Mensaje: {ex.Message}");
+                    Console.WriteLine($" - {p.ObtenerDescripcionDetallada()}");
                 }
 
-                Info("Intentando crear un producto con stock negativo para validar control...");
-                try
-                {
-                    var invalido2 = new Producto(100, "Producto inválido 2", "Prueba", 1000m, -5);
-                    Warning("Se creó un producto con stock negativo. Si no tienes validación, está bien, pero podrías mejorarla.");
-                }
-                catch (Exception ex)
-                {
-                    Success($"Validación correcta: se evitó crear el producto. Mensaje: {ex.Message}");
-                }
+                // ==========================================================
+                // 5) ADMIN: GESTIÓN DE INVENTARIO (AJUSTE DE STOCK)
+                // ==========================================================
+                Section("5) Administrador: Gestión de Inventario (actualizar stock)");
 
-                // ==========================================
-                // 9) RESUMEN FINAL (ideal para captura final)
-                // ==========================================
-                Section("9) Resumen final de la demostración");
+                Info($"Stock actual del producto '{mouse.Nombre}': {mouse.Stock}");
+                Info("Administrador ajusta el stock del Mouse a 20...");
 
-                Console.WriteLine($"Cliente: {usuario.Nombre} ({usuario.Correo})");
-                Console.WriteLine($"Cantidad de productos en carrito: {GetCartCount(carrito)}");
-                Console.WriteLine($"Total final: {FormatMoney(carrito.Total)}");
+                admin.GestionarInventario(mouse, nuevoStock: 20);
 
-                PrintFooter("Fin de la demostración");
+                Success($"Stock actualizado. Nuevo stock de '{mouse.Nombre}': {mouse.Stock}");
+
+                // ==========================================================
+                // 6) ADMIN: PROMOCIÓN (DESCUENTO) Y EFECTO EN EL CARRITO
+                // ==========================================================
+                Section("6) Administrador: Establecer promoción y evidenciar impacto en total");
+
+                Info($"Precio actual del Ebook: {FormatMoney(ebook.Precio)}");
+                Info("Administrador aplica promoción del 10% al Ebook...");
+
+                admin.EstablecerPromocion(ebook, porcentajeDescuento: 10m);
+
+                Success($"Nuevo precio del Ebook: {FormatMoney(ebook.Precio)}");
+
+                // El carrito recalcula automáticamente al agregar/remover, pero aquí ya estaba agregado.
+                // En este modelo básico, el total depende del precio actual del objeto Producto.
+                // Para evidenciarlo, vamos a quitar y volver a agregar el Ebook, o simplemente mostrar el total
+                // ya que el total se recalcula por cambios. Para dejarlo perfecto, recalculamos:
+                Info("Actualizando total del carrito para reflejar el nuevo precio...");
+                // Como RecalcularTotal es privado, la forma correcta es hacer un cambio controlado:
+                carrito.RemoverProducto(ebook.Id);
+                carrito.AgregarProducto(ebook);
+
+                Success($"Total actualizado del carrito: {FormatMoney(carrito.Total)}");
+
+                // ==========================================================
+                // 7) RESUMEN FINAL
+                // ==========================================================
+                Section("7) Resumen final (captura recomendada)");
+
+                Console.WriteLine($"Cliente: {cliente.Nombre} | Correo: {cliente.Correo} | Rol: {cliente.ObtenerRol()}");
+                Console.WriteLine($"Administrador: {admin.Nombre} | Correo: {admin.Correo} | Rol: {admin.ObtenerRol()}");
+                Console.WriteLine($"Items en carrito: {carrito.CantidadItems}");
+                Console.WriteLine($"Total final carrito: {FormatMoney(carrito.Total)}");
+
+                PrintFooter("Fin de la demostración - Asignación No. 3 (Herencia)");
             }
             catch (Exception ex)
             {
                 Console.WriteLine();
-                Error("Ocurrió un error inesperado en la demo.");
+                Error("Ocurrió un error inesperado durante la demo.");
                 Console.WriteLine(ex);
             }
 
@@ -164,7 +184,7 @@ namespace PlataformaECommerce
         }
 
         // ==========================================================
-        // Helpers (impresión profesional en consola)
+        // Helpers: salida a consola
         // ==========================================================
 
         static void PrintHeader(string title, string subtitle, string assignment)
@@ -204,61 +224,11 @@ namespace PlataformaECommerce
             return value.ToString("C0", CultureInfo.CurrentCulture);
         }
 
-        static void PrintProductCatalog(List<Producto> products)
+        /// Imprime un producto usando ToString() y la descripción detallada.
+        static void PrintProduct(Producto p)
         {
-            Console.WriteLine("Catálogo de productos:");
-            foreach (var p in products)
-            {
-                PrintSingleProduct(p);
-            }
-        }
-
-        static void PrintSingleProduct(Producto p)
-        {
-            Console.WriteLine($" - ID: {p.Id} | {p.Nombre} | {FormatMoney(p.Precio)} | Stock: {p.Stock} | Desc: {p.Descripcion}");
-        }
-
-        static void PrintUser(Usuario u)
-        {
-            Console.WriteLine($"Usuario -> ID: {u.Id} | Nombre: {u.Nombre} | Correo: {u.Correo} | Password: {"*".PadLeft(u.Contrasena?.Length ?? 4, '*')}");
-        }
-
-        static void AddToCart(CarritoCompra carrito, Producto p)
-        {
-            carrito.AgregarProducto(p);
-            Success($"Producto agregado: {p.Nombre}");
-            carrito.CalcularTotal();
-            Info($"Total actual: {FormatMoney(carrito.Total)}");
-        }
-
-        static void PrintCart(CarritoCompra carrito)
-        {
-
-            var productos = GetCartProducts(carrito);
-
-            if (productos.Count == 0)
-            {
-                Warning("El carrito está vacío.");
-                return;
-            }
-
-            Console.WriteLine("Productos en el carrito:");
-            foreach (var p in productos)
-            {
-                Console.WriteLine($" - {p.Id} | {p.Nombre} | {FormatMoney(p.Precio)}");
-            }
-
-            Info($"Total carrito: {FormatMoney(carrito.Total)}");
-        }
-
-        static IReadOnlyList<Producto> GetCartProducts(CarritoCompra carrito)
-        {
-            return carrito.Productos;
-        }
-
-        static int GetCartCount(CarritoCompra carrito)
-        {
-            return GetCartProducts(carrito).Count;
+            Console.WriteLine($" - {p}");
+            Console.WriteLine($"   Detalle: {p.ObtenerDescripcionDetallada()}");
         }
     }
 }

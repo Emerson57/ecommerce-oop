@@ -94,9 +94,130 @@ En Program.cs se realiza una simulación que:
 - Cálculo dinámico del total dentro de la clase correspondiente.
 - Manejo adecuado de colecciones.
 
+## Asignación No. 3 (POO) – Extensión de Funcionalidades mediante Herencia
+## 8. Objetivo Académico (Herencia)
+Extender el modelo de dominio e-Commerce aplicando herencia para:
+- Generalizar funcionalidades comunes en clases base.
+- Especializar comportamientos y atributos en clases derivadas.
+- Evidenciar polimorfismo al manipular objetos derivados mediante referencias a clases base.
+
+La implementación se realizó de manera conceptual (sin base de datos), priorizando buenas prácticas de diseño orientado a dominio y código profesional con validaciones.
+
+## 9. Tecnologías Utilizadas (Asignación 3 - POO Herencia)
+- Lenguaje: C#
+- Framework: .NET
+- Entorno: Visual Studio 2026
+- Control de versiones: Git
+- Repositorio remoto: GitHub
+
+## 10. Estructura del Dominio (Actualizada con Herencia)
+/PlataformaECommerce
+│
+├── Dominio
+│   ├── Producto.cs                (Clase base abstracta)
+│   ├── ProductoDigital.cs         (Derivada)
+│   ├── ProductoFisico.cs          (Derivada)
+│   ├── Usuario.cs                 (Clase base abstracta)
+│   ├── Cliente.cs                 (Derivada)
+│   ├── Administrador.cs           (Derivada)
+│   ├── CarritoCompra.cs           (Soporta polimorfismo con List<Producto>)
+│
+├── Program.cs                     (Demo completa Asignación 3 - Herencia)
+└── README.md
+
+## 11. Herencia aplicada en Productos
+### 11.1 Producto (Clase base abstracta)
+La clase Producto se convirtió en abstracta para representar el comportamiento común del catálogo:
+- Id, Nombre, Descripción, Precio, Stock
+- Métodos de negocio: AumentarStock(), DisminuirStock(), ActualizarPrecio()
+- Método virtual: ObtenerDescripcionDetallada()
+
+Este enfoque permite reutilización de código y asegura que los productos concretos se creen a través de clases derivadas.
+
+### 11.2 ProductoDigital : Producto
+Se implementó una clase derivada para productos descargables o digitales. Atributos adicionales:
+- FormatoArchivo (ej: PDF, EPUB, MP4)
+- TamanoMB
+
+Incluye validaciones, constructor completo y sobrescritura de ObtenerDescripcionDetallada() para enriquecer la información mostrada.
+
+### 11.3 ProductoFisico : Producto
+Se implementó una clase derivada para productos que requieren logística. Atributos adicionales:
+- PesoKg
+- AltoCm, AnchoCm, LargoCm
+- VolumenCm3 (cálculo útil para logística)
+
+Incluye validaciones, constructor completo y sobrescritura de ObtenerDescripcionDetallada().
+
+## 12. Herencia aplicada en Usuarios
+### 12.1 Usuario (Clase base abstracta)
+La clase Usuario se convirtió en abstracta para establecer un modelo profesional del dominio:
+- Id, Nombre, Correo, Contraseña
+- Método común: ActualizarDatos()
+- Métodos virtuales: ObtenerRol(), MostrarPerfil()
+
+Incluye validaciones de correo y contraseña (nota: en producción se usaría hash de contraseña).
+
+### 12.2 Cliente : Usuario
+Se implementó Cliente con atributos y métodos requeridos:
+- HistorialCompras (List<int> con IDs de pedidos)
+- Preferencias (HashSet<string> para evitar duplicados)
+- Métodos: AgregarCompra(), VerHistorial(), AgregarPreferencia()
+
+Se sobrescriben ObtenerRol() y MostrarPerfil() para demostrar polimorfismo.
+
+### 12.3 Administrador : Usuario
+Se implementó Administrador con capacidades de gestión:
+- GestionarInventario(Producto producto, int nuevoStock)
+- EstablecerPromocion(Producto producto, decimal porcentajeDescuento)
+
+El enfoque es conceptual: sin BD, aplicando lógica y validaciones sobre objetos en memoria.
+
+## 13. Polimorfismo evidenciado en CarritoCompra
+CarritoCompra mantiene una colección List<Producto>, por lo cual puede almacenar:
+- ProductoDigital
+- ProductoFisico
+
+Esto demuestra polimorfismo al operar sobre productos derivados mediante la clase base Producto, sin cambiar la lógica del carrito.
+
+## 14. Cómo ejecutar la Demo (Asignación 3 - Herencia)
+1. Clonar el repositorio:
+   git clone URL_DEL_REPOSITORIO
+2. Abrir la solución en Visual Studio.
+3. Establecer el proyecto PlataformaECommerce como inicio.
+4. Ejecutar (Ctrl + F5).
+5. Tomar capturas en consola, especialmente de:
+   - Creación de productos derivados
+   - Creación de usuarios derivados
+   - Carrito con productos digitales y físicos
+   - Gestión de inventario y promoción por administrador
+   - Preferencias e historial en cliente
+
+## 15. Capturas (evidencia requerida)
+Agrega aquí tus capturas en Markdown, por ejemplo:
+
+### 15.1 Demo - Productos y Carrito
+![Demo productos y carrito](ruta/imagen1.png)
+
+### 15.2 Demo - Administrador y Cliente
+![Demo roles y operaciones](ruta/imagen2.png)
+
+## 16. Desafíos Encontrados y Soluciones (Asignación 3 - Herencia)
+1. **Conversión de clases base a abstract sin romper el proyecto**
+   - Solución: se ajustó Program.cs para instanciar únicamente clases derivadas (ProductoDigital/ProductoFisico y Cliente/Administrador).
+
+2. **Encapsulación y cambios de stock sin exponer setters públicos**
+   - Solución: el Administrador gestiona stock usando métodos de negocio (AumentarStock/DisminuirStock) en lugar de modificar Stock directamente.
+
+3. **Evitar duplicados en preferencias del cliente**
+   - Solución: se usó HashSet<string> con comparación sin distinguir mayúsculas/minúsculas.
+
+4. **Demostrar impacto de promociones en el total del carrito**
+   - Solución: se aplicó descuento con EstablecerPromocion() y se evidenció el cambio en el total mediante una operación controlada (remover y re-agregar).
+
 # PARTE II
 ## Asignación No. 3 – Validador Dinámico del Lado del Cliente
-## 8. Objetivo Académico
+## 17. Objetivo Académico
 Desarrollar un formulario de registro de usuario con validaciones dinámicas en tiempo real utilizando JavaScript ES6+, integrándolo a una aplicación web construida con .NET Razor Pages.
 
 El propósito es demostrar:
@@ -106,7 +227,7 @@ El propósito es demostrar:
 - Retroalimentación instantánea al usuario
 - Buenas prácticas modernas en desarrollo web
 
-## 9. Tecnologías Utilizadas (Asignación 3)
+## 18. Tecnologías Utilizadas (Asignación 3)
 - ASP.NET Core Razor Pages (.NET 8)
 - JavaScript ES6 (módulos)
 - Tailwind CSS (CDN)
@@ -114,7 +235,7 @@ El propósito es demostrar:
 - CSS moderno
 - Git
 
-## 10. Estructura Web del Proyecto
+## 19. Estructura Web del Proyecto
 /PlataformaECommerce.Web
 │
 ├── Pages
@@ -131,7 +252,7 @@ El propósito es demostrar:
 │           ├── utilidades.js
 │           └── toast.js
 
-## 11. Campos del Formulario
+## 20. Campos del Formulario
 El formulario de registro incluye:
 - Nombres
 - Apellidos
@@ -144,7 +265,7 @@ El formulario de registro incluye:
 - Teléfono (opcional)
 - Aceptación de términos
 
-## 12. Validaciones Implementadas
+## 21. Validaciones Implementadas
 Campo:				Validaciones Aplicadas
 Nombres:			Obligatorio, mínimo 2 caracteres, solo letras
 Apellidos:			Obligatorio, mínimo 2 caracteres, solo letras
@@ -157,7 +278,7 @@ Edad:				Calculada automáticamente
 Teléfono:			Opcional, 10 dígitos
 Términos:			Obligatorio
 
-## 13. Funcionalidades Dinámicas Implementadas
+## 22. Funcionalidades Dinámicas Implementadas
 - Validación en tiempo real (input, blur, change)
 - Motor de reglas centralizadas
 - Arquitectura modular ES6
@@ -168,7 +289,7 @@ Términos:			Obligatorio
 - Toast dinámico tipo SaaS
 - Estado de carga en botón "Registrar"
 
-## 14. Arquitectura JavaScript
+## 23. Arquitectura JavaScript
 El sistema de validación fue estructurado bajo principios de separación de responsabilidades:
 - utilidades.js → funciones auxiliares
 - validadores.js → reglas individuales
@@ -178,18 +299,18 @@ El sistema de validación fue estructurado bajo principios de separación de res
 - toast.js → sistema de notificaciones
 Esta estructura facilita mantenimiento y escalabilidad.
 
-## 15. Integración con el Proyecto OOP
+## 24. Integración con el Proyecto OOP
 Aunque el validador funciona del lado del cliente, su diseño está preparado para integrarse con el modelo de dominio desarrollado en la Asignación 2.
 La arquitectura permite que el formulario pueda enviar posteriormente datos hacia una API REST basada en las clases Usuario y CarritoCompra.
 
-## 16. Desafíos Encontrados (Asignación 3)
+## 25. Desafíos Encontrados (Asignación 3)
 1. Separar la lógica de validación de la manipulación visual.
 2. Implementar validación asíncrona simulada sin bloquear la interfaz.
 3. Calcular la edad dinámicamente evitando manipulación manual.
 4. Diseñar una arquitectura modular limpia con ES6.
 Las soluciones aplicadas permitieron construir un sistema mantenible, escalable y profesional.
 
-## 17. Cómo Ejecutar el Proyecto
+## 26. Cómo Ejecutar el Proyecto
 ### Parte Consola (Asignación 2)
 1. Clonar el repositorio:
 	git clone URL_DEL_REPOSITORIO
@@ -203,7 +324,7 @@ Las soluciones aplicadas permitieron construir un sistema mantenible, escalable 
 4. Navegar a:
 	https://localhost:PUERTO/Registro
 	
-## 18. Conclusión Académica
+## 27. Conclusión Académica
 El proyecto demuestra la aplicación práctica de:
 - Principios de Programación Orientada a Objetos.
 - Desarrollo de interfaces web modernas.
@@ -213,7 +334,7 @@ El proyecto demuestra la aplicación práctica de:
 - Diseño profesional de experiencia de usuario.
 La integración entre backend estructural (POO) y frontend dinámico (ES6) permite comprender la arquitectura completa de una aplicación web moderna.
 
-## 19. Autor
+## 28. Autor
 Nombre del estudiante: Emerson Andrey Rodríguez Rincón
 Curso: Programación Orientada a Objetos / Programming the Internet
 Asignación No. 2 y Asignación No. 3
