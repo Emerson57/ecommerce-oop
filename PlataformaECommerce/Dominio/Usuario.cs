@@ -1,59 +1,88 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Text.RegularExpressions;
 
 namespace PlataformaECommerce.Dominio
 {
-    public class Usuario
+    public abstract class Usuario
     {
-        // Campos privados (encapsulación)
+        #region Campos privados (estado interno)
+
         private int _id;
         private string _nombre;
         private string _correo;
         private string _contrasena;
 
-        // Propiedades públicas
+        #endregion
+
+        #region Propiedades públicas
+
+        /// Identificador único del usuario.
         public int Id
         {
-            get { return _id; }
-            private set { _id = value; }
+            get => _id;
+            private set
+            {
+                if (value <= 0)
+                    throw new ArgumentException("El Id del usuario debe ser mayor que cero.", nameof(Id));
+
+                _id = value;
+            }
         }
 
+        /// Nombre completo del usuario.
         public string Nombre
         {
-            get { return _nombre; }
-            set
+            get => _nombre;
+            protected set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("El nombre no puede estar vacío.");
-                _nombre = value;
+                    throw new ArgumentException("El nombre no puede estar vacío.", nameof(Nombre));
+
+                if (value.Length > 100)
+                    throw new ArgumentException("El nombre no puede superar los 100 caracteres.", nameof(Nombre));
+
+                _nombre = value.Trim();
             }
         }
 
+        /// Correo electrónico del usuario.
         public string Correo
         {
-            get { return _correo; }
-            set
+            get => _correo;
+            protected set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("El correo no puede estar vacío.");
-                _correo = value;
+                    throw new ArgumentException("El correo no puede estar vacío.", nameof(Correo));
+
+                if (!Regex.IsMatch(value, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+                    throw new ArgumentException("El formato del correo no es válido.", nameof(Correo));
+
+                _correo = value.Trim().ToLower();
             }
         }
 
-        public string Contrasena
+        /// Contraseña del usuario.
+        protected string Contrasena
         {
-            get { return _contrasena; }
+            get => _contrasena;
             set
             {
                 if (string.IsNullOrWhiteSpace(value))
-                    throw new ArgumentException("La contraseña no puede estar vacía.");
+                    throw new ArgumentException("La contraseña no puede estar vacía.", nameof(Contrasena));
+
+                if (value.Length < 6)
+                    throw new ArgumentException("La contraseña debe tener al menos 6 caracteres.", nameof(Contrasena));
+
                 _contrasena = value;
             }
         }
 
-        // Constructor
-        public Usuario(int id, string nombre, string correo, string contrasena)
+        #endregion
+
+        #region Constructor
+
+        /// Constructor base para inicializar los datos fundamentales del usuario.
+        protected Usuario(int id, string nombre, string correo, string contrasena)
         {
             Id = id;
             Nombre = nombre;
@@ -61,18 +90,42 @@ namespace PlataformaECommerce.Dominio
             Contrasena = contrasena;
         }
 
-        // Método para mostrar información básica
-        public void MostrarInformacion()
+        #endregion
+
+        #region Comportamiento común
+
+        /// Permite actualizar los datos básicos del usuario.
+        public virtual void ActualizarDatos(string nombre, string correo)
         {
-            Console.WriteLine($"ID: {Id}");
-            Console.WriteLine($"Nombre: {Nombre}");
-            Console.WriteLine($"Correo: {Correo}");
+            if (!string.IsNullOrWhiteSpace(nombre))
+                Nombre = nombre;
+
+            if (!string.IsNullOrWhiteSpace(correo))
+                Correo = correo;
         }
 
-        // Destructor
-        ~Usuario()
+        /// Devuelve el rol del usuario dentro del sistema.
+        public virtual string ObtenerRol()
         {
-            Console.WriteLine($"Usuario {Nombre} eliminado de memoria.");
+            return "Usuario";
         }
+
+        /// Devuelve una representación legible del perfil del usuario.
+        public virtual string MostrarPerfil()
+        {
+            return $"ID: {Id} | Nombre: {Nombre} | Correo: {Correo} | Rol: {ObtenerRol()}";
+        }
+
+        #endregion
+
+        #region Métodos utilitarios
+
+        /// Representación corta del usuario para logs o debugging.
+        public override string ToString()
+        {
+            return $"{Nombre} ({Correo})";
+        }
+
+        #endregion
     }
 }
