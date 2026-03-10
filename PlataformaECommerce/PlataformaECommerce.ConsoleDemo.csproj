@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Aplicacion\" />
+    <ProjectReference Include="..\PlataformaECommerce.Domain\PlataformaECommerce.Domain.csproj" />
   </ItemGroup>
 
 </Project>

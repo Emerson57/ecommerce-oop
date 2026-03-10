@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Globalization;
-using PlataformaECommerce.Dominio;
+using PlataformaECommerce.Domain.Entities;
 
 namespace PlataformaECommerce
 {
