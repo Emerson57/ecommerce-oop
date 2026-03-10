@@ -1,4 +1,7 @@
 <Solution>
+  <Project Path="PlataformaECommerce.Application/PlataformaECommerce.Application.csproj" Id="5cf4ec58-0dea-4e45-9b70-c8a43d6eb500" />
+  <Project Path="PlataformaECommerce.Domain/PlataformaECommerce.Domain.csproj" Id="1382beba-0e1c-4a8e-9be6-a78ccbb3509a" />
+  <Project Path="PlataformaECommerce.Infrastructure/PlataformaECommerce.Infrastructure.csproj" Id="98803db5-379c-40ed-9d7e-2a18c74bd39c" />
   <Project Path="PlataformaECommerce.Web/PlataformaECommerce.Web.csproj" Id="3a341ac6-f397-4306-85f6-7a9bd4c0131c" />
-  <Project Path="PlataformaECommerce/PlataformaECommerce.csproj" />
+  <Project Path="PlataformaECommerce/PlataformaECommerce.ConsoleDemo.csproj" />
 </Solution>

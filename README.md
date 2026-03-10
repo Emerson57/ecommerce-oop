@@ -339,3 +339,203 @@ Nombre del estudiante: Emerson Andrey Rodríguez Rincón
 Curso: Programación Orientada a Objetos / Programming the Internet
 Asignación No. 2 y Asignación No. 3
 Año: 2026
+
+
+# PARTE III
+## Asignación No. 5 – Desarrollo del Backend de la Plataforma e-Commerce
+## 29. Objetivo Académico
+Esta asignación tiene como objetivo diseñar e implementar el backend de la plataforma e-Commerce utilizando una arquitectura profesional basada en capas y principios de diseño modernos.
+
+El sistema expone una API REST que permite gestionar productos del catálogo mediante operaciones CRUD (Crear, Leer, Actualizar y Eliminar), integrando múltiples tecnologías de almacenamiento y aplicando buenas prácticas de ingeniería de software.
+
+Los principales objetivos técnicos fueron:
+- Diseñar una arquitectura escalable basada en Domain Driven Design (DDD).
+- Implementar una API REST profesional en .NET.
+- Integrar bases de datos SQL y NoSQL.
+- Aplicar separación de responsabilidades mediante capas.
+- Implementar validación y manejo de errores en el API.
+
+## 30. Tecnologías Utilizadas (Asignación 5)
+Backend
+- .NET 8
+- ASP.NET Core Web API
+- C#
+- Entity Framework Core
+
+Bases de datos
+- SQL Server (Base de datos relacional)
+- MongoDB (auditoría de operaciones)
+
+Arquitectura
+- Domain Driven Design (DDD)
+- Clean Architecture
+- Repository Pattern
+- Unit of Work
+- Herramientas
+- Visual Studio
+- Postman
+- Git
+- GitHub
+
+## 31. Arquitectura del Sistema
+La solución fue estructurada en múltiples capas siguiendo principios de arquitectura limpia.
+
+/PlataformaECommerce
+│
+├── PlataformaECommerce.Domain
+│   ├── Entities
+│   │   ├── Producto.cs
+│   │   ├── ProductoDigital.cs
+│   │   ├── ProductoFisico.cs
+│   │   ├── Usuario.cs
+│   │   ├── Cliente.cs
+│   │   ├── Administrador.cs
+│   │   └── CarritoCompra.cs
+│
+├── PlataformaECommerce.Application
+│   ├── DTOs
+│   ├── Interfaces
+│   └── Services
+│
+├── PlataformaECommerce.Infrastructure
+│   ├── Persistence
+│   │   ├── ECommerceDbContext.cs
+│   │   ├── Configurations
+│   │   └── Entities
+│   ├── Repositories
+│   └── UnitOfWork
+│
+├── PlataformaECommerce.Web
+│   ├── Controllers
+│   │   └── ProductsController.cs
+│   └── Middlewares
+│       └── ExceptionHandlingMiddleware.cs
+
+Esta arquitectura permite separar claramente:
+- Dominio del negocio
+- Lógica de aplicación
+- Infraestructura de datos
+- API web
+
+## 32. Base de Datos SQL
+El sistema utiliza SQL Server como base de datos relacional para almacenar la información principal del catálogo de productos.
+
+Entity Framework Core fue utilizado como ORM para mapear las entidades del dominio hacia tablas relacionales.
+
+La tabla principal implementada es:
+Productos
+
+Campos principales:
+- Id
+- Nombre
+- Descripcion
+- Precio
+- Stock
+- TipoProducto
+- FormatoArchivo
+- TamanoMB
+- PesoKg
+- AltoCm
+- AnchoCm
+- LargoCm
+- FechaCreacion
+- FechaActualizacion
+
+La base de datos es creada mediante migraciones de Entity Framework Core, garantizando control de versiones del esquema.
+
+## 33. Integración con Base de Datos NoSQL
+Para complementar el almacenamiento relacional, el sistema implementa una base de datos MongoDB destinada a registrar auditoría de operaciones.
+
+Cada vez que se crea o actualiza un producto, se registra un evento en MongoDB con información como:
+- Tipo de operación
+- Identificador del producto
+- Fecha de ejecución
+- Datos relevantes de la operación
+
+Este enfoque permite separar:
+- datos transaccionales → SQL Server
+- datos de auditoría y eventos → MongoDB
+
+Una práctica común en arquitecturas modernas basadas en microservicios.
+
+## 34. API REST Implementada
+La API REST expone endpoints para la gestión de productos.
+
+Endpoints principales:
+
+Método		Endpoint			Descripción
+GET			/api/products		Obtener todos los productos
+GET			/api/products/{id}	Obtener un producto por id
+POST		/api/products		Crear un producto
+PUT			/api/products/{id}	Actualizar un producto
+DELETE		/api/products/{id}	Eliminar un producto
+
+Todos los endpoints fueron probados exitosamente mediante Postman.
+
+## 35. Validación y Manejo de Errores
+La API implementa validación robusta mediante:
+- DataAnnotations en DTOs
+- Validación automática con [ApiController]
+- Middleware global de manejo de excepciones
+
+Esto permite devolver respuestas HTTP claras y consistentes.
+
+Ejemplo de respuesta de error:
+
+{
+  "mensaje": "La solicitud contiene errores de validación",
+  "errores": {
+    "Nombre": [
+      "El nombre del producto es obligatorio"
+    ]
+  }
+}
+
+## 36. Evidencia de Funcionamiento
+A continuación se presentan capturas de las pruebas realizadas con Postman.
+
+Creación de producto
+![Crear producto](docs/images/postman-create-product.png)
+Obtener productos
+![Listar productos](docs/images/postman-get-products.png)
+Actualizar producto
+![Actualizar producto](docs/images/postman-update-product.png)
+Eliminación de producto
+![Eliminar producto](docs/images/postman-delete-product.png)
+
+## 37. Desafíos Encontrados y Soluciones
+Durante el desarrollo del backend se presentaron diversos retos técnicos.
+
+### Separación correcta de capas
+Se solucionó mediante una arquitectura basada en Domain, Application, Infrastructure y Web.
+
+### Persistencia híbrida SQL + NoSQL
+Se diseñó una estrategia donde SQL Server gestiona datos transaccionales y MongoDB almacena auditoría.
+
+### Manejo centralizado de errores
+Se implementó un middleware global para capturar excepciones y devolver respuestas estructuradas.
+
+### Validación robusta de datos
+Se aplicaron DataAnnotations en DTOs y validación automática del framework ASP.NET Core.
+
+## 38. Cómo Ejecutar el Backend
+
+1. Clonar el repositorio
+	git clone URL_DEL_REPOSITORIO
+2. Abrir la solución en Visual Studio
+3. Configurar la conexión a SQL Server
+4. Ejecutar migraciones
+	Update-Database
+5. Ejecutar el proyecto
+6. Probar endpoints con Postman
+
+## 39. Conclusión Académica
+La implementación del backend permitió aplicar conceptos avanzados de ingeniería de software, incluyendo arquitectura por capas, integración de bases de datos relacionales y NoSQL, diseño de APIs REST y manejo robusto de validaciones y errores.
+
+El resultado es una plataforma e-Commerce estructurada de forma profesional, preparada para escalar hacia implementaciones reales en entornos productivos.
+
+## 40. Autor
+Nombre del estudiante: Emerson Andrey Rodríguez Rincón
+Curso: Programming the Internet
+Asignación No. 5 – Backend e-Commerce API
+Año: 2026
