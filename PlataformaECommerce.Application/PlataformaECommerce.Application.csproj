@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Folder Include="Notifications\" />
     <Folder Include="Validators\" />
     <Folder Include="UseCases\" />
   </ItemGroup>

@@ -539,3 +539,184 @@ Nombre del estudiante: Emerson Andrey Rodríguez Rincón
 Curso: Programming the Internet
 Asignación No. 5 – Backend e-Commerce API
 Año: 2026
+
+# PARTE IV
+## Asignación No. 7 – Implementación de Patrones de Diseño
+## 41. Objetivo Académico
+Esta asignación tiene como objetivo aplicar patrones de diseño clásicos para mejorar la arquitectura del sistema e-Commerce, promoviendo reutilización de código, desacoplamiento entre componentes y mayor escalabilidad del software.
+Los patrones implementados fueron:
+- Singleton
+- Factory
+- Observer
+
+Estos patrones permiten resolver problemas comunes de diseño relacionados con:
+- Gestión centralizada de configuraciones
+- Creación controlada de objetos
+- Notificación de eventos dentro del sistema
+
+La implementación fue integrada completamente dentro de la arquitectura existente basada en Domain Driven Design (DDD) y Clean Architecture, respetando la separación de responsabilidades entre capas.
+
+## 42. Tecnologías Utilizadas (Asignación 7)
+Lenguaje: C#
+Framework: .NET 8
+Arquitectura: 
+- Clean Architecture
+- Domain Driven Design (DDD)
+Patrones de diseño:
+- Singleton Pattern
+- Factory Pattern
+- Observer Pattern
+Herramientas:
+- Visual Studio
+- Git
+- GitHub
+
+## 43. Integración de los Patrones en la Arquitectura
+Los patrones de diseño fueron integrados respetando la arquitectura por capas del sistema.
+
+/PlataformaECommerce
+│
+├── PlataformaECommerce.Domain
+│   └── Entities
+│
+├── PlataformaECommerce.Application
+│   └── Services / Interfaces
+│
+├── PlataformaECommerce.Infrastructure
+│   ├── Settings
+│   │   └── ConfiguracionSistema.cs        (Singleton)
+│   │
+│   ├── Factories
+│   │   └── FabricaEntidades.cs            (Factory)
+│   │
+│   └── Observers
+│       ├── IObservador.cs
+│       ├── ISujeto.cs
+│       ├── NotificadorEventos.cs
+│       ├── ObservadorUI.cs
+│       ├── ObservadorInventario.cs
+│       └── ObservadorLogs.cs
+│
+├── PlataformaECommerce.Web
+│
+└── PlataformaECommerce.ConsoleDemo
+    └── Program.cs (Demostración de los patrones)
+
+La capa Infrastructure contiene las implementaciones técnicas de los patrones, mientras que las entidades del dominio permanecen independientes.
+
+## 44. Implementación del Patrón Singleton
+El patrón Singleton fue utilizado para gestionar la configuración global del sistema.
+
+La clase ConfiguracionSistema garantiza que solo exista una única instancia durante todo el ciclo de vida de la aplicación, evitando inconsistencias en parámetros globales.
+
+### Responsabilidades de ConfiguracionSistema
+- Gestionar nombre del sistema
+- Definir moneda por defecto
+- Configurar porcentaje de impuestos
+- Centralizar parámetros globales
+
+Ejemplo conceptual:
+	var configuracionA = ConfiguracionSistema.Instancia;
+	var configuracionB = ConfiguracionSistema.Instancia;
+
+Ambas referencias apuntan a la misma instancia, garantizando consistencia en toda la aplicación.
+
+Este enfoque es común en sistemas reales para gestionar:
+- configuración de entorno
+- parámetros del sistema
+- conexiones globales
+
+## 45. Implementación del Patrón Factory
+El patrón Factory fue implementado mediante la clase FabricaEntidades, cuyo propósito es centralizar la creación de objetos del dominio.
+Esto permite desacoplar la lógica de creación de entidades del resto del sistema.
+
+### Funcionalidades principales
+Creación de:
+- Productos digitales
+- Productos físicos
+- Clientes
+- Administradores
+
+Ejemplo de uso:
+	var ebook = FabricaEntidades.CrearProductoDigital(...);
+	var mouse = FabricaEntidades.CrearProductoFisico(...);
+
+	var cliente = FabricaEntidades.CrearCliente(...);
+	var administrador = FabricaEntidades.CrearAdministrador(...);
+
+Este enfoque permite:
+- encapsular la lógica de instanciación
+- evitar duplicación de código
+- facilitar futuras extensiones del sistema
+
+## 46. Implementación del Patrón Observer
+
+El patrón Observer fue implementado para gestionar eventos del sistema mediante un mecanismo de suscripción y notificación.
+
+Se diseñó un componente llamado NotificadorEventos que actúa como sujeto observable.
+
+### Componentes principales
+Interfaces:
+- IObservador
+- ISujeto
+
+Sujeto observable:
+- NotificadorEventos
+
+Observadores concretos:
+- ObservadorUI
+- ObservadorInventario
+- ObservadorLogs
+
+Cuando ocurre un evento relevante (por ejemplo una actualización de inventario o una promoción aplicada), el sistema notifica automáticamente a todos los observadores registrados.
+
+Ejemplo conceptual:
+
+	notificador.NotificarObservadores(
+		"Inventario actualizado",
+		"El producto Mouse Gamer cambió su stock."
+	);
+
+Cada observador reacciona de forma independiente, lo que permite desacoplar los componentes del sistema.
+
+## 47. Demostración en ConsoleDemo
+El proyecto PlataformaECommerce.ConsoleDemo fue utilizado para demostrar el funcionamiento de los tres patrones.
+
+La consola ejecuta un flujo completo que incluye:
+1. Inicialización del Singleton de configuración
+2. Creación de entidades mediante Factory
+3. Registro de observadores
+4. Generación de eventos mediante Observer
+5. Visualización de resultados en consola
+
+Esto permite evidenciar el comportamiento de los patrones y facilita la captura de evidencia para la entrega académica.
+
+## 48. Beneficios Arquitectónicos
+La incorporación de estos patrones aporta múltiples ventajas al sistema:
+
+### Desacoplamiento
+El patrón Observer permite que distintos componentes reaccionen a eventos sin depender directamente entre sí.
+
+### Centralización
+El patrón Singleton centraliza la configuración del sistema.
+
+### Control de creación de objetos
+El patrón Factory encapsula la lógica de instanciación de entidades del dominio.
+
+### Escalabilidad
+La arquitectura queda preparada para evolucionar hacia:
+- Domain Events
+- Event Driven Architecture
+- Microservicios
+
+## 49. Conclusión de la Asignación
+La implementación de los patrones Singleton, Factory y Observer permitió fortalecer la arquitectura del sistema e-Commerce, demostrando cómo los patrones de diseño contribuyen a crear software más modular, mantenible y escalable.
+
+La integración de estos patrones dentro de una arquitectura basada en Domain Driven Design y Clean Architecture refuerza las buenas prácticas de ingeniería de software y prepara la plataforma para futuras extensiones, como sistemas de eventos distribuidos, microservicios o integraciones externas.
+
+## 50. Autor
+
+Nombre del estudiante: Emerson Andrey Rodríguez Rincón
+Curso: Programación Orientada a Objetos
+Asignación No. 7 – Patrones de Diseño (Singleton, Factory y Observer)
+Año: 2026

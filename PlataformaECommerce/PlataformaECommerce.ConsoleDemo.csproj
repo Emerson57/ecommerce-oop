@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PlataformaECommerce.Domain\PlataformaECommerce.Domain.csproj" />
+    <ProjectReference Include="..\PlataformaECommerce.Infrastructure\PlataformaECommerce.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

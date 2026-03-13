@@ -1,6 +1,10 @@
-﻿using System;
+﻿using PlataformaECommerce.Domain.Entities;
+using PlataformaECommerce.Infrastructure.Factories;
+using PlataformaECommerce.Infrastructure.Settings;
+using PlataformaECommerce.Infrastructure.Observers;
+using System;
 using System.Globalization;
-using PlataformaECommerce.Domain.Entities;
+
 
 namespace PlataformaECommerce
 {
@@ -11,20 +15,121 @@ namespace PlataformaECommerce
             // Configuración cultural para formato de moneda en Colombia (COP).
             CultureInfo.CurrentCulture = new CultureInfo("es-CO");
 
-            Console.Title = "Demo e-Commerce OOP - Asignación No. 3 (Herencia)";
+            Console.Title = "Demo e-Commerce OOP - Asignación No. 7 (Patrones de Diseño)";
 
             PrintHeader(
                 "Demo e-Commerce OOP",
-                "Herencia y Polimorfismo: Productos y Usuarios",
-                "Asignación No. 3 - Extensión de funcionalidades mediante herencia"
+                "Patrones de Diseño + Herencia y Polimorfismo",
+                "Asignación No. 7 - Singleton, Factory y Observer"
             );
 
             try
             {
                 // ==========================================================
-                // 1) CREACIÓN DE PRODUCTOS DERIVADOS (HERENCIA)
+                // 0) SINGLETON: CONFIGURACIÓN CENTRAL DEL SISTEMA
                 // ==========================================================
-                Section("1) Creación de Productos Derivados (ProductoDigital / ProductoFisico)");
+                Section("0) Singleton: Configuración central del sistema");
+
+                Info("Obteniendo la primera referencia a la configuración del sistema...");
+                var configuracionA = ConfiguracionSistema.Instancia;
+
+                Info("Obteniendo una segunda referencia a la configuración del sistema...");
+                var configuracionB = ConfiguracionSistema.Instancia;
+
+                Success("Se obtuvieron ambas referencias correctamente.");
+
+                Info("Verificando si ambas referencias apuntan a la misma instancia...");
+                if (ReferenceEquals(configuracionA, configuracionB))
+                {
+                    Success("Singleton validado: ambas referencias apuntan a la misma instancia.");
+                }
+                else
+                {
+                    Error("Singleton no válido: las referencias no apuntan a la misma instancia.");
+                }
+
+                Console.WriteLine();
+                Info("Configuración inicial del sistema:");
+                Console.WriteLine(configuracionA.ObtenerResumenConfiguracion());
+
+                Info("Actualizando el nombre del sistema desde la primera referencia...");
+                configuracionA.ActualizarNombreSistema("TechMarket Pro");
+                Success("Nombre del sistema actualizado desde configuracionA.");
+
+                Info("Leyendo el nombre del sistema desde la segunda referencia...");
+                Console.WriteLine($"Nombre leído desde configuracionB: {configuracionB.NombreSistema}");
+
+                Info("Actualizando moneda e impuesto desde la segunda referencia...");
+                configuracionB.ActualizarMoneda("COP");
+                configuracionB.ActualizarPorcentajeImpuesto(0.19m);
+                Success("Configuración global actualizada desde configuracionB.");
+
+                Console.WriteLine();
+                Info("Resumen final de configuración (captura recomendada):");
+                Console.WriteLine(configuracionA.ObtenerResumenConfiguracion());
+
+                // ==========================================================
+                // 1) FACTORY: CREACIÓN DE ENTIDADES MEDIANTE FabricaEntidades
+                // ==========================================================
+                Section("1) Factory: Creación de entidades mediante FabricaEntidades");
+
+                Info("Creando productos usando la fábrica de entidades...");
+
+                var productoDigitalFactory = FabricaEntidades.CrearProductoDigital(
+                    id: 10,
+                    nombre: "Curso Avanzado de .NET",
+                    descripcion: "Curso completo sobre desarrollo profesional con .NET.",
+                    precio: 120000m,
+                    stock: 100,
+                    formatoArchivo: "MP4",
+                    tamanoMB: 850m
+                );
+
+                var productoFisicoFactory = FabricaEntidades.CrearProductoFisico(
+                    id: 11,
+                    nombre: "Teclado Mecánico RGB",
+                    descripcion: "Teclado mecánico profesional para desarrollo y gaming.",
+                    precio: 350000m,
+                    stock: 20,
+                    pesoKg: 0.9m,
+                    altoCm: 4m,
+                    anchoCm: 15m,
+                    largoCm: 45m
+                );
+
+                Success("Productos creados mediante FabricaEntidades.");
+
+                PrintProduct(productoDigitalFactory);
+                PrintProduct(productoFisicoFactory);
+
+                Console.WriteLine();
+
+                Info("Creando usuarios mediante la fábrica...");
+
+                var clienteFactory = FabricaEntidades.CrearCliente(
+                    id: 301,
+                    nombre: "Laura Gómez",
+                    correo: "laura@email.com",
+                    contrasena: "Cliente123"
+                );
+
+                var adminFactory = FabricaEntidades.CrearAdministrador(
+                    id: 401,
+                    nombre: "Administrador Plataforma",
+                    correo: "admin@plataforma.com",
+                    contrasena: "Admin456",
+                    area: "Tecnología"
+                );
+
+                Success("Usuarios creados mediante FabricaEntidades.");
+
+                Console.WriteLine(clienteFactory.MostrarPerfil());
+                Console.WriteLine(adminFactory.MostrarPerfil());
+
+                // ==========================================================
+                // 2) CREACIÓN DE PRODUCTOS DERIVADOS (HERENCIA)
+                // ==========================================================
+                Section("2) Creación de Productos Derivados (ProductoDigital / ProductoFisico)");
 
                 // Producto digital (descargable)
                 var ebook = new ProductoDigital(
@@ -54,9 +159,9 @@ namespace PlataformaECommerce
                 PrintProduct(mouse);
 
                 // ==========================================================
-                // 2) CREACIÓN DE USUARIOS DERIVADOS (HERENCIA)
+                // 3) CREACIÓN DE USUARIOS DERIVADOS (HERENCIA)
                 // ==========================================================
-                Section("2) Creación de Usuarios Derivados (Cliente / Administrador)");
+                Section("3) Creación de Usuarios Derivados (Cliente / Administrador)");
 
                 var cliente = new Cliente(
                     id: 101,
@@ -81,9 +186,9 @@ namespace PlataformaECommerce
                 Console.WriteLine(admin.MostrarPerfil());
 
                 // ==========================================================
-                // 3) CLIENTE: PREFERENCIAS + HISTORIAL
+                // 4) CLIENTE: PREFERENCIAS + HISTORIAL
                 // ==========================================================
-                Section("3) Cliente: Preferencias e Historial de Compras");
+                Section("4) Cliente: Preferencias e Historial de Compras");
 
                 Info("Agregando preferencias al cliente...");
                 cliente.AgregarPreferencia("Gaming");
@@ -99,9 +204,9 @@ namespace PlataformaECommerce
                 Console.WriteLine(cliente.VerHistorial());
 
                 // ==========================================================
-                // 4) CARRITO: POLIMORFISMO (List<Producto> con derivados)
+                // 5) CARRITO: POLIMORFISMO (List<Producto> con derivados)
                 // ==========================================================
-                Section("4) CarritoCompra: Polimorfismo con ProductoDigital/ProductoFisico");
+                Section("5) CarritoCompra: Polimorfismo con ProductoDigital/ProductoFisico");
 
                 var carrito = new CarritoCompra();
                 Success("Carrito creado correctamente.");
@@ -125,9 +230,9 @@ namespace PlataformaECommerce
                 }
 
                 // ==========================================================
-                // 5) ADMIN: GESTIÓN DE INVENTARIO (AJUSTE DE STOCK)
+                // 6) ADMIN: GESTIÓN DE INVENTARIO (AJUSTE DE STOCK)
                 // ==========================================================
-                Section("5) Administrador: Gestión de Inventario (actualizar stock)");
+                Section("6) Administrador: Gestión de Inventario (actualizar stock)");
 
                 Info($"Stock actual del producto '{mouse.Nombre}': {mouse.Stock}");
                 Info("Administrador ajusta el stock del Mouse a 20...");
@@ -137,9 +242,9 @@ namespace PlataformaECommerce
                 Success($"Stock actualizado. Nuevo stock de '{mouse.Nombre}': {mouse.Stock}");
 
                 // ==========================================================
-                // 6) ADMIN: PROMOCIÓN (DESCUENTO) Y EFECTO EN EL CARRITO
+                // 7) ADMIN: PROMOCIÓN (DESCUENTO) Y EFECTO EN EL CARRITO
                 // ==========================================================
-                Section("6) Administrador: Establecer promoción y evidenciar impacto en total");
+                Section("7) Administrador: Establecer promoción y evidenciar impacto en total");
 
                 Info($"Precio actual del Ebook: {FormatMoney(ebook.Precio)}");
                 Info("Administrador aplica promoción del 10% al Ebook...");
@@ -160,16 +265,83 @@ namespace PlataformaECommerce
                 Success($"Total actualizado del carrito: {FormatMoney(carrito.Total)}");
 
                 // ==========================================================
-                // 7) RESUMEN FINAL
+                // 8) OBSERVER: SISTEMA DE NOTIFICACIONES BASADO EN EVENTOS
                 // ==========================================================
-                Section("7) Resumen final (captura recomendada)");
+                Section("8) Observer: Sistema de notificaciones del sistema e-Commerce");
 
+                Info("Inicializando sistema de notificaciones...");
+
+                // Sujeto observado (emisor de eventos)
+                var notificador = new NotificadorEventos();
+
+                // Observadores concretos
+                var observadorUI = new ObservadorUI();
+                var observadorInventario = new ObservadorInventario();
+                var observadorLogs = new ObservadorLogs();
+
+                Info("Registrando observadores en el sistema...");
+
+                notificador.RegistrarObservador(observadorUI);
+                notificador.RegistrarObservador(observadorInventario);
+                notificador.RegistrarObservador(observadorLogs);
+
+                Success("Observadores registrados correctamente.");
+
+                Console.WriteLine();
+
+                // ==========================================================
+                // SIMULACIÓN DE EVENTOS DEL SISTEMA
+                // ==========================================================
+
+                Info("Simulando evento: Pedido creado");
+
+                notificador.NotificarObservadores(
+                    "PedidoCreado",
+                    "El cliente Juan Pérez ha creado el pedido #5003"
+                );
+
+                Console.WriteLine();
+
+                Info("Simulando evento: Inventario actualizado");
+
+                notificador.NotificarObservadores(
+                    "InventarioActualizado",
+                    $"El producto '{mouse.Nombre}' ha sido actualizado a stock {mouse.Stock}"
+                );
+
+                Console.WriteLine();
+
+                Info("Simulando evento: Compra confirmada");
+
+                notificador.NotificarObservadores(
+                    "CompraConfirmada",
+                    $"El cliente {cliente.Nombre} ha confirmado su compra por {FormatMoney(carrito.Total)}"
+                );
+
+                Console.WriteLine();
+
+                Info("Simulando evento: Producto enviado");
+
+                notificador.NotificarObservadores(
+                    "PedidoEnviado",
+                    "El pedido #5003 ha sido enviado al cliente."
+                );
+
+                Success("Eventos notificados a todos los observadores.");
+
+                // ==========================================================
+                // 9) RESUMEN FINAL
+                // ==========================================================
+                Section("9) Resumen final (captura recomendada)");
+
+                Console.WriteLine($"Sistema configurado: {configuracionA.NombreSistema}");
+                Console.WriteLine($"Moneda por defecto: {configuracionA.MonedaPorDefecto}");
                 Console.WriteLine($"Cliente: {cliente.Nombre} | Correo: {cliente.Correo} | Rol: {cliente.ObtenerRol()}");
                 Console.WriteLine($"Administrador: {admin.Nombre} | Correo: {admin.Correo} | Rol: {admin.ObtenerRol()}");
                 Console.WriteLine($"Items en carrito: {carrito.CantidadItems}");
                 Console.WriteLine($"Total final carrito: {FormatMoney(carrito.Total)}");
 
-                PrintFooter("Fin de la demostración - Asignación No. 3 (Herencia)");
+                PrintFooter("Fin de la demostración - Asignación No. 7 (Singleton, Factory y Observer)");
             }
             catch (Exception ex)
             {
