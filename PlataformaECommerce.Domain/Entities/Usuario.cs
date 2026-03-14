@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text.RegularExpressions;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Domain.Entities
 {
@@ -152,7 +153,7 @@ namespace PlataformaECommerce.Domain.Entities
         private static int ValidarId(int id)
         {
             if (id <= 0)
-                throw new ArgumentOutOfRangeException(nameof(id), "El Id del usuario debe ser mayor que cero.");
+                throw new UsuarioNoValidoException("El Id del usuario debe ser mayor que cero.");
 
             return id;
         }
@@ -161,15 +162,15 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarNombre(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre))
-                throw new ArgumentException("El nombre del usuario es obligatorio.", nameof(nombre));
+                throw new UsuarioNoValidoException("El nombre del usuario es obligatorio.");
 
             string nombreNormalizado = nombre.Trim();
 
             if (nombreNormalizado.Length < LongitudMinimaNombre)
-                throw new ArgumentException($"El nombre del usuario debe tener al menos {LongitudMinimaNombre} caracteres.", nameof(nombre));
+                throw new UsuarioNoValidoException($"El nombre del usuario debe tener al menos {LongitudMinimaNombre} caracteres.");
 
             if (nombreNormalizado.Length > LongitudMaximaNombre)
-                throw new ArgumentException($"El nombre del usuario no puede superar los {LongitudMaximaNombre} caracteres.", nameof(nombre));
+                throw new UsuarioNoValidoException($"El nombre del usuario no puede superar los {LongitudMaximaNombre} caracteres.");
 
             return nombreNormalizado;
         }
@@ -178,12 +179,12 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarCorreo(string correo)
         {
             if (string.IsNullOrWhiteSpace(correo))
-                throw new ArgumentException("El correo electrónico es obligatorio.", nameof(correo));
+                throw new UsuarioNoValidoException("El correo electrónico es obligatorio.");
 
             string correoNormalizado = correo.Trim().ToLowerInvariant();
 
             if (!Regex.IsMatch(correoNormalizado, PatronCorreo))
-                throw new ArgumentException("El formato del correo electrónico no es válido.", nameof(correo));
+                throw new UsuarioNoValidoException("El formato del correo electrónico no es válido.");
 
             return correoNormalizado;
         }
@@ -192,10 +193,10 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarContrasena(string contrasena)
         {
             if (string.IsNullOrWhiteSpace(contrasena))
-                throw new ArgumentException("La contraseña es obligatoria.", nameof(contrasena));
+                throw new UsuarioNoValidoException("La contraseña es obligatoria.");
 
             if (contrasena.Length < LongitudMinimaContrasena)
-                throw new ArgumentException($"La contraseña debe tener al menos {LongitudMinimaContrasena} caracteres.", nameof(contrasena));
+                throw new UsuarioNoValidoException($"La contraseña debe tener al menos {LongitudMinimaContrasena} caracteres.");
 
             return contrasena;
         }

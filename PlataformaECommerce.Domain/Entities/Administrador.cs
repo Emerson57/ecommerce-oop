@@ -1,4 +1,5 @@
 ﻿using System;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Domain.Entities
 {
@@ -64,7 +65,7 @@ namespace PlataformaECommerce.Domain.Entities
                 throw new ArgumentNullException(nameof(producto), "El producto no puede ser nulo.");
 
             if (nuevoStock < 0)
-                throw new ArgumentOutOfRangeException(nameof(nuevoStock), "El nuevo stock no puede ser negativo.");
+                throw new ProductException("El nuevo stock no puede ser negativo.");
 
             if (nuevoStock > producto.Stock)
             {
@@ -87,6 +88,13 @@ namespace PlataformaECommerce.Domain.Entities
             if (producto is null)
                 throw new ArgumentNullException(nameof(producto), "El producto no puede ser nulo.");
 
+            if (!producto.EstaDisponible())
+                throw new ProductoNoDisponibleException(
+                    producto.Id,
+                    producto.Nombre,
+                    producto.Activo,
+                    producto.Stock);
+
             decimal descuentoValidado = ValidarPorcentajeDescuento(porcentajeDescuento);
 
             decimal precioOriginal = producto.Precio;
@@ -94,7 +102,7 @@ namespace PlataformaECommerce.Domain.Entities
             decimal nuevoPrecio = Math.Round(precioOriginal * factorDescuento, 2, MidpointRounding.AwayFromZero);
 
             if (nuevoPrecio <= 0)
-                throw new InvalidOperationException("El precio resultante de la promoción debe ser mayor que cero.");
+                throw new ProductException("El precio resultante de la promoción debe ser mayor que cero.");
 
             producto.ActualizarPrecio(nuevoPrecio);
             ActualizarFechaModificacion();
@@ -151,15 +159,15 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarArea(string area)
         {
             if (string.IsNullOrWhiteSpace(area))
-                throw new ArgumentException("El área del administrador es obligatoria.", nameof(area));
+                throw new UsuarioNoValidoException("El área del administrador es obligatoria.");
 
             string areaNormalizada = area.Trim();
 
             if (areaNormalizada.Length < LongitudMinimaArea)
-                throw new ArgumentException($"El área del administrador debe tener al menos {LongitudMinimaArea} caracteres.", nameof(area));
+                throw new UsuarioNoValidoException($"El área del administrador debe tener al menos {LongitudMinimaArea} caracteres.");
 
             if (areaNormalizada.Length > LongitudMaximaArea)
-                throw new ArgumentException($"El área del administrador no puede superar los {LongitudMaximaArea} caracteres.", nameof(area));
+                throw new UsuarioNoValidoException($"El área del administrador no puede superar los {LongitudMaximaArea} caracteres.");
 
             return areaNormalizada;
         }
@@ -168,10 +176,7 @@ namespace PlataformaECommerce.Domain.Entities
         private static decimal ValidarPorcentajeDescuento(decimal porcentajeDescuento)
         {
             if (porcentajeDescuento <= 0 || porcentajeDescuento > PorcentajeMaximoDescuento)
-                throw new ArgumentOutOfRangeException(
-                    nameof(porcentajeDescuento),
-                    $"El porcentaje de descuento debe estar entre 0 y {PorcentajeMaximoDescuento}."
-                );
+                throw new ProductException($"El porcentaje de descuento debe estar entre 0 y {PorcentajeMaximoDescuento}.");
 
             return decimal.Round(porcentajeDescuento, 2, MidpointRounding.AwayFromZero);
         }

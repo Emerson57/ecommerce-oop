@@ -1,4 +1,5 @@
 ﻿using System;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Domain.Entities
 {
@@ -8,6 +9,9 @@ namespace PlataformaECommerce.Domain.Entities
 
         /// Longitud máxima permitida para el formato del archivo.
         private const int LongitudMaximaFormato = 20;
+
+        /// Tamaño máximo permitido para archivos digitales (MB).
+        private const decimal TamanoMaximoArchivoMB = 10240; // 10 GB
 
         #endregion
 
@@ -59,6 +63,7 @@ namespace PlataformaECommerce.Domain.Entities
         {
             _formatoArchivo = ValidarFormatoArchivo(formatoArchivo);
             _tamanoMB = ValidarTamanoMB(tamanoMB);
+
             ActualizarFechaModificacion();
         }
 
@@ -66,6 +71,7 @@ namespace PlataformaECommerce.Domain.Entities
         public bool EsArchivoLiviano() => _tamanoMB <= 100;
 
         /// Devuelve una descripción detallada del producto digital incluyendo
+        /// información técnica del archivo.
         public override string ObtenerDescripcionDetallada()
         {
             return $"{base.ObtenerDescripcionDetallada()} | Formato: {FormatoArchivo} | Tamaño: {TamanoMB:0.##} MB";
@@ -79,21 +85,24 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarFormatoArchivo(string formatoArchivo)
         {
             if (string.IsNullOrWhiteSpace(formatoArchivo))
-                throw new ArgumentException("El formato del archivo es obligatorio.", nameof(formatoArchivo));
+                throw new ProductException("El formato del archivo es obligatorio.");
 
             string formatoNormalizado = formatoArchivo.Trim().ToUpperInvariant();
 
             if (formatoNormalizado.Length > LongitudMaximaFormato)
-                throw new ArgumentException($"El formato del archivo no puede superar los {LongitudMaximaFormato} caracteres.", nameof(formatoArchivo));
+                throw new ProductException($"El formato del archivo no puede superar los {LongitudMaximaFormato} caracteres.");
 
             return formatoNormalizado;
         }
 
-        /// Valida que el tamaño del archivo sea mayor que cero.
+        /// Valida que el tamaño del archivo sea válido.
         private static decimal ValidarTamanoMB(decimal tamanoMB)
         {
             if (tamanoMB <= 0)
-                throw new ArgumentOutOfRangeException(nameof(tamanoMB), "El tamaño del archivo debe ser mayor que cero.");
+                throw new ProductException("El tamaño del archivo debe ser mayor que cero.");
+
+            if (tamanoMB > TamanoMaximoArchivoMB)
+                throw new ProductException($"El tamaño del archivo no puede superar los {TamanoMaximoArchivoMB} MB.");
 
             return decimal.Round(tamanoMB, 2, MidpointRounding.AwayFromZero);
         }

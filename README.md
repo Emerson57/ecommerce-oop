@@ -720,3 +720,219 @@ Nombre del estudiante: Emerson Andrey Rodríguez Rincón
 Curso: Programación Orientada a Objetos
 Asignación No. 7 – Patrones de Diseño (Singleton, Factory y Observer)
 Año: 2026
+
+
+# PARTE V
+## Asignación No. 8 – Manejo de Excepciones Personalizadas y Pruebas Unitarias
+## 51. Objetivo Académico
+El objetivo de esta asignación fue fortalecer la robustez del sistema e-Commerce mediante la implementación de un manejo estructurado de errores y la incorporación de pruebas unitarias automatizadas.
+
+El desarrollo incluyó:
+- Definición de una jerarquía profesional de excepciones personalizadas.
+- Implementación de manejo de errores dentro de las entidades del dominio.
+- Creación de pruebas unitarias utilizando el framework NUnit.
+- Validación del comportamiento del sistema tanto en escenarios correctos como en situaciones de error.
+Este enfoque permite mejorar la confiabilidad del software y facilita la detección temprana de fallos durante el proceso de desarrollo.
+
+## 52. Tecnologías Utilizadas (Asignación 8)
+Lenguaje: C#
+Framework: .NET 8
+Framework de pruebas: NUnit
+Arquitectura:
+- Domain Driven Design (DDD)
+- Clean Architecture
+Herramientas:
+- Visual Studio
+- Git
+- GitHub
+
+## 53. Implementación de Excepciones Personalizadas
+Se diseñó una jerarquía de excepciones específica para el dominio e-Commerce con el objetivo de representar de manera clara los diferentes tipos de errores que pueden ocurrir dentro del sistema.
+
+La estructura de excepciones se organizó de la siguiente manera:
+Domain
+ └── Exceptions
+     ├── DomainException
+     │
+     ├── ProductException
+     │   ├── InventarioInsuficienteException
+     │   └── ProductoNoDisponibleException
+     │
+     ├── CartException
+     │   └── CarritoVacioException
+     │
+     ├── UserException
+     │   └── UsuarioNoValidoException
+     │
+     ├── PaymentException
+     │   ├── PagoFallidoException
+     │   └── MetodoPagoNoSoportadoException
+     │
+     ├── FactoryException
+     │   └── EntidadNoSoportadaException
+     │
+     └── ConfigurationException
+         └── ConfiguracionInvalidaException
+
+Este diseño permite:
+- Clasificar errores por contexto de negocio.
+- Manejar excepciones de manera más clara dentro del sistema.
+- Facilitar el registro y diagnóstico de fallos.
+
+## 54. Integración del Manejo de Excepciones en el Dominio
+Las excepciones personalizadas fueron integradas dentro de las principales entidades del dominio para validar reglas de negocio críticas.
+
+Ejemplos de validaciones implementadas:
+Productos: 
+- Validación de stock disponible antes de realizar operaciones.
+- Prevención de actualización con valores inválidos.
+
+Carrito de compras:
+- Evitar operaciones sobre carritos inactivos.
+- Evitar cálculos o pagos con carritos vacíos.
+
+Usuarios:
+- Validación de datos obligatorios en la creación y actualización de usuarios.
+
+Configuración del sistema:
+- Validación de parámetros globales como moneda, impuestos y proveedor de base de datos.
+
+Este enfoque permite que las reglas de negocio sean protegidas directamente desde el dominio.
+
+## 55. Implementación del Módulo de Pagos
+Como parte de la asignación se implementó un módulo conceptual de pagos encargado de simular el procesamiento de transacciones dentro del sistema.
+
+La lógica se implementó en el servicio:
+Domain
+ └── Services
+     └── ServicioPago.cs
+
+El servicio se encarga de:
+- Validar que el carrito contenga productos.
+- Verificar que el carrito se encuentre activo.
+- Validar el método de pago seleccionado.
+- Simular el procesamiento de la transacción.
+
+Métodos de pago soportados:
+- Tarjeta de crédito
+- Tarjeta de débito
+- PSE
+- Transferencia bancaria
+
+Las excepciones implementadas permiten representar fallos reales como:
+- método de pago no soportado
+- intento de pago con carrito vacío
+- fallos en la transacción
+
+## 56. Implementación de Pruebas Unitarias
+Se creó un proyecto independiente de pruebas:
+- PlataformaECommerce.Tests
+- Utilizando NUnit como framework de testing.
+
+Estructura de pruebas:
+PlataformaECommerce.Tests
+│
+├── Domain
+│   ├── Productos
+│   │   ├── ProductoTests
+│   │   ├── ProductoDigitalTests
+│   │   └── ProductoFisicoTests
+│   │
+│   ├── Usuarios
+│   │   ├── UsuarioTests
+│   │   ├── ClienteTests
+│   │   └── AdministradorTests
+│   │
+│   ├── Carrito
+│   │   └── CarritoCompraTests
+│   │
+│   └── Pagos
+│       └── ServicioPagoTests
+│
+├── Infrastructure
+│   ├── Factories
+│   │   └── FabricaEntidadesTests
+│   │
+│   └── Settings
+│       └── ConfiguracionSistemaTests
+
+Las pruebas verifican:
+- funcionamiento correcto de las entidades
+- manejo de excepciones
+- validaciones del dominio
+- comportamiento de los patrones de diseño
+
+## 57. Tipos de Pruebas Implementadas
+Las pruebas unitarias cubren diferentes escenarios:
+
+### Pruebas funcionales
+Validan el comportamiento esperado del sistema en condiciones normales.
+
+Ejemplos:
+- creación de productos
+- cálculo de total del carrito
+- procesamiento de pagos
+
+### Pruebas de validación
+
+Verifican que el sistema rechace datos inválidos.
+Ejemplos:
+- creación de productos con datos incorrectos
+- operaciones sobre carritos vacíos
+- configuración inválida del sistema
+
+### Pruebas de excepciones
+Comprueban que el sistema lance las excepciones correctas cuando ocurre un error.
+
+Ejemplos:
+- ProductoNoDisponibleException
+- CarritoVacioException
+- MetodoPagoNoSoportadoException
+- ConfiguracionInvalidaException
+
+## 58. Beneficios del Testing Automatizado
+La incorporación de pruebas unitarias aporta múltiples ventajas al proyecto:
+
+Detección temprana de errores: Las pruebas permiten identificar fallos antes de que el sistema llegue a producción.
+
+Mayor confiabilidad del software: El comportamiento del sistema puede validarse automáticamente en cada cambio del código.
+
+Facilita mantenimiento: Los desarrolladores pueden modificar el sistema con mayor seguridad.
+
+Base para integración continua: Las pruebas unitarias son un paso fundamental para implementar pipelines de CI/CD.
+
+## 59. Ejecución de Pruebas
+Para ejecutar las pruebas unitarias:
+1. Abrir la solución en Visual Studio.
+2. Compilar el proyecto.
+3. Abrir el Test Explorer.
+4. Ejecutar todas las pruebas.
+
+Visual Studio mostrará el resultado de cada prueba indicando:
+- pruebas exitosas
+- pruebas fallidas
+- tiempo de ejecución
+
+## 60. Evidencia de Funcionamiento
+Se recomienda incluir capturas del Test Explorer ejecutando las pruebas.
+
+Ejemplo:
+- Ejecución de pruebas unitarias
+
+## 61. Conclusión de la Asignación
+
+La implementación del manejo de excepciones personalizadas y pruebas unitarias permitió fortalecer significativamente la calidad del sistema e-Commerce.
+
+Los principales logros fueron:
+- Implementación de una jerarquía de excepciones orientada al dominio.
+- Protección de reglas de negocio mediante validaciones robustas.
+- Creación de un módulo conceptual de pagos.
+- Implementación de pruebas automatizadas con NUnit.
+- Mejora de la confiabilidad y mantenibilidad del sistema.
+Este enfoque refleja prácticas utilizadas en proyectos profesionales de desarrollo de software y prepara el sistema para futuras extensiones como integración continua, pruebas de integración y despliegue automatizado.
+
+## 62. Autor
+Nombre del estudiante: Emerson Andrey Rodríguez Rincón
+Curso: Programación Orientada a Objetos
+Asignación No. 8 – Manejo de Excepciones y Pruebas Unitarias
+Año: 2026

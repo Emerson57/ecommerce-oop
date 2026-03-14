@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Domain.Entities
 {
@@ -80,13 +81,18 @@ namespace PlataformaECommerce.Domain.Entities
             ValidarCarritoActivo();
 
             if (producto is null)
-                throw new ArgumentNullException(nameof(producto), "El producto no puede ser nulo.");
+                throw new ProductException("El producto no puede ser nulo.");
 
             if (!producto.EstaDisponible())
-                throw new InvalidOperationException("No se puede agregar el producto porque no está disponible para la compra.");
+                throw new ProductoNoDisponibleException(
+                    producto.Id,
+                    producto.Nombre,
+                    producto.Activo,
+                    producto.Stock
+                );
 
             if (_productos.Count >= MaximoItemsPermitidos)
-                throw new InvalidOperationException($"No es posible agregar más de {MaximoItemsPermitidos} ítems al carrito.");
+                throw new CartException($"No es posible agregar más de {MaximoItemsPermitidos} ítems al carrito.");
 
             _productos.Add(producto);
             RecalcularTotal();
@@ -99,7 +105,7 @@ namespace PlataformaECommerce.Domain.Entities
             ValidarCarritoActivo();
 
             if (idProducto <= 0)
-                throw new ArgumentOutOfRangeException(nameof(idProducto), "El Id del producto debe ser mayor que cero.");
+                throw new CartException("El Id del producto debe ser mayor que cero.");
 
             Producto? producto = _productos.FirstOrDefault(p => p.Id == idProducto);
 
@@ -118,7 +124,7 @@ namespace PlataformaECommerce.Domain.Entities
             ValidarCarritoActivo();
 
             if (_productos.Count == 0)
-                return;
+                throw new CarritoVacioException("No se puede vaciar el carrito porque ya está vacío.");
 
             _productos.Clear();
             _total = 0m;
@@ -138,7 +144,7 @@ namespace PlataformaECommerce.Domain.Entities
         public int ObtenerCantidadDeProducto(int idProducto)
         {
             if (idProducto <= 0)
-                throw new ArgumentOutOfRangeException(nameof(idProducto), "El Id del producto debe ser mayor que cero.");
+                throw new CartException("El Id del producto debe ser mayor que cero.");
 
             return _productos.Count(p => p.Id == idProducto);
         }
@@ -193,7 +199,7 @@ namespace PlataformaECommerce.Domain.Entities
         private void ValidarCarritoActivo()
         {
             if (!_activo)
-                throw new InvalidOperationException("No se puede realizar la operación porque el carrito está inactivo.");
+                throw new CartException("No se puede realizar la operación porque el carrito está inactivo.");
         }
 
         /// Actualiza la fecha de modificación del carrito.

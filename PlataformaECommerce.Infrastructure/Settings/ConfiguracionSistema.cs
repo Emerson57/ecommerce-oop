@@ -1,14 +1,32 @@
 ﻿using System;
 using System.Text;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Infrastructure.Settings
 {
     public sealed class ConfiguracionSistema
     {
+        #region Singleton
+
         private static readonly Lazy<ConfiguracionSistema> _instancia =
             new Lazy<ConfiguracionSistema>(() => new ConfiguracionSistema());
 
+        /// Instancia única del sistema de configuración.
         public static ConfiguracionSistema Instancia => _instancia.Value;
+
+        #endregion
+
+        #region Constantes de negocio
+
+        private const decimal ImpuestoMinimo = 0m;
+        private const decimal ImpuestoMaximo = 1m;
+
+        private const int MaximoProductosCarritoMin = 1;
+        private const int MaximoProductosCarritoMax = 1000;
+
+        #endregion
+
+        #region Propiedades públicas
 
         public string NombreSistema { get; private set; }
         public string MonedaPorDefecto { get; private set; }
@@ -18,6 +36,10 @@ namespace PlataformaECommerce.Infrastructure.Settings
         public string TemaVisual { get; private set; }
         public bool ModoMantenimiento { get; private set; }
         public string ProveedorBaseDatos { get; private set; }
+
+        #endregion
+
+        #region Constructor
 
         private ConfiguracionSistema()
         {
@@ -31,63 +53,60 @@ namespace PlataformaECommerce.Infrastructure.Settings
             ProveedorBaseDatos = "SQLServer";
         }
 
+        #endregion
+
+        #region Métodos de configuración
+
         public void ActualizarNombreSistema(string nombreSistema)
         {
-            if (string.IsNullOrWhiteSpace(nombreSistema))
-                throw new ArgumentException("El nombre del sistema no puede estar vacío.");
-
-            NombreSistema = nombreSistema.Trim();
+            NombreSistema = ValidarTextoObligatorio(nombreSistema, "El nombre del sistema no puede estar vacío.");
         }
 
         public void ActualizarMoneda(string moneda)
         {
-            if (string.IsNullOrWhiteSpace(moneda))
-                throw new ArgumentException("La moneda no puede estar vacía.");
-
-            MonedaPorDefecto = moneda.Trim().ToUpper();
+            string monedaNormalizada = ValidarTextoObligatorio(moneda, "La moneda no puede estar vacía");
+            MonedaPorDefecto = monedaNormalizada.ToUpperInvariant();
         }
 
         public void ActualizarPorcentajeImpuesto(decimal porcentajeImpuesto)
         {
-            if (porcentajeImpuesto < 0 || porcentajeImpuesto > 1)
-                throw new ArgumentException("El porcentaje de impuesto debe estar entre 0 y 1.");
+            if (porcentajeImpuesto < ImpuestoMinimo || porcentajeImpuesto > ImpuestoMaximo)
+                throw new ConfiguracionInvalidaException("El porcentaje de impuesto debe estar entre 0 y 1.");
 
-            PorcentajeImpuesto = porcentajeImpuesto;
+            PorcentajeImpuesto = decimal.Round(porcentajeImpuesto, 4, MidpointRounding.AwayFromZero);
         }
 
         public void ActualizarMaximoProductosPorCarrito(int maximoProductos)
         {
-            if (maximoProductos <= 0)
-                throw new ArgumentException("El máximo de productos por carrito debe ser mayor que cero.");
+            if (maximoProductos < MaximoProductosCarritoMin || maximoProductos > MaximoProductosCarritoMax)
+                throw new ConfiguracionInvalidaException(
+                    $"El máximo de productos por carrito debe estar entre {MaximoProductosCarritoMin} y {MaximoProductosCarritoMax}."
+                );
 
             MaximoProductosPorCarrito = maximoProductos;
         }
 
         public void ActualizarCorreoSoporte(string correoSoporte)
         {
-            if (string.IsNullOrWhiteSpace(correoSoporte))
-                throw new ArgumentException("El correo de soporte no puede estar vacío.");
+            string correoNormalizado = ValidarTextoObligatorio(correoSoporte, "El correo de soporte no puede estar vacío.");
 
-            if (!correoSoporte.Contains("@"))
-                throw new ArgumentException("El correo de soporte no tiene un formato válido.");
+            if (!correoNormalizado.Contains("@"))
+                throw new ConfiguracionInvalidaException("El correo de soporte no tiene un formato válido.");
 
-            CorreoSoporte = correoSoporte.Trim();
+            CorreoSoporte = correoNormalizado;
         }
 
         public void ActualizarTemaVisual(string temaVisual)
         {
-            if (string.IsNullOrWhiteSpace(temaVisual))
-                throw new ArgumentException("El tema visual no puede estar vacío.");
-
-            TemaVisual = temaVisual.Trim();
+            TemaVisual = ValidarTextoObligatorio(temaVisual, "El tema visual no puede estar vacío.");
         }
 
         public void CambiarProveedorBaseDatos(string proveedorBaseDatos)
         {
-            if (string.IsNullOrWhiteSpace(proveedorBaseDatos))
-                throw new ArgumentException("El proveedor de base de datos no puede estar vacío.");
-
-            ProveedorBaseDatos = proveedorBaseDatos.Trim();
+            ProveedorBaseDatos = ValidarTextoObligatorio(
+                proveedorBaseDatos,
+                "El proveedor de base de datos no puede estar vacío."
+            );
         }
 
         public void ActivarModoMantenimiento()
@@ -99,6 +118,23 @@ namespace PlataformaECommerce.Infrastructure.Settings
         {
             ModoMantenimiento = false;
         }
+
+        #endregion
+
+        #region Métodos auxiliares
+
+        /// Valida texto obligatorio del sistema.
+        private static string ValidarTextoObligatorio(string valor, string mensajeError)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+                throw new ConfiguracionInvalidaException(mensajeError);
+
+            return valor.Trim();
+        }
+
+        #endregion
+
+        #region Representación
 
         public string ObtenerResumenConfiguracion()
         {
@@ -116,5 +152,7 @@ namespace PlataformaECommerce.Infrastructure.Settings
 
             return sb.ToString();
         }
+
+        #endregion
     }
 }
