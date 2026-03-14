@@ -1,9 +1,20 @@
 ﻿using System;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Domain.Entities
 {
     public sealed class ProductoFisico : Producto
     {
+        #region Constantes de negocio
+
+        /// Peso máximo permitido para productos físicos (Kg).
+        private const decimal PesoMaximoKg = 1000;
+
+        /// Dimensión máxima permitida para productos físicos (cm).
+        private const decimal DimensionMaximaCm = 500;
+
+        #endregion
+
         #region Campos privados
 
         private decimal _pesoKg;
@@ -33,10 +44,10 @@ namespace PlataformaECommerce.Domain.Entities
             decimal largoCm)
             : base(id, nombre, descripcion, precio, stock)
         {
-            _pesoKg = ValidarMedidaPositiva(pesoKg, nameof(pesoKg), "El peso del producto debe ser mayor que cero.");
-            _altoCm = ValidarMedidaPositiva(altoCm, nameof(altoCm), "El alto del producto debe ser mayor que cero.");
-            _anchoCm = ValidarMedidaPositiva(anchoCm, nameof(anchoCm), "El ancho del producto debe ser mayor que cero.");
-            _largoCm = ValidarMedidaPositiva(largoCm, nameof(largoCm), "El largo del producto debe ser mayor que cero.");
+            _pesoKg = ValidarPeso(pesoKg);
+            _altoCm = ValidarDimension(altoCm, nameof(altoCm));
+            _anchoCm = ValidarDimension(anchoCm, nameof(anchoCm));
+            _largoCm = ValidarDimension(largoCm, nameof(largoCm));
         }
 
         #endregion
@@ -65,10 +76,10 @@ namespace PlataformaECommerce.Domain.Entities
         /// Actualiza los datos físicos y logísticos del producto.
         public void ActualizarInformacionFisica(decimal pesoKg, decimal altoCm, decimal anchoCm, decimal largoCm)
         {
-            _pesoKg = ValidarMedidaPositiva(pesoKg, nameof(pesoKg), "El peso del producto debe ser mayor que cero.");
-            _altoCm = ValidarMedidaPositiva(altoCm, nameof(altoCm), "El alto del producto debe ser mayor que cero.");
-            _anchoCm = ValidarMedidaPositiva(anchoCm, nameof(anchoCm), "El ancho del producto debe ser mayor que cero.");
-            _largoCm = ValidarMedidaPositiva(largoCm, nameof(largoCm), "El largo del producto debe ser mayor que cero.");
+            _pesoKg = ValidarPeso(pesoKg);
+            _altoCm = ValidarDimension(altoCm, nameof(altoCm));
+            _anchoCm = ValidarDimension(anchoCm, nameof(anchoCm));
+            _largoCm = ValidarDimension(largoCm, nameof(largoCm));
 
             ActualizarFechaModificacion();
         }
@@ -77,6 +88,7 @@ namespace PlataformaECommerce.Domain.Entities
         public bool EsVoluminoso() => VolumenCm3 > 100000;
 
         /// Devuelve una descripción detallada del producto físico incluyendo
+        /// información logística relevante.
         public override string ObtenerDescripcionDetallada()
         {
             return $"{base.ObtenerDescripcionDetallada()} | Peso: {PesoKg:0.###} Kg | Dimensiones: {AltoCm:0.##} x {AnchoCm:0.##} x {LargoCm:0.##} cm | Volumen: {VolumenCm3:0.##} cm³";
@@ -86,11 +98,26 @@ namespace PlataformaECommerce.Domain.Entities
 
         #region Métodos privados de validación
 
-        /// Valida que una medida física sea mayor que cero y la redondea a dos decimales.
-        private static decimal ValidarMedidaPositiva(decimal valor, string nombreParametro, string mensajeError)
+        /// Valida el peso del producto.
+        private static decimal ValidarPeso(decimal pesoKg)
+        {
+            if (pesoKg <= 0)
+                throw new ProductException("El peso del producto debe ser mayor que cero.");
+
+            if (pesoKg > PesoMaximoKg)
+                throw new ProductException($"El peso del producto no puede superar los {PesoMaximoKg} Kg.");
+
+            return decimal.Round(pesoKg, 3, MidpointRounding.AwayFromZero);
+        }
+
+        /// Valida que una dimensión física sea mayor que cero.
+        private static decimal ValidarDimension(decimal valor, string nombreParametro)
         {
             if (valor <= 0)
-                throw new ArgumentOutOfRangeException(nombreParametro, mensajeError);
+                throw new ProductException($"La dimensión '{nombreParametro}' debe ser mayor que cero.");
+
+            if (valor > DimensionMaximaCm)
+                throw new ProductException($"La dimensión '{nombreParametro}' no puede superar los {DimensionMaximaCm} cm.");
 
             return decimal.Round(valor, 2, MidpointRounding.AwayFromZero);
         }

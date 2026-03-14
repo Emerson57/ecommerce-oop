@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Domain.Entities
 {
@@ -60,10 +61,10 @@ namespace PlataformaECommerce.Domain.Entities
         public void AgregarCompra(int idPedido)
         {
             if (idPedido <= 0)
-                throw new ArgumentOutOfRangeException(nameof(idPedido), "El identificador del pedido debe ser mayor que cero.");
+                throw new UserException("El identificador del pedido debe ser mayor que cero.");
 
             if (_historialCompras.Contains(idPedido))
-                throw new InvalidOperationException($"El pedido con Id {idPedido} ya se encuentra registrado en el historial del cliente.");
+                throw new UserException($"El pedido con Id {idPedido} ya se encuentra registrado en el historial del cliente.");
 
             _historialCompras.Add(idPedido);
             ActualizarFechaModificacion();
@@ -93,7 +94,7 @@ namespace PlataformaECommerce.Domain.Entities
             string preferenciaNormalizada = ValidarPreferencia(preferencia);
 
             if (!_preferencias.Add(preferenciaNormalizada))
-                throw new InvalidOperationException($"La preferencia '{preferenciaNormalizada}' ya existe para este cliente.");
+                throw new UserException($"La preferencia '{preferenciaNormalizada}' ya existe para este cliente.");
 
             ActualizarFechaModificacion();
         }
@@ -104,7 +105,7 @@ namespace PlataformaECommerce.Domain.Entities
             string preferenciaNormalizada = ValidarPreferencia(preferencia);
 
             if (!_preferencias.Remove(preferenciaNormalizada))
-                throw new InvalidOperationException($"La preferencia '{preferenciaNormalizada}' no existe en el perfil del cliente.");
+                throw new UserException($"La preferencia '{preferenciaNormalizada}' no existe en el perfil del cliente.");
 
             ActualizarFechaModificacion();
         }
@@ -164,15 +165,15 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarPreferencia(string preferencia)
         {
             if (string.IsNullOrWhiteSpace(preferencia))
-                throw new ArgumentException("La preferencia es obligatoria.", nameof(preferencia));
+                throw new UserException("La preferencia es obligatoria.");
 
             string preferenciaNormalizada = preferencia.Trim();
 
             if (preferenciaNormalizada.Length < LongitudMinimaPreferencia)
-                throw new ArgumentException($"La preferencia debe tener al menos {LongitudMinimaPreferencia} caracteres.", nameof(preferencia));
+                throw new UserException($"La preferencia debe tener al menos {LongitudMinimaPreferencia} caracteres.");
 
             if (preferenciaNormalizada.Length > LongitudMaximaPreferencia)
-                throw new ArgumentException($"La preferencia no puede superar los {LongitudMaximaPreferencia} caracteres.", nameof(preferencia));
+                throw new UserException($"La preferencia no puede superar los {LongitudMaximaPreferencia} caracteres.");
 
             return preferenciaNormalizada;
         }

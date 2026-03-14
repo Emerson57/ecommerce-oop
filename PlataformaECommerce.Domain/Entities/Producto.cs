@@ -1,10 +1,12 @@
 ﻿using System;
+using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Domain.Entities
 {
     public abstract class Producto
     {
         #region Constantes de negocio
+
         /// Longitud mínima permitida para el nombre del producto.
         private const int LongitudMinimaNombre = 3;
 
@@ -105,7 +107,7 @@ namespace PlataformaECommerce.Domain.Entities
         public void ReponerStock(int cantidad)
         {
             if (cantidad <= 0)
-                throw new ArgumentOutOfRangeException(nameof(cantidad), "La cantidad a reponer debe ser mayor que cero.");
+                throw new ProductException("La cantidad a reponer debe ser mayor que cero.");
 
             checked
             {
@@ -119,10 +121,15 @@ namespace PlataformaECommerce.Domain.Entities
         public void ReducirStock(int cantidad)
         {
             if (cantidad <= 0)
-                throw new ArgumentOutOfRangeException(nameof(cantidad), "La cantidad a reducir debe ser mayor que cero.");
+                throw new ProductException("La cantidad a reducir debe ser mayor que cero.");
 
             if (cantidad > _stock)
-                throw new InvalidOperationException("No es posible reducir el stock porque la cantidad solicitada excede la disponibilidad actual.");
+                throw new InventarioInsuficienteException(
+                    Id,
+                    Nombre,
+                    _stock,
+                    cantidad
+                );
 
             _stock -= cantidad;
             ActualizarFechaModificacion();
@@ -175,7 +182,7 @@ namespace PlataformaECommerce.Domain.Entities
         private static int ValidarId(int id)
         {
             if (id <= 0)
-                throw new ArgumentOutOfRangeException(nameof(id), "El Id del producto debe ser mayor que cero.");
+                throw new ProductException("El Id del producto debe ser mayor que cero.");
 
             return id;
         }
@@ -184,15 +191,15 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarNombre(string nombre)
         {
             if (string.IsNullOrWhiteSpace(nombre))
-                throw new ArgumentException("El nombre del producto es obligatorio.", nameof(nombre));
+                throw new ProductException("El nombre del producto es obligatorio.");
 
             string nombreNormalizado = nombre.Trim();
 
             if (nombreNormalizado.Length < LongitudMinimaNombre)
-                throw new ArgumentException($"El nombre del producto debe tener al menos {LongitudMinimaNombre} caracteres.", nameof(nombre));
+                throw new ProductException($"El nombre del producto debe tener al menos {LongitudMinimaNombre} caracteres.");
 
             if (nombreNormalizado.Length > LongitudMaximaNombre)
-                throw new ArgumentException($"El nombre del producto no puede superar los {LongitudMaximaNombre} caracteres.", nameof(nombre));
+                throw new ProductException($"El nombre del producto no puede superar los {LongitudMaximaNombre} caracteres.");
 
             return nombreNormalizado;
         }
@@ -201,12 +208,12 @@ namespace PlataformaECommerce.Domain.Entities
         private static string ValidarDescripcion(string descripcion)
         {
             if (string.IsNullOrWhiteSpace(descripcion))
-                throw new ArgumentException("La descripción del producto es obligatoria.", nameof(descripcion));
+                throw new ProductException("La descripción del producto es obligatoria.");
 
             string descripcionNormalizada = descripcion.Trim();
 
             if (descripcionNormalizada.Length > LongitudMaximaDescripcion)
-                throw new ArgumentException($"La descripción del producto no puede superar los {LongitudMaximaDescripcion} caracteres.", nameof(descripcion));
+                throw new ProductException($"La descripción del producto no puede superar los {LongitudMaximaDescripcion} caracteres.");
 
             return descripcionNormalizada;
         }
@@ -215,7 +222,7 @@ namespace PlataformaECommerce.Domain.Entities
         private static decimal ValidarPrecio(decimal precio)
         {
             if (precio <= 0)
-                throw new ArgumentOutOfRangeException(nameof(precio), "El precio del producto debe ser mayor que cero.");
+                throw new ProductException("El precio del producto debe ser mayor que cero.");
 
             return decimal.Round(precio, 2, MidpointRounding.AwayFromZero);
         }
@@ -224,7 +231,7 @@ namespace PlataformaECommerce.Domain.Entities
         private static int ValidarStock(int stock)
         {
             if (stock < 0)
-                throw new ArgumentOutOfRangeException(nameof(stock), "El stock del producto no puede ser negativo.");
+                throw new ProductException("El stock del producto no puede ser negativo.");
 
             return stock;
         }
