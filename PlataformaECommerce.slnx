@@ -4,5 +4,4 @@
   <Project Path="PlataformaECommerce.Infrastructure/PlataformaECommerce.Infrastructure.csproj" Id="98803db5-379c-40ed-9d7e-2a18c74bd39c" />
   <Project Path="PlataformaECommerce.Tests/PlataformaECommerce.Tests.csproj" Id="d9885650-5b20-4a45-92f9-3e4e5f53ae5e" />
   <Project Path="PlataformaECommerce.Web/PlataformaECommerce.Web.csproj" Id="3a341ac6-f397-4306-85f6-7a9bd4c0131c" />
-  <Project Path="PlataformaECommerce/PlataformaECommerce.ConsoleDemo.csproj" />
 </Solution>

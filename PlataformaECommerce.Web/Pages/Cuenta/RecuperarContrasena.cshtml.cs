@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace PlataformaECommerce.Web.Pages.Registro
+namespace PlataformaECommerce.Web.Pages.Cuenta
 {
-    public class IndexModel : PageModel
+    public class RecuperarContrasenaModel : PageModel
     {
         public void OnGet()
         {

@@ -1,10 +1,181 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "Inicio";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<section class="hero-commerce">
+    <div class="container">
+        <div class="hero-commerce-grid">
+            <div class="hero-main-banner">
+                <span class="hero-badge">Temporada de ofertas</span>
+                <h1>Descubre productos que elevan tu estilo y tu día a día</h1>
+                <p>
+                    Compra tecnología, hogar, moda y mucho más en una experiencia moderna,
+                    rápida y pensada para ofrecer confianza desde el primer clic.
+                </p>
+
+                <div class="hero-buttons">
+                    <a href="#" class="btn-shop-primary">Comprar ahora</a>
+                    <a href="#" class="btn-shop-secondary">Ver promociones</a>
+                </div>
+            </div>
+
+            <div class="hero-side-offers">
+                <article class="side-offer-card">
+                    <span>Promoción exclusiva</span>
+                    <h3>Hasta 40% OFF</h3>
+                    <p>En productos seleccionados de tecnología y accesorios.</p>
+                    <a href="#">Ver oferta</a>
+                </article>
+
+                <article class="side-offer-card">
+                    <span>Nueva colección</span>
+                    <h3>Hogar & confort</h3>
+                    <p>Renueva tus espacios con diseño, funcionalidad y estilo.</p>
+                    <a href="#">Explorar</a>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="categories-section">
+    <div class="container">
+        <div class="section-title-center">
+            <span>Categorías destacadas</span>
+            <h2>Encuentra lo que necesitas más rápido</h2>
+            <p>Una navegación clara mejora la experiencia de compra y hace que el catálogo se vea más profesional.</p>
+        </div>
+
+        <div class="categories-grid">
+            <a href="#" class="category-card">
+                <div class="category-image placeholder-tech"></div>
+                <h3>Tecnología</h3>
+                <p>Accesorios, dispositivos y novedades.</p>
+            </a>
+
+            <a href="#" class="category-card">
+                <div class="category-image placeholder-home"></div>
+                <h3>Hogar</h3>
+                <p>Diseño, orden y comodidad para tu espacio.</p>
+            </a>
+
+            <a href="#" class="category-card">
+                <div class="category-image placeholder-fashion"></div>
+                <h3>Moda</h3>
+                <p>Prendas y complementos con estilo actual.</p>
+            </a>
+
+            <a href="#" class="category-card">
+                <div class="category-image placeholder-sport"></div>
+                <h3>Deportes</h3>
+                <p>Productos para una vida más activa.</p>
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="products-section">
+    <div class="container">
+        <div class="section-title-between">
+            <div>
+                <span>Productos destacados</span>
+                <h2>Selección recomendada para ti</h2>
+            </div>
+            <a href="#" class="view-all-link">Ver todo</a>
+        </div>
+
+        <div class="products-grid">
+            <article class="product-card">
+                <div class="product-image placeholder-product-1"></div>
+                <span class="product-tag">Nuevo</span>
+                <h3>Audífonos inalámbricos Pro</h3>
+                <p class="product-category">Tecnología</p>
+                <div class="product-price-row">
+                    <strong>$199.900</strong>
+                    <span>$249.900</span>
+                </div>
+                <button class="product-btn">Agregar al carrito</button>
+            </article>
+
+            <article class="product-card">
+                <div class="product-image placeholder-product-2"></div>
+                <span class="product-tag">Top ventas</span>
+                <h3>Lámpara decorativa minimalista</h3>
+                <p class="product-category">Hogar</p>
+                <div class="product-price-row">
+                    <strong>$89.900</strong>
+                    <span>$119.900</span>
+                </div>
+                <button class="product-btn">Agregar al carrito</button>
+            </article>
+
+            <article class="product-card">
+                <div class="product-image placeholder-product-3"></div>
+                <span class="product-tag">Oferta</span>
+                <h3>Reloj deportivo inteligente</h3>
+                <p class="product-category">Deportes</p>
+                <div class="product-price-row">
+                    <strong>$159.900</strong>
+                    <span>$209.900</span>
+                </div>
+                <button class="product-btn">Agregar al carrito</button>
+            </article>
+
+            <article class="product-card">
+                <div class="product-image placeholder-product-4"></div>
+                <span class="product-tag">Colección</span>
+                <h3>Mochila urbana premium</h3>
+                <p class="product-category">Moda</p>
+                <div class="product-price-row">
+                    <strong>$139.900</strong>
+                    <span>$179.900</span>
+                </div>
+                <button class="product-btn">Agregar al carrito</button>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="promo-banner-section">
+    <div class="container">
+        <div class="promo-banner">
+            <div>
+                <span class="promo-mini">Beneficio especial</span>
+                <h2>Compra con envío rápido y promociones semanales</h2>
+                <p>
+                    Diseñamos una experiencia enfocada en confianza, rapidez y facilidad de compra,
+                    como debe verse una tienda profesional real.
+                </p>
+            </div>
+            <a href="#" class="btn-shop-primary">Descubrir ofertas</a>
+        </div>
+    </div>
+</section>
+
+<section class="benefits-section">
+    <div class="container">
+        <div class="benefits-grid">
+            <article class="benefit-card">
+                <h3>Envíos rápidos</h3>
+                <p>Entregas ágiles para mejorar la experiencia del cliente.</p>
+            </article>
+
+            <article class="benefit-card">
+                <h3>Pagos seguros</h3>
+                <p>Proceso de compra confiable con enfoque en seguridad.</p>
+            </article>
+
+            <article class="benefit-card">
+                <h3>Atención personalizada</h3>
+                <p>Soporte claro y cercano para acompañar cada compra.</p>
+            </article>
+
+            <article class="benefit-card">
+                <h3>Devoluciones sencillas</h3>
+                <p>Políticas claras que transmiten tranquilidad al usuario.</p>
+            </article>
+        </div>
+    </div>
+</section>
