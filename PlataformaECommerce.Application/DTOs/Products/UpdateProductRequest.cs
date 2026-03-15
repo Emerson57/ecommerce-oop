@@ -1,24 +1,24 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace PlataformaECommerce.Application.DTOs.Productos
+namespace PlataformaECommerce.Application.DTOs.Products
 {
-    public sealed class CreateProductRequest
+    public sealed class UpdateProductRequest
     {
-        /// Nombre del producto.
+        /// Nombre actualizado del producto.
         [Required(ErrorMessage = "El nombre del producto es obligatorio.")]
         [StringLength(150, MinimumLength = 3, ErrorMessage = "El nombre debe tener entre 3 y 150 caracteres.")]
         public string Nombre { get; set; } = string.Empty;
 
-        /// Descripción del producto.
+        /// Descripción actualizada del producto.
         [Required(ErrorMessage = "La descripción del producto es obligatoria.")]
         [StringLength(500, ErrorMessage = "La descripción no puede superar los 500 caracteres.")]
         public string Descripcion { get; set; } = string.Empty;
 
-        /// Precio unitario.
+        /// Precio actualizado.
         [Range(0.01, double.MaxValue, ErrorMessage = "El precio debe ser mayor que cero.")]
         public decimal Precio { get; set; }
 
-        /// Stock inicial.
+        /// Stock actualizado.
         [Range(0, int.MaxValue, ErrorMessage = "El stock no puede ser negativo.")]
         public int Stock { get; set; }
 

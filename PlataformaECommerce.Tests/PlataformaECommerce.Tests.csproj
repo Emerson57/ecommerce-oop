@@ -27,4 +27,11 @@
     <Using Include="NUnit.Framework" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Application\Orders\" />
+    <Folder Include="Common\" />
+    <Folder Include="Domain\Entities\" />
+    <Folder Include="Web\" />
+  </ItemGroup>
+
 </Project>

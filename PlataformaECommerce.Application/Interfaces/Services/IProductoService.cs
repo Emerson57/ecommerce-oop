@@ -1,4 +1,4 @@
-﻿using PlataformaECommerce.Application.DTOs.Productos;
+﻿using PlataformaECommerce.Application.DTOs.Products;
 
 namespace PlataformaECommerce.Application.Interfaces.Services
 {

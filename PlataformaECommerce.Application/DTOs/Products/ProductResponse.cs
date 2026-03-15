@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace PlataformaECommerce.Application.DTOs.Productos
+namespace PlataformaECommerce.Application.DTOs.Products
 {
     public sealed class ProductResponse
     {

@@ -7,9 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Notifications\" />
+    <Folder Include="Abstractions\" />
+    <Folder Include="DTOs\Cart\" />
+    <Folder Include="DTOs\Users\" />
+    <Folder Include="DTOs\Orders\" />
+    <Folder Include="Features\Cart\" />
+    <Folder Include="Features\Auth\" />
+    <Folder Include="Features\Admin\" />
+    <Folder Include="Features\Orders\" />
+    <Folder Include="Features\Products\Commands\" />
+    <Folder Include="Features\Products\Queries\" />
+    <Folder Include="Mappings\" />
+    <Folder Include="Common\" />
     <Folder Include="Validators\" />
-    <Folder Include="UseCases\" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,7 +2,7 @@
 using PlataformaECommerce.Domain.Entities;
 using PlataformaECommerce.Domain.Exceptions;
 
-namespace PlataformaECommerce.Tests.Domain.Carrito
+namespace PlataformaECommerce.Tests.Application.Cart
 {
     [TestFixture]
     public class CarritoCompraTests

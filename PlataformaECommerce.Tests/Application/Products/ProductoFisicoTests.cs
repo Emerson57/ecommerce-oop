@@ -2,7 +2,7 @@
 using PlataformaECommerce.Domain.Entities;
 using PlataformaECommerce.Domain.Exceptions;
 
-namespace PlataformaECommerce.Tests.Domain.Productos
+namespace PlataformaECommerce.Tests.Application.Products
 {
     [TestFixture]
     public class ProductoFisicoTests

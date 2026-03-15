@@ -1,6 +1,6 @@
 ﻿using NUnit.Framework;
 using PlataformaECommerce.Domain.Exceptions;
-using PlataformaECommerce.Infrastructure.Settings;
+using PlataformaECommerce.Infrastructure.Configurations;
 
 namespace PlataformaECommerce.Tests.Infrastructure.Settings
 {

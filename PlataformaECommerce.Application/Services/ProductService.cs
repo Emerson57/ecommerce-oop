@@ -1,4 +1,4 @@
-﻿using PlataformaECommerce.Application.DTOs.Productos;
+﻿using PlataformaECommerce.Application.DTOs.Products;
 using PlataformaECommerce.Application.Interfaces.Repositories;
 using PlataformaECommerce.Application.Interfaces.Services;
 using PlataformaECommerce.Domain.Entities;

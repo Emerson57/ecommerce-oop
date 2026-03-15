@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using PlataformaECommerce.Application.DTOs.Productos;
+using PlataformaECommerce.Application.DTOs.Products;
 using PlataformaECommerce.Application.Interfaces.Services;
 
 namespace PlataformaECommerce.Web.Controllers

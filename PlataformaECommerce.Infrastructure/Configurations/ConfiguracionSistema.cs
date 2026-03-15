@@ -2,7 +2,7 @@
 using System.Text;
 using PlataformaECommerce.Domain.Exceptions;
 
-namespace PlataformaECommerce.Infrastructure.Settings
+namespace PlataformaECommerce.Infrastructure.Configurations
 {
     public sealed class ConfiguracionSistema
     {
