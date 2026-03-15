@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using PlataformaECommerce.Application.Interfaces.Services;
-using PlataformaECommerce.Application.Services;
+using PlataformaECommerce.Application.Features.Products.Services;
+using PlataformaECommerce.Application.Interfaces.Services.Products;
 
 namespace PlataformaECommerce.Application.DependencyInjection
 {

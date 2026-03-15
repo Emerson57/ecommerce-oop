@@ -2,11 +2,14 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
-using PlataformaECommerce.Application.Interfaces.Repositories;
+using PlataformaECommerce.Application.Interfaces.Persistence;
+using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
+using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Infrastructure.Mongo;
 using PlataformaECommerce.Infrastructure.Mongo.Repositories;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
-using PlataformaECommerce.Infrastructure.Repositories;
+using PlataformaECommerce.Infrastructure.Repositories.Common;
+using PlataformaECommerce.Infrastructure.Repositories.Products;
 
 namespace PlataformaECommerce.Infrastructure.DependencyInjection
 {

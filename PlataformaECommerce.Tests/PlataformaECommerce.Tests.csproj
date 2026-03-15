@@ -28,9 +28,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Application\Catalog\" />
+    <Folder Include="Application\Auth\" />
     <Folder Include="Application\Orders\" />
     <Folder Include="Common\" />
     <Folder Include="Domain\Entities\" />
+    <Folder Include="Domain\Cart\" />
+    <Folder Include="Domain\Orders\" />
+    <Folder Include="Domain\Users\" />
+    <Folder Include="Domain\Products\" />
+    <Folder Include="Infrastructure\Audit\" />
+    <Folder Include="Infrastructure\Products\" />
     <Folder Include="Web\" />
   </ItemGroup>
 

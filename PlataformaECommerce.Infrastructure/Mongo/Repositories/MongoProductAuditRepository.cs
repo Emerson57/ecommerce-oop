@@ -1,6 +1,6 @@
 ﻿using MongoDB.Driver;
-using PlataformaECommerce.Application.Interfaces.Repositories;
-using PlataformaECommerce.Infrastructure.Mongo.Documents;
+using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
+using PlataformaECommerce.Infrastructure.Mongo.Repositories.Products;
 
 namespace PlataformaECommerce.Infrastructure.Mongo.Repositories
 {

@@ -7,14 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Folder Include="Controllers\Api\" />
     <Folder Include="Extensions\" />
     <Folder Include="Configurations\" />
-    <Folder Include="Pages\Admin\" />
-    <Folder Include="Pages\Cart\" />
-    <Folder Include="Pages\Auth\" />
-    <Folder Include="Pages\Orders\" />
     <Folder Include="Pages\Products\" />
-    <Folder Include="ViewModels\" />
+    <Folder Include="ViewModels\Catalog\" />
+    <Folder Include="ViewModels\Cart\" />
+    <Folder Include="ViewModels\Auth\" />
+    <Folder Include="ViewModels\Admin\" />
+    <Folder Include="ViewModels\Orders\" />
+    <Folder Include="ViewModels\Products\" />
     <Folder Include="wwwroot\css\registro\" />
   </ItemGroup>
 

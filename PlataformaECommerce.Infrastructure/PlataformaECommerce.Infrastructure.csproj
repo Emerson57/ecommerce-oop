@@ -12,13 +12,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Audit\" />
     <Folder Include="Identity\" />
     <Folder Include="Mongo\Context\" />
     <Folder Include="Mongo\Collections\" />
+    <Folder Include="Mongo\Repositories\Common\" />
+    <Folder Include="Mongo\Repositories\Orders\" />
     <Folder Include="Persistence\Migrations\" />
+    <Folder Include="Repositories\Cart\" />
+    <Folder Include="Repositories\Users\" />
+    <Folder Include="Repositories\Orders\" />
     <Folder Include="Seed\" />
-    <Folder Include="Services\" />
+    <Folder Include="Services\Auth\" />
+    <Folder Include="Services\Audit\" />
+    <Folder Include="Services\Common\" />
   </ItemGroup>
 
   <ItemGroup>

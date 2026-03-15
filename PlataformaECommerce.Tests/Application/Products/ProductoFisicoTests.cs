@@ -1,5 +1,5 @@
 ﻿using NUnit.Framework;
-using PlataformaECommerce.Domain.Entities;
+using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Exceptions;
 
 namespace PlataformaECommerce.Tests.Application.Products
