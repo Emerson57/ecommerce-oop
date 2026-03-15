@@ -9,6 +9,7 @@
   <ItemGroup>
     <Folder Include="Extensions\" />
     <Folder Include="Configurations\" />
+    <Folder Include="Pages\Admin\" />
     <Folder Include="Pages\Cart\" />
     <Folder Include="Pages\Auth\" />
     <Folder Include="Pages\Orders\" />

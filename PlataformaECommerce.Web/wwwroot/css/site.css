@@ -696,3 +696,10 @@ input:focus {
         align-items: flex-start;
     }
 }
+
+.disabled-link {
+    pointer-events: none;
+    opacity: 0.55;
+    cursor: default;
+    text-decoration: none;
+}

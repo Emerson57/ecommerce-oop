@@ -31,9 +31,9 @@
                         </form>
 
                         <div class="header-actions">
-                            <a asp-page="/Cuenta/Ingresar" class="header-action">Iniciar sesión</a>
-                            <a asp-page="/Cuenta/Registro" class="header-action">Crear cuenta</a>
-                            <a asp-page="/Carrito/Index" class="header-action cart-action">Carrito (2)</a>
+                            <a href="#" class="header-action disabled-link" aria-disabled="true">Iniciar sesión</a>
+                            <a href="#" class="header-action disabled-link" aria-disabled="true">Crear cuenta</a>
+                            <a href="#" class="header-action cart-action disabled-link" aria-disabled="true">Carrito</a>
 
                             <button type="button" id="themeToggle" class="theme-toggle-btn" title="Cambiar tema">
                                 <span id="themeToggleText">🌞 Claro</span>
@@ -57,8 +57,8 @@
                         <a href="#">Hogar</a>
                         <a href="#">Moda</a>
                         <a href="#">Deportes</a>
-                        <a asp-area="" asp-page="/Cuenta/Ingresar">Mi cuenta</a>
-                        <a asp-area="" asp-page="/Carrito/Index">Carrito</a>
+                        <a href="#" class="disabled-link" aria-disabled="true">Mi cuenta</a>
+                        <a href="#" class="disabled-link" aria-disabled="true">Carrito</a>
                     </nav>
                 </div>
             </div>
@@ -89,15 +89,15 @@
 
                     <div>
                         <h5>Mi cuenta</h5>
-                        <a asp-page="/Cuenta/Ingresar">Iniciar sesión</a>
-                        <a asp-page="/Cuenta/Registro">Crear cuenta</a>
-                        <a asp-page="/Carrito/Index">Carrito</a>
+                        <a href="#" class="disabled-link" aria-disabled="true">Iniciar sesión</a>
+                        <a href="#" class="disabled-link" aria-disabled="true">Crear cuenta</a>
+                        <a href="#" class="disabled-link" aria-disabled="true">Carrito</a>
                     </div>
 
                     <div>
                         <h5>Empresa</h5>
                         <a href="#">Nosotros</a>
-                        <a asp-area="" asp-page="/Privacy">Privacidad</a>
+                        <a href="#" class="disabled-link" aria-disabled="true">Privacidad</a>
                         <a href="#">Términos</a>
                         <a href="#">Contacto</a>
                     </div>
