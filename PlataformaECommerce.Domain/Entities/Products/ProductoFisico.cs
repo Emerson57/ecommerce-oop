@@ -1,137 +1,261 @@
-﻿using System;
+﻿using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Exceptions;
+using PlataformaECommerce.Domain.ValueObjects;
 
-namespace PlataformaECommerce.Domain.Entities.Products
+namespace PlataformaECommerce.Domain.Entities.Products;
+
+/// <summary>
+/// Representa un producto físico dentro del dominio del e-commerce.
+/// </summary>
+/// <remarks>
+/// Un producto físico corresponde a un bien tangible que requiere manejo logístico,
+/// almacenamiento, control de inventario material y, en la mayoría de los casos,
+/// procesos de alistamiento, embalaje y envío. Esta entidad extiende el comportamiento
+/// base de <see cref="Producto"/> incorporando atributos físicos y operativos
+/// necesarios para su comercialización y distribución.
+/// </remarks>
+public sealed class ProductoFisico : Producto
 {
-    public sealed class ProductoFisico : Producto
+    #region Constantes de negocio
+
+    /// <summary>
+    /// Peso máximo permitido para productos físicos expresado en kilogramos.
+    /// </summary>
+    private const decimal PesoMaximoKg = 1000m;
+
+    /// <summary>
+    /// Dimensión máxima permitida para cada lado del producto expresada en centímetros.
+    /// </summary>
+    private const decimal DimensionMaximaCm = 500m;
+
+    /// <summary>
+    /// Umbral de volumen a partir del cual el producto se considera voluminoso.
+    /// </summary>
+    private const decimal VolumenMinimoVoluminosoCm3 = 100000m;
+
+    /// <summary>
+    /// Umbral de peso a partir del cual el producto se considera pesado para efectos logísticos.
+    /// </summary>
+    private const decimal PesoMinimoPesadoKg = 25m;
+
+    #endregion
+
+    #region Constructores
+
+    /// <summary>
+    /// Constructor privado sin parámetros requerido por herramientas de persistencia como EF Core.
+    /// </summary>
+    private ProductoFisico()
     {
-        #region Constantes de negocio
-
-        /// Peso máximo permitido para productos físicos (Kg).
-        private const decimal PesoMaximoKg = 1000;
-
-        /// Dimensión máxima permitida para productos físicos (cm).
-        private const decimal DimensionMaximaCm = 500;
-
-        #endregion
-
-        #region Campos privados
-
-        private decimal _pesoKg;
-        private decimal _altoCm;
-        private decimal _anchoCm;
-        private decimal _largoCm;
-
-        #endregion
-
-        #region Constructores
-
-        /// Constructor protegido sin parámetros.
-        protected ProductoFisico()
-        {
-        }
-
-        /// Crea una nueva instancia de un producto físico con sus datos base
-        public ProductoFisico(
-            int id,
-            string nombre,
-            string descripcion,
-            decimal precio,
-            int stock,
-            decimal pesoKg,
-            decimal altoCm,
-            decimal anchoCm,
-            decimal largoCm)
-            : base(id, nombre, descripcion, precio, stock)
-        {
-            _pesoKg = ValidarPeso(pesoKg);
-            _altoCm = ValidarDimension(altoCm, nameof(altoCm));
-            _anchoCm = ValidarDimension(anchoCm, nameof(anchoCm));
-            _largoCm = ValidarDimension(largoCm, nameof(largoCm));
-        }
-
-        #endregion
-
-        #region Propiedades públicas
-
-        /// Peso del producto en kilogramos.
-        public decimal PesoKg => _pesoKg;
-
-        /// Alto del producto en centímetros.
-        public decimal AltoCm => _altoCm;
-
-        /// Ancho del producto en centímetros.
-        public decimal AnchoCm => _anchoCm;
-
-        /// Largo del producto en centímetros.
-        public decimal LargoCm => _largoCm;
-
-        /// Volumen aproximado del producto en centímetros cúbicos.
-        public decimal VolumenCm3 => _altoCm * _anchoCm * _largoCm;
-
-        #endregion
-
-        #region Métodos de negocio
-
-        /// Actualiza los datos físicos y logísticos del producto.
-        public void ActualizarInformacionFisica(decimal pesoKg, decimal altoCm, decimal anchoCm, decimal largoCm)
-        {
-            _pesoKg = ValidarPeso(pesoKg);
-            _altoCm = ValidarDimension(altoCm, nameof(altoCm));
-            _anchoCm = ValidarDimension(anchoCm, nameof(anchoCm));
-            _largoCm = ValidarDimension(largoCm, nameof(largoCm));
-
-            ActualizarFechaModificacion();
-        }
-
-        /// Determina si el producto puede considerarse voluminoso según su volumen.
-        public bool EsVoluminoso() => VolumenCm3 > 100000;
-
-        /// Devuelve una descripción detallada del producto físico incluyendo
-        /// información logística relevante.
-        public override string ObtenerDescripcionDetallada()
-        {
-            return $"{base.ObtenerDescripcionDetallada()} | Peso: {PesoKg:0.###} Kg | Dimensiones: {AltoCm:0.##} x {AnchoCm:0.##} x {LargoCm:0.##} cm | Volumen: {VolumenCm3:0.##} cm³";
-        }
-
-        #endregion
-
-        #region Métodos privados de validación
-
-        /// Valida el peso del producto.
-        private static decimal ValidarPeso(decimal pesoKg)
-        {
-            if (pesoKg <= 0)
-                throw new ProductException("El peso del producto debe ser mayor que cero.");
-
-            if (pesoKg > PesoMaximoKg)
-                throw new ProductException($"El peso del producto no puede superar los {PesoMaximoKg} Kg.");
-
-            return decimal.Round(pesoKg, 3, MidpointRounding.AwayFromZero);
-        }
-
-        /// Valida que una dimensión física sea mayor que cero.
-        private static decimal ValidarDimension(decimal valor, string nombreParametro)
-        {
-            if (valor <= 0)
-                throw new ProductException($"La dimensión '{nombreParametro}' debe ser mayor que cero.");
-
-            if (valor > DimensionMaximaCm)
-                throw new ProductException($"La dimensión '{nombreParametro}' no puede superar los {DimensionMaximaCm} cm.");
-
-            return decimal.Round(valor, 2, MidpointRounding.AwayFromZero);
-        }
-
-        #endregion
-
-        #region Representación textual
-
-        /// Devuelve una representación corta del producto físico.
-        public override string ToString()
-        {
-            return $"{base.ToString()} | Físico: {PesoKg:0.###} Kg ({AltoCm:0.##} x {AnchoCm:0.##} x {LargoCm:0.##} cm)";
-        }
-
-        #endregion
     }
+
+    /// <summary>
+    /// Inicializa una nueva instancia de la entidad <see cref="ProductoFisico"/> con la información
+    /// comercial y logística requerida para su gestión dentro del sistema.
+    /// </summary>
+    /// <param name="nombre">Nombre comercial del producto físico.</param>
+    /// <param name="descripcion">Descripción funcional o comercial del producto físico.</param>
+    /// <param name="sku">SKU del producto representado como Value Object.</param>
+    /// <param name="precio">Precio unitario actual del producto representado como Value Object.</param>
+    /// <param name="stock">Cantidad disponible del producto.</param>
+    /// <param name="slug">Identificador amigable para URL.</param>
+    /// <param name="imagenPrincipalUrl">Ruta o URL de la imagen principal del producto.</param>
+    /// <param name="pesoKg">Peso del producto expresado en kilogramos.</param>
+    /// <param name="altoCm">Alto del producto expresado en centímetros.</param>
+    /// <param name="anchoCm">Ancho del producto expresado en centímetros.</param>
+    /// <param name="largoCm">Largo del producto expresado en centímetros.</param>
+    /// <param name="requiereEnvio">Indica si el producto requiere un proceso formal de envío.</param>
+    public ProductoFisico(
+        string nombre,
+        string descripcion,
+        Sku sku,
+        Money precio,
+        int stock,
+        string slug,
+        string? imagenPrincipalUrl,
+        decimal pesoKg,
+        decimal altoCm,
+        decimal anchoCm,
+        decimal largoCm,
+        bool requiereEnvio = true)
+        : base(nombre, descripcion, sku, precio, stock, slug, imagenPrincipalUrl)
+    {
+        PesoKg = ValidarPeso(pesoKg);
+        AltoCm = ValidarDimension(altoCm, nameof(altoCm));
+        AnchoCm = ValidarDimension(anchoCm, nameof(anchoCm));
+        LargoCm = ValidarDimension(largoCm, nameof(largoCm));
+        RequiereEnvio = requiereEnvio;
+        TipoProducto = TipoProducto.Fisico;
+    }
+
+    #endregion
+
+    #region Propiedades públicas
+
+    /// <summary>
+    /// Peso del producto expresado en kilogramos.
+    /// </summary>
+    public decimal PesoKg { get; private set; }
+
+    /// <summary>
+    /// Alto del producto expresado en centímetros.
+    /// </summary>
+    public decimal AltoCm { get; private set; }
+
+    /// <summary>
+    /// Ancho del producto expresado en centímetros.
+    /// </summary>
+    public decimal AnchoCm { get; private set; }
+
+    /// <summary>
+    /// Largo del producto expresado en centímetros.
+    /// </summary>
+    public decimal LargoCm { get; private set; }
+
+    /// <summary>
+    /// Indica si el producto requiere envío físico para su entrega al cliente.
+    /// </summary>
+    public bool RequiereEnvio { get; private set; }
+
+    /// <summary>
+    /// Volumen aproximado del producto expresado en centímetros cúbicos.
+    /// </summary>
+    /// <remarks>
+    /// El volumen se calcula a partir de las dimensiones físicas almacenadas en la entidad.
+    /// </remarks>
+    public decimal VolumenCm3 => decimal.Round(AltoCm * AnchoCm * LargoCm, 2, MidpointRounding.AwayFromZero);
+
+    #endregion
+
+    #region Métodos de negocio
+
+    /// <summary>
+    /// Actualiza la información física y logística del producto.
+    /// </summary>
+    /// <param name="pesoKg">Nuevo peso del producto en kilogramos.</param>
+    /// <param name="altoCm">Nuevo alto del producto en centímetros.</param>
+    /// <param name="anchoCm">Nuevo ancho del producto en centímetros.</param>
+    /// <param name="largoCm">Nuevo largo del producto en centímetros.</param>
+    /// <param name="requiereEnvio">Nuevo indicador de requerimiento de envío.</param>
+    public void ActualizarInformacionFisica(
+        decimal pesoKg,
+        decimal altoCm,
+        decimal anchoCm,
+        decimal largoCm,
+        bool requiereEnvio)
+    {
+        PesoKg = ValidarPeso(pesoKg);
+        AltoCm = ValidarDimension(altoCm, nameof(altoCm));
+        AnchoCm = ValidarDimension(anchoCm, nameof(anchoCm));
+        LargoCm = ValidarDimension(largoCm, nameof(largoCm));
+        RequiereEnvio = requiereEnvio;
+
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Determina si el producto puede considerarse voluminoso de acuerdo con su volumen aproximado.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> si el producto supera el umbral definido para considerarse voluminoso;
+    /// en caso contrario, <see langword="false"/>.
+    /// </returns>
+    public bool EsVoluminoso()
+    {
+        return VolumenCm3 > VolumenMinimoVoluminosoCm3;
+    }
+
+    /// <summary>
+    /// Determina si el producto puede considerarse pesado para efectos operativos o logísticos.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> si el peso del producto supera el umbral definido para carga pesada;
+    /// en caso contrario, <see langword="false"/>.
+    /// </returns>
+    public bool EsPesado()
+    {
+        return PesoKg >= PesoMinimoPesadoKg;
+    }
+
+    /// <summary>
+    /// Determina si el producto requiere tratamiento logístico especial.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> si el producto es pesado, voluminoso o requiere envío;
+    /// de lo contrario, <see langword="false"/>.
+    /// </returns>
+    public bool RequiereManejoEspecial()
+    {
+        return RequiereEnvio && (EsPesado() || EsVoluminoso());
+    }
+
+    /// <summary>
+    /// Devuelve una descripción detallada del producto físico incluyendo
+    /// información logística relevante.
+    /// </summary>
+    /// <returns>Cadena con información comercial, física y operativa del producto.</returns>
+    public override string ObtenerDescripcionDetallada()
+    {
+        return $"{base.ObtenerDescripcionDetallada()} | Peso: {PesoKg:0.###} Kg | Dimensiones: {AltoCm:0.##} x {AnchoCm:0.##} x {LargoCm:0.##} cm | Volumen: {VolumenCm3:0.##} cm³ | Requiere envío: {RequiereEnvio}";
+    }
+
+    #endregion
+
+    #region Métodos privados de validación
+
+    /// <summary>
+    /// Valida el peso del producto físico.
+    /// </summary>
+    /// <param name="pesoKg">Peso a validar.</param>
+    /// <returns>Peso válido y normalizado.</returns>
+    private static decimal ValidarPeso(decimal pesoKg)
+    {
+        if (pesoKg <= 0)
+        {
+            throw new ProductException("El peso del producto físico debe ser mayor que cero.");
+        }
+
+        if (pesoKg > PesoMaximoKg)
+        {
+            throw new ProductException($"El peso del producto físico no puede superar los {PesoMaximoKg} Kg.");
+        }
+
+        return decimal.Round(pesoKg, 3, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// Valida una dimensión física del producto.
+    /// </summary>
+    /// <param name="valor">Valor de la dimensión a validar.</param>
+    /// <param name="nombreParametro">Nombre lógico de la dimensión evaluada.</param>
+    /// <returns>Dimensión válida y normalizada.</returns>
+    private static decimal ValidarDimension(decimal valor, string nombreParametro)
+    {
+        if (valor <= 0)
+        {
+            throw new ProductException($"La dimensión '{nombreParametro}' del producto físico debe ser mayor que cero.");
+        }
+
+        if (valor > DimensionMaximaCm)
+        {
+            throw new ProductException($"La dimensión '{nombreParametro}' del producto físico no puede superar los {DimensionMaximaCm} cm.");
+        }
+
+        return decimal.Round(valor, 2, MidpointRounding.AwayFromZero);
+    }
+
+    #endregion
+
+    #region Representación textual
+
+    /// <summary>
+    /// Devuelve una representación resumida del producto físico para trazabilidad y depuración.
+    /// </summary>
+    /// <returns>Cadena representativa del producto físico.</returns>
+    public override string ToString()
+    {
+        return $"{base.ToString()} | Físico: {PesoKg:0.###} Kg ({AltoCm:0.##} x {AnchoCm:0.##} x {LargoCm:0.##} cm) | Requiere envío: {RequiereEnvio}";
+    }
+
+    #endregion
 }
