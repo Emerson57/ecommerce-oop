@@ -1,4 +1,5 @@
-﻿using PlataformaECommerce.Domain.Entities.Cart;
+﻿using PlataformaECommerce.Domain.Common;
+using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -22,11 +23,6 @@ public sealed class DetallePedido
     /// Cantidad mínima permitida para una línea de pedido.
     /// </summary>
     private const int CantidadMinima = 1;
-
-    /// <summary>
-    /// Cantidad máxima permitida para una línea de pedido.
-    /// </summary>
-    private const int CantidadMaximaPorLinea = 999;
 
     #endregion
 
@@ -271,9 +267,9 @@ public sealed class DetallePedido
             throw new DomainException($"La cantidad del detalle del pedido debe ser al menos {CantidadMinima}.");
         }
 
-        if (cantidad > CantidadMaximaPorLinea)
+        if (cantidad > DomainLimits.MaximoCantidadPorLinea)
         {
-            throw new DomainException($"La cantidad del detalle del pedido no puede superar {CantidadMaximaPorLinea} unidades.");
+            throw new DomainException($"La cantidad del detalle del pedido no puede superar {DomainLimits.MaximoCantidadPorLinea} unidades.");
         }
 
         return cantidad;

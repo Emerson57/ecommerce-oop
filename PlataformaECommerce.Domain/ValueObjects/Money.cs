@@ -276,6 +276,19 @@ public sealed class Money : IEquatable<Money>, IComparable<Money>
     }
 
     /// <summary>
+    /// Determina si el valor monetario actual comparte la misma moneda con otro valor monetario.
+    /// </summary>
+    /// <param name="other">Otro valor monetario a evaluar.</param>
+    /// <returns>
+    /// <see langword="true"/> si ambos valores tienen la misma moneda;
+    /// en caso contrario, <see langword="false"/>.
+    /// </returns>
+    public bool HasSameCurrency(Money? other)
+    {
+        return other is not null && Currency == other.Currency;
+    }
+
+    /// <summary>
     /// Compara la instancia actual con otro valor monetario.
     /// </summary>
     /// <param name="other">Otro valor monetario.</param>

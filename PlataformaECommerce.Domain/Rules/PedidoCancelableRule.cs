@@ -11,16 +11,14 @@ namespace PlataformaECommerce.Domain.Rules;
 /// Esta regla encapsula la validación funcional de cancelación del pedido,
 /// evitando que dicha lógica quede dispersa en múltiples capas del sistema.
 ///
-/// Un pedido se considera cancelable cuando:
-/// - existe,
-/// - no se encuentra ya cancelado,
-/// - y no ha sido entregado.
+/// Un pedido se considera cancelable cuando se encuentra en una etapa previa
+/// al despacho físico o cierre definitivo del flujo comercial.
 ///
 /// Esta definición puede servir como base para escenarios futuros
 /// en los que se requieran condiciones adicionales, como ventanas
 /// temporales de cancelación o estados intermedios restringidos.
 /// </remarks>
-public sealed class PedidoCancelableRule
+public static class PedidoCancelableRule
 {
     /// <summary>
     /// Evalúa si un pedido puede ser cancelado de acuerdo con su estado actual.
@@ -30,23 +28,16 @@ public sealed class PedidoCancelableRule
     /// <see langword="true"/> si el pedido puede cancelarse;
     /// en caso contrario, <see langword="false"/>.
     /// </returns>
-    public bool IsSatisfiedBy(Pedido? pedido)
+    public static bool IsSatisfiedBy(Pedido? pedido)
     {
         if (pedido is null)
         {
             return false;
         }
 
-        return pedido.Estado is not EstadoPedido.Cancelado
-            && pedido.Estado is not EstadoPedido.Entregado;
-    }
-
-    /// <summary>
-    /// Obtiene una descripción funcional de la regla.
-    /// </summary>
-    /// <returns>Texto descriptivo de la regla.</returns>
-    public override string ToString()
-    {
-        return "Un pedido puede cancelarse siempre que no se encuentre entregado ni previamente cancelado.";
+        return pedido.Estado is EstadoPedido.Pendiente
+            or EstadoPedido.Confirmado
+            or EstadoPedido.Pagado
+            or EstadoPedido.EnProceso;
     }
 }

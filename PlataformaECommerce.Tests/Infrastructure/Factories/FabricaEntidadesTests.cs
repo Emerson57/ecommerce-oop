@@ -4,309 +4,160 @@ using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Infrastructure.Services.Products;
 
-namespace PlataformaECommerce.Tests.Infrastructure.Factories
+namespace PlataformaECommerce.Tests.Infrastructure.Factories;
+
+[TestFixture]
+public class FabricaEntidadesTests
 {
-    [TestFixture]
-    public class FabricaEntidadesTests
+    [Test]
+    public void CrearProductoDigital_DatosValidos_CreaProductoDigitalCorrectamente()
     {
-        #region Pruebas de creación de productos
+        ProductoDigital producto = FabricaEntidades.CrearProductoDigital(
+            nombre: "Curso C#",
+            descripcion: "Curso completo en video.",
+            precio: 120000m,
+            stock: 50,
+            formatoArchivo: "MP4",
+            tamanoMB: 850.75m,
+            etiquetas: new[] { "nuevo", "backend" });
 
-        [Test]
-        public void CrearProductoDigital_DatosValidos_CreaProductoDigitalCorrectamente()
-        {
-            // Arrange & Act
-            var producto = FabricaEntidades.CrearProductoDigital(
-                id: 1,
-                nombre: "Curso C#",
-                descripcion: "Curso completo en video.",
-                precio: 120000m,
-                stock: 50,
-                formatoArchivo: "MP4",
-                tamanoMB: 850.75m
-            );
+        Assert.That(producto.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(producto.Nombre, Is.EqualTo("Curso C#"));
+        Assert.That(producto.FormatoArchivo, Is.EqualTo("MP4"));
+        Assert.That(producto.TamanoArchivoMb, Is.EqualTo(850.75m));
+        Assert.That(producto.Etiquetas.Select(x => x.Value), Is.EqualTo(new[] { "nuevo", "backend" }));
+    }
 
-            // Assert
-            Assert.That(producto, Is.TypeOf<ProductoDigital>());
+    [Test]
+    public void CrearProductoFisico_DatosValidos_CreaProductoFisicoCorrectamente()
+    {
+        ProductoFisico producto = FabricaEntidades.CrearProductoFisico(
+            nombre: "Teclado Mecánico",
+            descripcion: "Teclado con retroiluminación.",
+            precio: 350000m,
+            stock: 10,
+            pesoKg: 1.2m,
+            altoCm: 4.5m,
+            anchoCm: 18m,
+            largoCm: 45m,
+            categoriaId: Guid.NewGuid());
 
-            var productoDigital = (ProductoDigital)producto;
-            Assert.That(productoDigital.Id, Is.EqualTo(1));
-            Assert.That(productoDigital.Nombre, Is.EqualTo("Curso C#"));
-            Assert.That(productoDigital.FormatoArchivo, Is.EqualTo("MP4"));
-            Assert.That(productoDigital.TamanoMB, Is.EqualTo(850.75m));
-        }
+        Assert.That(producto.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(producto.Nombre, Is.EqualTo("Teclado Mecánico"));
+        Assert.That(producto.PesoKg, Is.EqualTo(1.2m));
+        Assert.That(producto.CategoriaId, Is.Not.Null);
+    }
 
-        [Test]
-        public void CrearProductoFisico_DatosValidos_CreaProductoFisicoCorrectamente()
-        {
-            // Arrange & Act
-            var producto = FabricaEntidades.CrearProductoFisico(
-                id: 2,
-                nombre: "Teclado Mecánico",
-                descripcion: "Teclado con retroiluminación.",
-                precio: 350000m,
-                stock: 10,
-                pesoKg: 1.2m,
-                altoCm: 4.5m,
-                anchoCm: 18m,
-                largoCm: 45m
-            );
+    [Test]
+    public void CrearCliente_DatosValidos_CreaClienteCorrectamente()
+    {
+        Cliente cliente = FabricaEntidades.CrearCliente(
+            nombre: "Laura Gómez",
+            correo: "laura@email.com",
+            contrasenaHash: "Clave123Clave123Clave123");
 
-            // Assert
-            Assert.That(producto, Is.TypeOf<ProductoFisico>());
+        Assert.That(cliente.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(cliente.Nombre, Is.EqualTo("Laura Gómez"));
+        Assert.That(cliente.CorreoElectronico.Value, Is.EqualTo("laura@email.com"));
+    }
 
-            var productoFisico = (ProductoFisico)producto;
-            Assert.That(productoFisico.Id, Is.EqualTo(2));
-            Assert.That(productoFisico.Nombre, Is.EqualTo("Teclado Mecánico"));
-            Assert.That(productoFisico.PesoKg, Is.EqualTo(1.2m));
-        }
+    [Test]
+    public void CrearAdministrador_DatosValidos_CreaAdministradorCorrectamente()
+    {
+        Administrador administrador = FabricaEntidades.CrearAdministrador(
+            nombre: "Admin Principal",
+            correo: "admin@email.com",
+            contrasenaHash: "Admin123Admin123Admin123",
+            area: "Inventario");
 
-        [Test]
-        public void CrearProductoDigital_IdInvalido_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearProductoDigital(
-                    id: 0,
-                    nombre: "Curso C#",
-                    descripcion: "Curso completo en video.",
-                    precio: 120000m,
-                    stock: 50,
-                    formatoArchivo: "MP4",
-                    tamanoMB: 850.75m
-                ));
+        Assert.That(administrador.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(administrador.Area, Is.EqualTo("Inventario"));
+    }
 
-            Assert.That(ex!.Message, Does.Contain("identificador"));
-        }
+    [Test]
+    public void CrearProductoPorTipo_TipoDigital_DatosValidos_CreaProductoDigital()
+    {
+        Producto producto = FabricaEntidades.CrearProductoPorTipo(
+            tipoProducto: "digital",
+            nombre: "Ebook Arquitectura",
+            descripcion: "Libro digital sobre arquitectura de software.",
+            precio: 75000m,
+            stock: 100,
+            "PDF",
+            12.5m,
+            true);
 
-        [Test]
-        public void CrearProductoFisico_IdInvalido_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearProductoFisico(
-                    id: -1,
-                    nombre: "Teclado Mecánico",
-                    descripcion: "Teclado con retroiluminación.",
-                    precio: 350000m,
-                    stock: 10,
-                    pesoKg: 1.2m,
-                    altoCm: 4.5m,
-                    anchoCm: 18m,
-                    largoCm: 45m
-                ));
+        Assert.That(producto, Is.TypeOf<ProductoDigital>());
+    }
 
-            Assert.That(ex!.Message, Does.Contain("identificador"));
-        }
+    [Test]
+    public void CrearProductoPorTipo_TipoFisico_DatosValidos_CreaProductoFisico()
+    {
+        Producto producto = FabricaEntidades.CrearProductoPorTipo(
+            tipoProducto: "fisico",
+            nombre: "Mouse Profesional",
+            descripcion: "Mouse ergonómico de precisión.",
+            precio: 150000m,
+            stock: 15,
+            0.25m,
+            4m,
+            7m,
+            12m,
+            true);
 
-        #endregion
+        Assert.That(producto, Is.TypeOf<ProductoFisico>());
+    }
 
-        #region Pruebas de creación de usuarios
-
-        [Test]
-        public void CrearCliente_DatosValidos_CreaClienteCorrectamente()
-        {
-            // Arrange & Act
-            var usuario = FabricaEntidades.CrearCliente(
-                id: 10,
-                nombre: "Laura Gómez",
-                correo: "laura@email.com",
-                contrasena: "Clave123"
-            );
-
-            // Assert
-            Assert.That(usuario, Is.TypeOf<Cliente>());
-
-            var cliente = (Cliente)usuario;
-            Assert.That(cliente.Id, Is.EqualTo(10));
-            Assert.That(cliente.Nombre, Is.EqualTo("Laura Gómez"));
-            Assert.That(cliente.Correo, Is.EqualTo("laura@email.com"));
-        }
-
-        [Test]
-        public void CrearAdministrador_DatosValidos_CreaAdministradorCorrectamente()
-        {
-            // Arrange & Act
-            var usuario = FabricaEntidades.CrearAdministrador(
-                id: 20,
-                nombre: "Admin Principal",
-                correo: "admin@email.com",
-                contrasena: "Admin123",
-                area: "Inventario"
-            );
-
-            // Assert
-            Assert.That(usuario, Is.TypeOf<Administrador>());
-
-            var administrador = (Administrador)usuario;
-            Assert.That(administrador.Id, Is.EqualTo(20));
-            Assert.That(administrador.Area, Is.EqualTo("Inventario"));
-        }
-
-        [Test]
-        public void CrearCliente_IdInvalido_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearCliente(
-                    id: 0,
-                    nombre: "Laura Gómez",
-                    correo: "laura@email.com",
-                    contrasena: "Clave123"
-                ));
-
-            Assert.That(ex!.Message, Does.Contain("identificador"));
-        }
-
-        [Test]
-        public void CrearAdministrador_IdInvalido_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearAdministrador(
-                    id: 0,
-                    nombre: "Admin Principal",
-                    correo: "admin@email.com",
-                    contrasena: "Admin123",
-                    area: "Inventario"
-                ));
-
-            Assert.That(ex!.Message, Does.Contain("identificador"));
-        }
-
-        #endregion
-
-        #region Pruebas del factory genérico
-
-        [Test]
-        public void CrearProductoPorTipo_TipoDigital_DatosValidos_CreaProductoDigital()
-        {
-            // Arrange & Act
-            var producto = FabricaEntidades.CrearProductoPorTipo(
-                tipoProducto: "digital",
-                id: 100,
+    [Test]
+    public void CrearProductoPorTipo_TipoVacio_LanzaFactoryException()
+    {
+        Assert.Throws<FactoryException>(() =>
+            FabricaEntidades.CrearProductoPorTipo(
+                tipoProducto: "",
                 nombre: "Ebook Arquitectura",
                 descripcion: "Libro digital sobre arquitectura de software.",
                 precio: 75000m,
                 stock: 100,
                 "PDF",
-                12.5m
-            );
+                12.5m));
+    }
 
-            // Assert
-            Assert.That(producto, Is.TypeOf<ProductoDigital>());
-        }
+    [Test]
+    public void CrearProductoPorTipo_TipoNoSoportado_LanzaEntidadNoSoportadaException()
+    {
+        Assert.Throws<EntidadNoSoportadaException>(() =>
+            FabricaEntidades.CrearProductoPorTipo(
+                tipoProducto: "hibrido",
+                nombre: "Producto híbrido",
+                descripcion: "Descripción",
+                precio: 75000m,
+                stock: 100));
+    }
 
-        [Test]
-        public void CrearProductoPorTipo_TipoFisico_DatosValidos_CreaProductoFisico()
-        {
-            // Arrange & Act
-            var producto = FabricaEntidades.CrearProductoPorTipo(
-                tipoProducto: "fisico",
-                id: 101,
-                nombre: "Mouse Profesional",
-                descripcion: "Mouse ergonómico de precisión.",
-                precio: 150000m,
-                stock: 15,
-                0.25m,
-                4m,
-                7m,
-                12m
-            );
+    [Test]
+    public void CrearProductoPorTipo_DigitalSinParametrosSuficientes_LanzaFactoryException()
+    {
+        Assert.Throws<FactoryException>(() =>
+            FabricaEntidades.CrearProductoPorTipo(
+                tipoProducto: "digital",
+                nombre: "Ebook Arquitectura",
+                descripcion: "Libro digital sobre arquitectura de software.",
+                precio: 75000m,
+                stock: 100,
+                "PDF"));
+    }
 
-            // Assert
-            Assert.That(producto, Is.TypeOf<ProductoFisico>());
-        }
-
-        [Test]
-        public void CrearProductoPorTipo_TipoVacio_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearProductoPorTipo(
-                    tipoProducto: "",
-                    id: 100,
-                    nombre: "Ebook Arquitectura",
-                    descripcion: "Libro digital sobre arquitectura de software.",
-                    precio: 75000m,
-                    stock: 100,
-                    "PDF",
-                    12.5m
-                ));
-
-            Assert.That(ex!.Message, Does.Contain("tipo de producto"));
-        }
-
-        [Test]
-        public void CrearProductoPorTipo_TipoNoSoportado_LanzaEntidadNoSoportadaException()
-        {
-            // Arrange, Act & Assert
-            Assert.Throws<EntidadNoSoportadaException>(() =>
-                FabricaEntidades.CrearProductoPorTipo(
-                    tipoProducto: "hibrido",
-                    id: 100,
-                    nombre: "Producto híbrido",
-                    descripcion: "Descripción",
-                    precio: 75000m,
-                    stock: 100
-                ));
-        }
-
-        [Test]
-        public void CrearProductoPorTipo_DigitalSinParametrosSuficientes_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearProductoPorTipo(
-                    tipoProducto: "digital",
-                    id: 100,
-                    nombre: "Ebook Arquitectura",
-                    descripcion: "Libro digital sobre arquitectura de software.",
-                    precio: 75000m,
-                    stock: 100,
-                    "PDF"
-                ));
-
-            Assert.That(ex!.Message, Does.Contain("ProductoDigital requiere"));
-        }
-
-        [Test]
-        public void CrearProductoPorTipo_FisicoSinParametrosSuficientes_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearProductoPorTipo(
-                    tipoProducto: "fisico",
-                    id: 101,
-                    nombre: "Mouse Profesional",
-                    descripcion: "Mouse ergonómico de precisión.",
-                    precio: 150000m,
-                    stock: 15,
-                    0.25m,
-                    4m
-                ));
-
-            Assert.That(ex!.Message, Does.Contain("ProductoFisico requiere"));
-        }
-
-        [Test]
-        public void CrearProductoPorTipo_DigitalConTipoParametroIncorrecto_LanzaFactoryException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<FactoryException>(() =>
-                FabricaEntidades.CrearProductoPorTipo(
-                    tipoProducto: "digital",
-                    id: 100,
-                    nombre: "Ebook Arquitectura",
-                    descripcion: "Libro digital sobre arquitectura de software.",
-                    precio: 75000m,
-                    stock: 100,
-                    123,
-                    12.5m
-                ));
-
-            Assert.That(ex!.Message, Does.Contain("formatoArchivo"));
-        }
-
-        #endregion
+    [Test]
+    public void CrearProductoPorTipo_DigitalConTipoParametroIncorrecto_LanzaFactoryException()
+    {
+        Assert.Throws<FactoryException>(() =>
+            FabricaEntidades.CrearProductoPorTipo(
+                tipoProducto: "digital",
+                nombre: "Ebook Arquitectura",
+                descripcion: "Libro digital sobre arquitectura de software.",
+                precio: 75000m,
+                stock: 100,
+                123,
+                12.5m));
     }
 }

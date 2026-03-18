@@ -1,131 +1,224 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using PlataformaECommerce.Application.Common.Results;
+using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
-using PlataformaECommerce.Application.Interfaces.Services.Products;
+using PlataformaECommerce.Application.Features.Products.Queries;
+using PlataformaECommerce.Application.Features.Products.Services;
 
-namespace PlataformaECommerce.Web.Controllers
+namespace PlataformaECommerce.Web.Controllers;
+
+/// <summary>
+/// Expone endpoints HTTP para consultar y administrar productos del sistema.
+/// </summary>
+[ApiController]
+[Route("api/[controller]")]
+public sealed class ProductsController : ControllerBase
 {
-    /// Controlador API para la gestión de productos.
-    [ApiController]
-    [Route("api/[controller]")]
-    public sealed class ProductsController : ControllerBase
+    private readonly ProductApplicationService _productApplicationService;
+
+    /// <summary>
+    /// Inicializa una nueva instancia del controlador de productos.
+    /// </summary>
+    /// <param name="productApplicationService">Servicio de aplicación de productos.</param>
+    public ProductsController(ProductApplicationService productApplicationService)
     {
-        #region Campos privados
+        _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+    }
 
-        private readonly IProductoService _productoService;
+    /// <summary>
+    /// Obtiene un listado paginado de productos aplicando filtros opcionales.
+    /// </summary>
+    /// <param name="query">Parámetros de consulta y filtrado.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Colección proyectada de productos.</returns>
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyCollection<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyCollection<ProductDto>>> GetAll(
+        [FromQuery] GetProductsQuery query,
+        CancellationToken cancellationToken)
+    {
+        Result<IReadOnlyCollection<ProductDto>> result = await _productApplicationService.GetProductsAsync(query, cancellationToken);
 
-        #endregion
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : MapFailure<IReadOnlyCollection<ProductDto>>(result.Error);
+    }
 
-        #region Constructor
+    /// <summary>
+    /// Obtiene el detalle de un producto por su identificador.
+    /// </summary>
+    /// <param name="id">Identificador del producto.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Detalle del producto cuando existe.</returns>
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(ProductDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ProductDetailDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        Result<ProductDetailDto> result = await _productApplicationService.GetProductByIdAsync(
+            new GetProductByIdQuery { ProductId = id },
+            cancellationToken);
 
-        /// Inicializa una nueva instancia del controlador de productos.
-        public ProductsController(IProductoService productoService)
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : MapFailure<ProductDetailDto>(result.Error);
+    }
+
+    /// <summary>
+    /// Crea un nuevo producto físico dentro del sistema.
+    /// </summary>
+    /// <param name="command">Comando de creación del producto físico.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Identificador del producto creado.</returns>
+    [HttpPost("physical")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<Guid>> CreatePhysical(
+        [FromBody] CreatePhysicalProductCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command is null)
         {
-            _productoService = productoService ?? throw new ArgumentNullException(nameof(productoService));
+            return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        #endregion
-
-        #region Endpoints GET
-
-        /// Obtiene todos los productos registrados.
-        [HttpGet]
-        [ProducesResponseType(typeof(IReadOnlyList<ProductResponse>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IReadOnlyList<ProductResponse>>> GetAll()
+        Result<Guid> result = await _productApplicationService.CreatePhysicalProductAsync(command, cancellationToken);
+        if (result.IsFailure)
         {
-            IReadOnlyList<ProductResponse> productos = await _productoService.ObtenerTodosAsync();
-            return Ok(productos);
+            return MapFailure<Guid>(result.Error);
         }
 
-        /// Obtiene un producto por su identificador.
-        [HttpGet("{id:int}")]
-        [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<ProductResponse>> GetById(int id)
+        return CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value);
+    }
+
+    /// <summary>
+    /// Crea un nuevo producto digital dentro del sistema.
+    /// </summary>
+    /// <param name="command">Comando de creación del producto digital.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Identificador del producto creado.</returns>
+    [HttpPost("digital")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<Guid>> CreateDigital(
+        [FromBody] CreateDigitalProductCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command is null)
         {
-            ProductResponse? producto = await _productoService.ObtenerPorIdAsync(id);
-
-            if (producto is null)
-                return NotFound(new
-                {
-                    mensaje = $"No se encontró un producto con Id {id}."
-                });
-
-            return Ok(producto);
+            return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        #endregion
-
-        #region Endpoint POST
-
-        /// Crea un nuevo producto.
-        [HttpPost]
-        [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ProductResponse>> Create([FromBody] CreateProductRequest request)
+        Result<Guid> result = await _productApplicationService.CreateDigitalProductAsync(command, cancellationToken);
+        if (result.IsFailure)
         {
-            if (request is null)
-                return BadRequest(new
-                {
-                    mensaje = "La solicitud no puede ser nula."
-                });
-
-            ProductResponse productoCreado = await _productoService.CrearAsync(request);
-
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id = productoCreado.Id },
-                productoCreado);
+            return MapFailure<Guid>(result.Error);
         }
 
-        #endregion
+        return CreatedAtAction(nameof(GetById), new { id = result.Value }, result.Value);
+    }
 
-        #region Endpoint PUT
-
-        /// Actualiza un producto existente.
-        [HttpPut("{id:int}")]
-        [ProducesResponseType(typeof(ProductResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ProductResponse>> Update(int id, [FromBody] UpdateProductRequest request)
+    /// <summary>
+    /// Actualiza un producto existente.
+    /// </summary>
+    /// <param name="id">Identificador del producto a actualizar.</param>
+    /// <param name="command">Comando de actualización.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Representación actualizada del producto.</returns>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(ProductResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ProductResponseDto>> Update(
+        Guid id,
+        [FromBody] UpdateProductCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (command is null)
         {
-            if (request is null)
-                return BadRequest(new
-                {
-                    mensaje = "La solicitud no puede ser nula."
-                });
-
-            ProductResponse? productoActualizado = await _productoService.ActualizarAsync(id, request);
-
-            if (productoActualizado is null)
-                return NotFound(new
-                {
-                    mensaje = $"No se encontró un producto con Id {id} para actualizar."
-                });
-
-            return Ok(productoActualizado);
+            return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        #endregion
-
-        #region Endpoint DELETE
-
-        /// Elimina un producto por su identificador.
-        [HttpDelete("{id:int}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> Delete(int id)
+        UpdateProductCommand adjustedCommand = new UpdateProductCommand
         {
-            bool eliminado = await _productoService.EliminarAsync(id);
+            Id = id,
+            Name = command.Name,
+            Description = command.Description,
+            Sku = command.Sku,
+            Price = command.Price,
+            Currency = command.Currency,
+            Stock = command.Stock,
+            Slug = command.Slug,
+            MainImageUrl = command.MainImageUrl,
+            IsActive = command.IsActive,
+            IsFeatured = command.IsFeatured,
+            ProductType = command.ProductType,
+            CategoryId = command.CategoryId,
+            Tags = command.Tags,
+            WeightKg = command.WeightKg,
+            HeightCm = command.HeightCm,
+            WidthCm = command.WidthCm,
+            LengthCm = command.LengthCm,
+            RequiresShipping = command.RequiresShipping,
+            FileFormat = command.FileFormat,
+            FileSizeMb = command.FileSizeMb,
+            RequiresLicense = command.RequiresLicense
+        };
+        Result<ProductResponseDto> result = await _productApplicationService.UpdateProductAsync(adjustedCommand, cancellationToken);
 
-            if (!eliminado)
-                return NotFound(new
-                {
-                    mensaje = $"No se encontró un producto con Id {id} para eliminar."
-                });
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : MapFailure<ProductResponseDto>(result.Error);
+    }
 
-            return NoContent();
-        }
+    /// <summary>
+    /// Informa que la eliminación de productos aún no se encuentra expuesta en la API web actual.
+    /// </summary>
+    /// <param name="id">Identificador del producto.</param>
+    /// <returns>Respuesta indicando funcionalidad no implementada.</returns>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status501NotImplemented)]
+    public IActionResult Delete(Guid id)
+    {
+        return StatusCode(
+            StatusCodes.Status501NotImplemented,
+            CreateProblemDetails(
+                "Products.DeleteNotImplemented",
+                "La eliminación de productos aún no se encuentra implementada en la capa web actual.",
+                StatusCodes.Status501NotImplemented));
+    }
 
-        #endregion
+    private ActionResult<T> MapFailure<T>(Error error)
+    {
+        ProblemDetails problemDetails = CreateProblemDetails(error.Code, error.Message, ResolveStatusCode(error));
+        return StatusCode(problemDetails.Status ?? StatusCodes.Status500InternalServerError, problemDetails);
+    }
+
+    private static ProblemDetails CreateProblemDetails(string code, string detail, int statusCode)
+    {
+        return new ProblemDetails
+        {
+            Status = statusCode,
+            Title = code,
+            Detail = detail
+        };
+    }
+
+    private static int ResolveStatusCode(Error error)
+    {
+        return error.Type switch
+        {
+            ErrorType.Validation => StatusCodes.Status400BadRequest,
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorType.Failure => StatusCodes.Status422UnprocessableEntity,
+            _ => StatusCodes.Status500InternalServerError
+        };
     }
 }

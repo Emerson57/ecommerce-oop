@@ -131,20 +131,6 @@ public sealed class Cliente : Usuario
     }
 
     /// <summary>
-    /// Devuelve el historial de compras del cliente en un formato legible.
-    /// </summary>
-    /// <returns>Cadena con el historial resumido de pedidos del cliente.</returns>
-    public string VerHistorialCompras()
-    {
-        if (_historialCompras.Count == 0)
-        {
-            return "Historial vacío: el cliente aún no registra compras.";
-        }
-
-        return $"Historial de compras (IDs de pedidos): {string.Join(", ", _historialCompras)}";
-    }
-
-    /// <summary>
     /// Agrega una nueva preferencia al perfil del cliente.
     /// </summary>
     /// <param name="preferencia">Preferencia a registrar.</param>
@@ -207,19 +193,6 @@ public sealed class Cliente : Usuario
 
         _preferencias.Clear();
         MarcarActualizacion();
-    }
-
-    /// <summary>
-    /// Devuelve una representación legible y enriquecida del perfil del cliente.
-    /// </summary>
-    /// <returns>Cadena descriptiva con la información principal del cliente.</returns>
-    public override string MostrarPerfil()
-    {
-        string preferenciasTexto = _preferencias.Count == 0
-            ? "Sin preferencias"
-            : string.Join(", ", _preferencias.OrderBy(p => p));
-
-        return $"{base.MostrarPerfil()} | Compras registradas: {TotalCompras} | Preferencias: {preferenciasTexto}";
     }
 
     #endregion

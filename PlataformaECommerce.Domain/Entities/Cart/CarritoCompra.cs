@@ -1,4 +1,5 @@
-﻿using PlataformaECommerce.Domain.Entities.Products;
+﻿using PlataformaECommerce.Domain.Common;
+using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Domain.Rules;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -18,37 +19,14 @@ namespace PlataformaECommerce.Domain.Entities.Cart;
 /// La entidad se apoya en reglas de negocio reutilizables para validar el agregado
 /// de productos de manera consistente con el resto del dominio.
 /// </remarks>
-public sealed class CarritoCompra
+public sealed class CarritoCompra : AggregateRoot
 {
-    #region Constantes de negocio
-
-    /// <summary>
-    /// Cantidad máxima de líneas permitidas dentro del carrito.
-    /// </summary>
-    private const int MaximoItemsPermitidos = 100;
-
-    /// <summary>
-    /// Moneda por defecto utilizada por el carrito cuando aún no existen ítems.
-    /// </summary>
-    private const string MonedaPorDefecto = "COP";
-
-    #endregion
-
     #region Campos privados
 
     /// <summary>
     /// Colección interna de ítems registrados en el carrito.
     /// </summary>
     private readonly List<ItemCarrito> _items = new();
-
-    #endregion
-
-    #region Reglas de negocio
-
-    /// <summary>
-    /// Regla reutilizable para validar si el carrito puede agregar un producto.
-    /// </summary>
-    private static readonly CarritoPuedeAgregarProductoRule CarritoPuedeAgregarProductoRule = new();
 
     #endregion
 
@@ -72,21 +50,14 @@ public sealed class CarritoCompra
             throw new CartException("El identificador del cliente asociado al carrito no puede ser vacío.");
         }
 
-        Id = Guid.NewGuid();
+        InicializarAggregateRoot();
         ClienteId = clienteId;
         Activo = true;
-        FechaCreacionUtc = DateTime.UtcNow;
-        FechaActualizacionUtc = null;
     }
 
     #endregion
 
     #region Propiedades públicas
-
-    /// <summary>
-    /// Identificador único del carrito dentro del dominio.
-    /// </summary>
-    public Guid Id { get; private set; }
 
     /// <summary>
     /// Identificador del cliente propietario del carrito.
@@ -102,16 +73,6 @@ public sealed class CarritoCompra
     /// Indica si el carrito se encuentra activo para recibir operaciones.
     /// </summary>
     public bool Activo { get; private set; }
-
-    /// <summary>
-    /// Fecha y hora UTC en que fue creado el carrito.
-    /// </summary>
-    public DateTime FechaCreacionUtc { get; private set; }
-
-    /// <summary>
-    /// Fecha y hora UTC de la última modificación relevante del carrito.
-    /// </summary>
-    public DateTime? FechaActualizacionUtc { get; private set; }
 
     /// <summary>
     /// Cantidad total de líneas o ítems distintos registrados en el carrito.
@@ -136,7 +97,7 @@ public sealed class CarritoCompra
         {
             if (_items.Count == 0)
             {
-                return Money.Zero(MonedaPorDefecto);
+                return Money.Zero(DomainDefaults.DefaultCurrency);
             }
 
             string moneda = _items[0].PrecioUnitario.Currency;
@@ -144,6 +105,7 @@ public sealed class CarritoCompra
 
             foreach (ItemCarrito item in _items)
             {
+                ValidarConsistenciaMonetaria(item.PrecioUnitario);
                 total += item.Subtotal;
             }
 
@@ -175,10 +137,12 @@ public sealed class CarritoCompra
         if (itemExistente is null)
         {
             ItemCarrito nuevoItem = new(producto, cantidad);
+            ValidarConsistenciaMonetaria(nuevoItem.PrecioUnitario);
             _items.Add(nuevoItem);
         }
         else
         {
+            ValidarConsistenciaMonetaria(producto.Precio);
             itemExistente.IncrementarCantidad(cantidad, producto.Stock);
             itemExistente.SincronizarDesdeProducto(producto);
         }
@@ -199,6 +163,7 @@ public sealed class CarritoCompra
         ItemCarrito item = BuscarItemPorProductoId(producto.Id)
             ?? throw new CartException($"El producto con identificador '{producto.Id}' no existe dentro del carrito.");
 
+        ValidarConsistenciaMonetaria(producto.Precio);
         item.ActualizarCantidad(nuevaCantidad, producto.Stock);
         item.SincronizarDesdeProducto(producto);
 
@@ -223,6 +188,7 @@ public sealed class CarritoCompra
             throw new CartException("No es posible incrementar la cantidad del producto en el carrito porque no cumple las reglas del negocio para esta operación.");
         }
 
+        ValidarConsistenciaMonetaria(producto.Precio);
         item.IncrementarCantidad(cantidad, producto.Stock);
         item.SincronizarDesdeProducto(producto);
 
@@ -435,11 +401,22 @@ public sealed class CarritoCompra
     }
 
     /// <summary>
-    /// Registra la fecha de modificación del carrito en tiempo UTC.
+    /// Valida que la moneda de una línea comercial sea consistente con el resto del carrito.
     /// </summary>
-    private void MarcarActualizacion()
+    /// <param name="valorMonetario">Valor monetario que se desea incorporar o sincronizar.</param>
+    private void ValidarConsistenciaMonetaria(Money valorMonetario)
     {
-        FechaActualizacionUtc = DateTime.UtcNow;
+        ArgumentNullException.ThrowIfNull(valorMonetario);
+
+        string? monedaReferencia = _items.Count == 0
+            ? null
+            : _items[0].PrecioUnitario.Currency;
+
+        if (!MonedaConsistenteRule.IsSatisfiedBy(monedaReferencia, valorMonetario))
+        {
+            throw new CartException(
+                $"No es posible operar el carrito con productos en monedas distintas. Moneda esperada: '{monedaReferencia}', moneda recibida: '{valorMonetario.Currency}'.");
+        }
     }
 
     #endregion

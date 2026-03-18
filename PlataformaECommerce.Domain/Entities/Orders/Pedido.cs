@@ -1,4 +1,5 @@
 ﻿using PlataformaECommerce.Domain.Entities.Cart;
+using PlataformaECommerce.Domain.Common;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Events;
 using PlataformaECommerce.Domain.Exceptions;
@@ -23,42 +24,14 @@ namespace PlataformaECommerce.Domain.Entities.Orders;
 /// Adicionalmente, registra eventos de dominio cuando ocurren hechos relevantes
 /// del negocio, como la creación del pedido, el registro de pago y la cancelación.
 /// </remarks>
-public sealed class Pedido
+public sealed class Pedido : AggregateRoot
 {
-    #region Constantes de negocio
-
-    /// <summary>
-    /// Cantidad máxima de líneas permitidas dentro de un pedido.
-    /// </summary>
-    private const int MaximoDetallesPermitidos = 100;
-
-    /// <summary>
-    /// Moneda por defecto utilizada por el pedido cuando aún no existen detalles.
-    /// </summary>
-    private const string MonedaPorDefecto = "COP";
-
-    #endregion
-
     #region Campos privados
 
     /// <summary>
     /// Colección interna de detalles del pedido.
     /// </summary>
     private readonly List<DetallePedido> _detalles = new();
-
-    /// <summary>
-    /// Colección interna de eventos de dominio generados por la entidad.
-    /// </summary>
-    private readonly List<DomainEvent> _domainEvents = new();
-
-    #endregion
-
-    #region Reglas de negocio
-
-    /// <summary>
-    /// Regla reutilizable para determinar si un pedido puede ser cancelado.
-    /// </summary>
-    private static readonly PedidoCancelableRule PedidoCancelableRule = new();
 
     #endregion
 
@@ -82,17 +55,7 @@ public sealed class Pedido
             throw new DomainException("El identificador del cliente del pedido no puede ser vacío.");
         }
 
-        Id = Guid.NewGuid();
-        ClienteId = clienteId;
-        Estado = EstadoPedido.Pendiente;
-        FechaCreacionUtc = DateTime.UtcNow;
-        FechaActualizacionUtc = null;
-        FechaConfirmacionUtc = null;
-        FechaPagoUtc = null;
-        FechaEnvioUtc = null;
-        FechaEntregaUtc = null;
-        FechaCancelacionUtc = null;
-        ObservacionCancelacion = null;
+        InicializarPedido(clienteId);
 
         AddDomainEvent(new PedidoCreadoEvent(this));
     }
@@ -107,26 +70,16 @@ public sealed class Pedido
 
         carritoCompra.ValidarQueTengaItems();
 
-        Id = Guid.NewGuid();
-        ClienteId = carritoCompra.ClienteId;
-        Estado = EstadoPedido.Pendiente;
-        FechaCreacionUtc = DateTime.UtcNow;
-        FechaActualizacionUtc = null;
-        FechaConfirmacionUtc = null;
-        FechaPagoUtc = null;
-        FechaEnvioUtc = null;
-        FechaEntregaUtc = null;
-        FechaCancelacionUtc = null;
-        ObservacionCancelacion = null;
+        InicializarPedido(carritoCompra.ClienteId);
 
-        if (carritoCompra.CantidadItems > MaximoDetallesPermitidos)
+        if (carritoCompra.CantidadItems > DomainLimits.MaximoDetallesPorPedido)
         {
-            throw new DomainException($"El pedido no puede superar {MaximoDetallesPermitidos} líneas.");
+            throw new DomainException($"El pedido no puede superar {DomainLimits.MaximoDetallesPorPedido} líneas.");
         }
 
         foreach (ItemCarrito item in carritoCompra.Items)
         {
-            _detalles.Add(new DetallePedido(Id, item));
+            AgregarDetalleInterno(new DetallePedido(Id, item));
         }
 
         if (_detalles.Count == 0)
@@ -142,11 +95,6 @@ public sealed class Pedido
     #region Propiedades públicas
 
     /// <summary>
-    /// Identificador único del pedido dentro del dominio.
-    /// </summary>
-    public Guid Id { get; private set; }
-
-    /// <summary>
     /// Identificador del cliente propietario del pedido.
     /// </summary>
     public Guid ClienteId { get; private set; }
@@ -160,11 +108,6 @@ public sealed class Pedido
     /// Colección de detalles del pedido en modo de solo lectura.
     /// </summary>
     public IReadOnlyCollection<DetallePedido> Detalles => _detalles.AsReadOnly();
-
-    /// <summary>
-    /// Colección de eventos de dominio generados por la entidad.
-    /// </summary>
-    public IReadOnlyCollection<DomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
     /// <summary>
     /// Cantidad total de líneas registradas en el pedido.
@@ -189,7 +132,7 @@ public sealed class Pedido
         {
             if (_detalles.Count == 0)
             {
-                return Money.Zero(MonedaPorDefecto);
+                return Money.Zero(DomainDefaults.DefaultCurrency);
             }
 
             string moneda = _detalles[0].PrecioUnitario.Currency;
@@ -197,22 +140,13 @@ public sealed class Pedido
 
             foreach (DetallePedido detalle in _detalles)
             {
+                ValidarConsistenciaMonetaria(detalle.PrecioUnitario);
                 total += detalle.Subtotal;
             }
 
             return total;
         }
     }
-
-    /// <summary>
-    /// Fecha y hora UTC en que fue creado el pedido.
-    /// </summary>
-    public DateTime FechaCreacionUtc { get; private set; }
-
-    /// <summary>
-    /// Fecha y hora UTC de la última modificación relevante del pedido.
-    /// </summary>
-    public DateTime? FechaActualizacionUtc { get; private set; }
 
     /// <summary>
     /// Fecha y hora UTC en que el pedido fue confirmado.
@@ -244,6 +178,11 @@ public sealed class Pedido
     /// </summary>
     public string? ObservacionCancelacion { get; private set; }
 
+    /// <summary>
+    /// Dirección de envío asociada al pedido cuando aplica.
+    /// </summary>
+    public DireccionEnvio? DireccionEnvio { get; private set; }
+
     #endregion
 
     #region Métodos de negocio
@@ -263,17 +202,7 @@ public sealed class Pedido
             throw new DomainException("No es posible agregar un detalle cuyo pedido asociado no corresponde al pedido actual.");
         }
 
-        if (_detalles.Count >= MaximoDetallesPermitidos)
-        {
-            throw new DomainException($"El pedido no puede superar {MaximoDetallesPermitidos} líneas.");
-        }
-
-        if (_detalles.Any(d => d.ProductoId == detallePedido.ProductoId))
-        {
-            throw new DomainException("No es posible registrar dos líneas separadas para el mismo producto dentro del mismo pedido.");
-        }
-
-        _detalles.Add(detallePedido);
+        AgregarDetalleInterno(detallePedido);
         MarcarActualizacion();
     }
 
@@ -282,16 +211,11 @@ public sealed class Pedido
     /// </summary>
     public void Confirmar()
     {
-        if (Estado != EstadoPedido.Pendiente)
-        {
-            throw new DomainException($"No es posible confirmar el pedido porque su estado actual es '{Estado}'.");
-        }
-
+        ValidarEstadoActual("confirmar el pedido", EstadoPedido.Pendiente);
         ValidarQueTengaDetalles();
 
-        Estado = EstadoPedido.Confirmado;
+        CambiarEstado(EstadoPedido.Confirmado);
         FechaConfirmacionUtc = DateTime.UtcNow;
-        MarcarActualizacion();
     }
 
     /// <summary>
@@ -304,9 +228,8 @@ public sealed class Pedido
             throw new PagoFallidoException(Id, $"No es posible registrar el pago porque el pedido se encuentra en estado '{Estado}'.");
         }
 
-        Estado = EstadoPedido.Pagado;
+        CambiarEstado(EstadoPedido.Pagado);
         FechaPagoUtc = DateTime.UtcNow;
-        MarcarActualizacion();
 
         AddDomainEvent(new PedidoPagadoEvent(this));
     }
@@ -316,13 +239,10 @@ public sealed class Pedido
     /// </summary>
     public void MarcarEnProceso()
     {
-        if (Estado != EstadoPedido.Pagado && Estado != EstadoPedido.Confirmado)
-        {
-            throw new DomainException($"No es posible pasar el pedido a estado '{EstadoPedido.EnProceso}' desde el estado '{Estado}'.");
-        }
+        ValidarEstadoActual($"pasar el pedido a estado '{EstadoPedido.EnProceso}'", EstadoPedido.Pagado);
+        ValidarQueTengaDetalles();
 
-        Estado = EstadoPedido.EnProceso;
-        MarcarActualizacion();
+        CambiarEstado(EstadoPedido.EnProceso);
     }
 
     /// <summary>
@@ -330,14 +250,12 @@ public sealed class Pedido
     /// </summary>
     public void MarcarEnviado()
     {
-        if (Estado != EstadoPedido.EnProceso && Estado != EstadoPedido.Pagado)
-        {
-            throw new DomainException($"No es posible enviar el pedido desde el estado '{Estado}'.");
-        }
+        ValidarEstadoActual("enviar el pedido", EstadoPedido.EnProceso);
+        ValidarQueTengaDetalles();
+        ValidarDireccionEnvioParaEnvio();
 
-        Estado = EstadoPedido.Enviado;
+        CambiarEstado(EstadoPedido.Enviado);
         FechaEnvioUtc = DateTime.UtcNow;
-        MarcarActualizacion();
     }
 
     /// <summary>
@@ -345,14 +263,11 @@ public sealed class Pedido
     /// </summary>
     public void MarcarEntregado()
     {
-        if (Estado != EstadoPedido.Enviado && Estado != EstadoPedido.EnProceso)
-        {
-            throw new DomainException($"No es posible marcar como entregado un pedido en estado '{Estado}'.");
-        }
+        ValidarEstadoActual("marcar como entregado el pedido", EstadoPedido.Enviado);
+        ValidarQueTengaDetalles();
 
-        Estado = EstadoPedido.Entregado;
+        CambiarEstado(EstadoPedido.Entregado);
         FechaEntregaUtc = DateTime.UtcNow;
-        MarcarActualizacion();
     }
 
     /// <summary>
@@ -424,20 +339,65 @@ public sealed class Pedido
     }
 
     /// <summary>
-    /// Elimina todos los eventos de dominio registrados por la entidad.
+    /// Asigna o reemplaza la dirección de envío del pedido.
     /// </summary>
-    public void ClearDomainEvents()
+    /// <param name="direccionEnvio">Dirección de envío a asociar.</param>
+    public void AsignarDireccionEnvio(DireccionEnvio direccionEnvio)
     {
-        _domainEvents.Clear();
+        ArgumentNullException.ThrowIfNull(direccionEnvio);
+
+        DireccionEnvio = direccionEnvio;
+        MarcarActualizacion();
     }
 
     /// <summary>
-    /// Devuelve una descripción detallada y legible del pedido.
+    /// Elimina la dirección de envío asociada al pedido.
     /// </summary>
-    /// <returns>Cadena descriptiva del pedido y sus totales principales.</returns>
-    public string ObtenerDescripcionDetallada()
+    public void QuitarDireccionEnvio()
     {
-        return $"Pedido: {Id} | Cliente: {ClienteId} | Estado: {Estado} | Líneas: {CantidadDetalles} | Unidades: {CantidadTotalUnidades} | Total: {Total}";
+        if (DireccionEnvio is null)
+        {
+            return;
+        }
+
+        DireccionEnvio = null;
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Indica si el pedido tiene una dirección de envío asociada.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> si el pedido tiene dirección de envío;
+    /// en caso contrario, <see langword="false"/>.
+    /// </returns>
+    public bool TieneDireccionEnvio()
+    {
+        return DireccionEnvio is not null;
+    }
+
+    /// <summary>
+    /// Indica si el pedido contiene al menos una línea de producto físico.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> si el pedido contiene productos físicos;
+    /// en caso contrario, <see langword="false"/>.
+    /// </returns>
+    public bool ContieneProductosFisicos()
+    {
+        return _detalles.Any(detalle => detalle.TipoProducto == TipoProducto.Fisico);
+    }
+
+    /// <summary>
+    /// Indica si el pedido contiene al menos una línea de producto digital.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> si el pedido contiene productos digitales;
+    /// en caso contrario, <see langword="false"/>.
+    /// </returns>
+    public bool ContieneProductosDigitales()
+    {
+        return _detalles.Any(detalle => detalle.TipoProducto == TipoProducto.Digital);
     }
 
     #endregion
@@ -456,6 +416,84 @@ public sealed class Pedido
     }
 
     /// <summary>
+    /// Valida que exista dirección de envío cuando el pedido contiene productos físicos.
+    /// </summary>
+    private void ValidarDireccionEnvioParaEnvio()
+    {
+        if (ContieneProductosFisicos() && DireccionEnvio is null)
+        {
+            throw new DomainException("No es posible despachar un pedido con productos físicos sin una dirección de envío asociada.");
+        }
+    }
+
+    /// <summary>
+    /// Inicializa el estado base del pedido al momento de su creación.
+    /// </summary>
+    /// <param name="clienteId">Identificador del cliente propietario.</param>
+    private void InicializarPedido(Guid clienteId)
+    {
+        InicializarAggregateRoot();
+        ClienteId = clienteId;
+        Estado = EstadoPedido.Pendiente;
+        FechaConfirmacionUtc = null;
+        FechaPagoUtc = null;
+        FechaEnvioUtc = null;
+        FechaEntregaUtc = null;
+        FechaCancelacionUtc = null;
+        ObservacionCancelacion = null;
+        DireccionEnvio = null;
+    }
+
+    /// <summary>
+    /// Incorpora un detalle al pedido preservando límites, unicidad y consistencia monetaria.
+    /// </summary>
+    /// <param name="detallePedido">Detalle a incorporar al agregado.</param>
+    private void AgregarDetalleInterno(DetallePedido detallePedido)
+    {
+        if (_detalles.Count >= DomainLimits.MaximoDetallesPorPedido)
+        {
+            throw new DomainException($"El pedido no puede superar {DomainLimits.MaximoDetallesPorPedido} líneas.");
+        }
+
+        if (_detalles.Any(d => d.ProductoId == detallePedido.ProductoId))
+        {
+            throw new DomainException("No es posible registrar dos líneas separadas para el mismo producto dentro del mismo pedido.");
+        }
+
+        ValidarConsistenciaMonetaria(detallePedido.PrecioUnitario);
+        _detalles.Add(detallePedido);
+    }
+
+    /// <summary>
+    /// Valida que la moneda del detalle sea consistente con el resto del pedido.
+    /// </summary>
+    /// <param name="valorMonetario">Valor monetario a validar.</param>
+    private void ValidarConsistenciaMonetaria(Money valorMonetario)
+    {
+        ArgumentNullException.ThrowIfNull(valorMonetario);
+
+        string? monedaReferencia = _detalles.Count == 0
+            ? null
+            : _detalles[0].PrecioUnitario.Currency;
+
+        if (!MonedaConsistenteRule.IsSatisfiedBy(monedaReferencia, valorMonetario))
+        {
+            throw new DomainException(
+                $"No es posible operar el pedido con detalles en monedas distintas. Moneda esperada: '{monedaReferencia}', moneda recibida: '{valorMonetario.Currency}'.");
+        }
+    }
+
+    /// <summary>
+    /// Actualiza el estado del pedido y registra la modificación correspondiente.
+    /// </summary>
+    /// <param name="nuevoEstado">Nuevo estado del pedido.</param>
+    private void CambiarEstado(EstadoPedido nuevoEstado)
+    {
+        Estado = nuevoEstado;
+        MarcarActualizacion();
+    }
+
+    /// <summary>
     /// Valida que el estado actual del pedido permita modificación de sus detalles.
     /// </summary>
     private void ValidarQuePermitaEdicion()
@@ -467,22 +505,18 @@ public sealed class Pedido
     }
 
     /// <summary>
-    /// Registra la fecha de modificación del pedido en tiempo UTC.
+    /// Valida que el estado actual del pedido permita ejecutar una operación determinada.
     /// </summary>
-    private void MarcarActualizacion()
+    /// <param name="operacion">Descripción funcional de la operación.</param>
+    /// <param name="estadosPermitidos">Estados desde los cuales la operación es válida.</param>
+    private void ValidarEstadoActual(string operacion, params EstadoPedido[] estadosPermitidos)
     {
-        FechaActualizacionUtc = DateTime.UtcNow;
-    }
+        if (estadosPermitidos.Contains(Estado))
+        {
+            return;
+        }
 
-    /// <summary>
-    /// Registra un nuevo evento de dominio dentro de la entidad.
-    /// </summary>
-    /// <param name="domainEvent">Evento de dominio a registrar.</param>
-    private void AddDomainEvent(DomainEvent domainEvent)
-    {
-        ArgumentNullException.ThrowIfNull(domainEvent);
-
-        _domainEvents.Add(domainEvent);
+        throw new DomainException($"No es posible {operacion} porque el pedido se encuentra en estado '{Estado}'.");
     }
 
     #endregion

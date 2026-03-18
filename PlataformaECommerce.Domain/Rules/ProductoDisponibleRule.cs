@@ -20,7 +20,7 @@ namespace PlataformaECommerce.Domain.Rules;
 /// - está activo,
 /// - y tiene al menos una unidad en inventario.
 /// </remarks>
-public sealed class ProductoDisponibleRule
+public static class ProductoDisponibleRule
 {
     /// <summary>
     /// Evalúa si un producto cumple las condiciones mínimas para considerarse disponible.
@@ -30,7 +30,7 @@ public sealed class ProductoDisponibleRule
     /// <see langword="true"/> si el producto está disponible;
     /// en caso contrario, <see langword="false"/>.
     /// </returns>
-    public bool IsSatisfiedBy(Producto? producto)
+    public static bool IsSatisfiedBy(Producto? producto)
     {
         if (producto is null)
         {
@@ -38,14 +38,5 @@ public sealed class ProductoDisponibleRule
         }
 
         return producto.Activo && producto.Stock > 0;
-    }
-
-    /// <summary>
-    /// Obtiene una descripción funcional de la regla.
-    /// </summary>
-    /// <returns>Texto descriptivo de la regla.</returns>
-    public override string ToString()
-    {
-        return "El producto debe estar activo y tener stock disponible para considerarse comercialmente disponible.";
     }
 }

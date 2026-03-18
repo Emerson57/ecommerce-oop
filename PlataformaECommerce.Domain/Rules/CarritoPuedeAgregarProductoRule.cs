@@ -1,4 +1,5 @@
-﻿using PlataformaECommerce.Domain.Entities.Cart;
+﻿using PlataformaECommerce.Domain.Common;
+using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Entities.Products;
 
 namespace PlataformaECommerce.Domain.Rules;
@@ -21,10 +22,8 @@ namespace PlataformaECommerce.Domain.Rules;
 /// Su objetivo es mantener una decisión de negocio coherente y reutilizable
 /// desde el dominio en los procesos de compra.
 /// </remarks>
-public sealed class CarritoPuedeAgregarProductoRule
+public static class CarritoPuedeAgregarProductoRule
 {
-    private const int MaximoItemsPermitidos = 100;
-
     /// <summary>
     /// Evalúa si el carrito puede recibir un producto con una cantidad determinada.
     /// </summary>
@@ -35,7 +34,7 @@ public sealed class CarritoPuedeAgregarProductoRule
     /// <see langword="true"/> si la operación puede realizarse;
     /// en caso contrario, <see langword="false"/>.
     /// </returns>
-    public bool IsSatisfiedBy(CarritoCompra? carrito, Producto? producto, int cantidad)
+    public static bool IsSatisfiedBy(CarritoCompra? carrito, Producto? producto, int cantidad)
     {
         if (carrito is null || producto is null)
         {
@@ -52,19 +51,24 @@ public sealed class CarritoPuedeAgregarProductoRule
             return false;
         }
 
-        if (!producto.Activo || producto.Stock <= 0)
+        if (!producto.EstaDisponible())
         {
             return false;
         }
 
-        if (producto.Stock < cantidad)
+        if (!producto.TieneStockDisponible(cantidad))
+        {
+            return false;
+        }
+
+        if (carrito.TieneItems() && !MonedaConsistenteRule.IsSatisfiedBy(carrito.Total.Currency, producto.Precio))
         {
             return false;
         }
 
         bool yaExiste = carrito.ContieneProducto(producto.Id);
 
-        if (!yaExiste && carrito.CantidadItems >= MaximoItemsPermitidos)
+        if (!yaExiste && carrito.CantidadItems >= DomainLimits.MaximoItemsPorCarrito)
         {
             return false;
         }
@@ -74,21 +78,12 @@ public sealed class CarritoPuedeAgregarProductoRule
             int cantidadActual = carrito.ObtenerCantidadDeProducto(producto.Id);
             int cantidadResultante = cantidadActual + cantidad;
 
-            if (cantidadResultante > producto.Stock)
+            if (!producto.TieneStockDisponible(cantidadResultante))
             {
                 return false;
             }
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Obtiene una descripción funcional de la regla.
-    /// </summary>
-    /// <returns>Texto descriptivo de la regla.</returns>
-    public override string ToString()
-    {
-        return "El carrito debe estar activo, el producto debe estar disponible y la cantidad solicitada debe ser válida y compatible con el stock y la capacidad del carrito.";
     }
 }

@@ -18,7 +18,7 @@
 /// - el stock disponible no sea negativo,
 /// - y el stock disponible sea mayor o igual a la cantidad requerida.
 /// </remarks>
-public sealed class StockDisponibleRule
+public static class StockDisponibleRule
 {
     /// <summary>
     /// Evalúa si existe stock suficiente para cubrir una cantidad solicitada.
@@ -29,7 +29,7 @@ public sealed class StockDisponibleRule
     /// <see langword="true"/> si el stock disponible es suficiente;
     /// de lo contrario, <see langword="false"/>.
     /// </returns>
-    public bool IsSatisfiedBy(int stockDisponible, int cantidadSolicitada)
+    public static bool IsSatisfiedBy(int stockDisponible, int cantidadSolicitada)
     {
         if (stockDisponible < 0)
         {
@@ -42,14 +42,5 @@ public sealed class StockDisponibleRule
         }
 
         return stockDisponible >= cantidadSolicitada;
-    }
-
-    /// <summary>
-    /// Obtiene una descripción funcional de la regla.
-    /// </summary>
-    /// <returns>Texto descriptivo de la regla.</returns>
-    public override string ToString()
-    {
-        return "El stock disponible debe ser mayor o igual a la cantidad solicitada, y ambos valores deben ser válidos.";
     }
 }

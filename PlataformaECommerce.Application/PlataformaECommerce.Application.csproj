@@ -7,47 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Abstractions\" />
-    <Folder Include="Features\Admin\DTOs\" />
-    <Folder Include="Features\Admin\Commands\" />
-    <Folder Include="Features\Admin\Validators\" />
-    <Folder Include="Features\Admin\Services\" />
-    <Folder Include="Features\Admin\Queries\" />
-    <Folder Include="Features\Auth\DTOs\" />
-    <Folder Include="Features\Auth\Commands\" />
-    <Folder Include="Features\Auth\Validators\" />
-    <Folder Include="Features\Auth\Services\" />
-    <Folder Include="Features\Auth\Queries\" />
-    <Folder Include="Features\Cart\DTOs\" />
-    <Folder Include="Features\Cart\Commands\" />
-    <Folder Include="Features\Cart\Validators\" />
-    <Folder Include="Features\Cart\Services\" />
-    <Folder Include="Features\Cart\Queries\" />
-    <Folder Include="Features\Catalog\DTOs\" />
     <Folder Include="Features\Catalog\Commands\" />
     <Folder Include="Features\Catalog\Validators\" />
-    <Folder Include="Features\Catalog\Services\" />
-    <Folder Include="Features\Catalog\Queries\" />
-    <Folder Include="Features\Orders\DTOs\" />
-    <Folder Include="Features\Orders\Commands\" />
-    <Folder Include="Features\Orders\Validators\" />
-    <Folder Include="Features\Orders\Services\" />
-    <Folder Include="Features\Orders\Queries\" />
-    <Folder Include="Features\Products\Commands\" />
-    <Folder Include="Features\Products\Validators\" />
-    <Folder Include="Features\Products\Queries\" />
-    <Folder Include="Interfaces\Repositories\Cart\" />
-    <Folder Include="Interfaces\Repositories\Users\" />
-    <Folder Include="Interfaces\Repositories\Orders\" />
-    <Folder Include="Interfaces\Services\Auth\" />
     <Folder Include="Interfaces\Services\Audit\" />
-    <Folder Include="Interfaces\Services\Common\" />
-    <Folder Include="Mappings\" />
-    <Folder Include="Common\" />
-    <Folder Include="Validators\" />
+    <Folder Include="Interfaces\Services\Products\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
   </ItemGroup>
 

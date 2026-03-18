@@ -18,19 +18,6 @@ public sealed class ProductoDigital : Producto
     #region Constantes de negocio
 
     /// <summary>
-    /// Longitud máxima permitida para el formato del archivo digital.
-    /// </summary>
-    private const int LongitudMaximaFormatoArchivo = 20;
-
-    /// <summary>
-    /// Tamaño máximo permitido para archivos digitales expresado en megabytes.
-    /// </summary>
-    /// <remarks>
-    /// El valor corresponde a 10 GB expresados en MB.
-    /// </remarks>
-    private const decimal TamanoMaximoArchivoMb = 10240m;
-
-    /// <summary>
     /// Umbral máximo para considerar un archivo como liviano.
     /// </summary>
     private const decimal TamanoMaximoArchivoLivianoMb = 100m;
@@ -48,7 +35,7 @@ public sealed class ProductoDigital : Producto
 
     /// <summary>
     /// Inicializa una nueva instancia de la entidad <see cref="ProductoDigital"/> con la información
-    /// comercial y técnica requerida para su gestión dentro del sistema.
+    /// comercial, técnica y de clasificación requerida para su gestión dentro del sistema.
     /// </summary>
     /// <param name="nombre">Nombre comercial del producto digital.</param>
     /// <param name="descripcion">Descripción funcional o comercial del producto digital.</param>
@@ -57,6 +44,9 @@ public sealed class ProductoDigital : Producto
     /// <param name="stock">Cantidad disponible para operación comercial.</param>
     /// <param name="slug">Identificador amigable para URL.</param>
     /// <param name="imagenPrincipalUrl">Ruta o URL de la imagen principal del producto.</param>
+    /// <param name="categoriaId">Identificador de la categoría principal.</param>
+    /// <param name="subcategoriaId">Identificador de la subcategoría.</param>
+    /// <param name="etiquetas">Etiquetas comerciales o funcionales asociadas al producto.</param>
     /// <param name="formatoArchivo">Formato técnico principal del archivo digital.</param>
     /// <param name="tamanoArchivoMb">Tamaño del archivo expresado en megabytes.</param>
     /// <param name="requiereLicencia">Indica si el producto requiere activación, licencia o autorización adicional para su uso.</param>
@@ -68,13 +58,15 @@ public sealed class ProductoDigital : Producto
         int stock,
         string slug,
         string? imagenPrincipalUrl,
+        Guid? categoriaId,
+        Guid? subcategoriaId,
+        IEnumerable<EtiquetaProducto>? etiquetas,
         string formatoArchivo,
         decimal? tamanoArchivoMb,
         bool requiereLicencia)
-        : base(nombre, descripcion, sku, precio, stock, slug, imagenPrincipalUrl)
+        : base(nombre, descripcion, sku, precio, stock, slug, imagenPrincipalUrl, categoriaId, subcategoriaId, etiquetas)
     {
-        FormatoArchivo = ValidarFormatoArchivo(formatoArchivo);
-        TamanoArchivoMb = ValidarTamanoArchivoMb(tamanoArchivoMb);
+        Archivo = new ArchivoDigital(formatoArchivo, tamanoArchivoMb);
         RequiereLicencia = requiereLicencia;
         TipoProducto = TipoProducto.Digital;
     }
@@ -84,13 +76,18 @@ public sealed class ProductoDigital : Producto
     #region Propiedades públicas
 
     /// <summary>
+    /// Información técnica principal del archivo digital como objeto de valor.
+    /// </summary>
+    public ArchivoDigital Archivo { get; private set; } = null!;
+
+    /// <summary>
     /// Formato técnico principal del archivo digital.
     /// </summary>
     /// <remarks>
     /// Ejemplos comunes incluyen PDF, MP4, ZIP, EPUB, MP3, PNG o formatos equivalentes
     /// según la naturaleza del producto digital.
     /// </remarks>
-    public string FormatoArchivo { get; private set; } = string.Empty;
+    public string FormatoArchivo => Archivo.Formato;
 
     /// <summary>
     /// Tamaño estimado del archivo digital expresado en megabytes.
@@ -99,7 +96,7 @@ public sealed class ProductoDigital : Producto
     /// Puede ser nulo en escenarios donde el tamaño no se conoce aún o no aplica directamente
     /// al modelo comercial del producto.
     /// </remarks>
-    public decimal? TamanoArchivoMb { get; private set; }
+    public decimal? TamanoArchivoMb => Archivo.TamanoMb;
 
     /// <summary>
     /// Indica si el producto requiere una licencia, activación o mecanismo adicional
@@ -122,8 +119,7 @@ public sealed class ProductoDigital : Producto
         decimal? tamanoArchivoMb,
         bool requiereLicencia)
     {
-        FormatoArchivo = ValidarFormatoArchivo(formatoArchivo);
-        TamanoArchivoMb = ValidarTamanoArchivoMb(tamanoArchivoMb);
+        Archivo = new ArchivoDigital(formatoArchivo, tamanoArchivoMb);
         RequiereLicencia = requiereLicencia;
 
         MarcarActualizacion();
@@ -138,7 +134,7 @@ public sealed class ProductoDigital : Producto
     /// </returns>
     public bool EsArchivoLiviano()
     {
-        return TamanoArchivoMb.HasValue && TamanoArchivoMb.Value <= TamanoMaximoArchivoLivianoMb;
+        return Archivo.EsLiviano(TamanoMaximoArchivoLivianoMb);
     }
 
     /// <summary>
@@ -163,74 +159,6 @@ public sealed class ProductoDigital : Producto
     public bool EstaListoParaEntregaInmediata()
     {
         return !RequiereLicencia;
-    }
-
-    /// <summary>
-    /// Devuelve una descripción detallada del producto digital incluyendo
-    /// información técnica relevante del archivo.
-    /// </summary>
-    /// <returns>Cadena descriptiva con información comercial y técnica del producto.</returns>
-    public override string ObtenerDescripcionDetallada()
-    {
-        string tamanoTexto = TamanoArchivoMb.HasValue
-            ? $"{TamanoArchivoMb.Value:0.##} MB"
-            : "No especificado";
-
-        return $"{base.ObtenerDescripcionDetallada()} | Formato: {FormatoArchivo} | Tamaño: {tamanoTexto} | Requiere licencia: {RequiereLicencia}";
-    }
-
-    #endregion
-
-    #region Métodos privados de validación
-
-    /// <summary>
-    /// Valida el formato técnico del archivo digital.
-    /// </summary>
-    /// <param name="formatoArchivo">Formato a validar.</param>
-    /// <returns>Formato normalizado y válido.</returns>
-    private static string ValidarFormatoArchivo(string formatoArchivo)
-    {
-        if (string.IsNullOrWhiteSpace(formatoArchivo))
-        {
-            throw new ProductException("El formato del archivo digital es obligatorio.");
-        }
-
-        string formatoNormalizado = formatoArchivo.Trim().ToUpperInvariant();
-
-        if (formatoNormalizado.Length > LongitudMaximaFormatoArchivo)
-        {
-            throw new ProductException($"El formato del archivo digital no puede superar los {LongitudMaximaFormatoArchivo} caracteres.");
-        }
-
-        return formatoNormalizado;
-    }
-
-    /// <summary>
-    /// Valida que el tamaño del archivo digital sea consistente con las reglas del dominio.
-    /// </summary>
-    /// <param name="tamanoArchivoMb">Tamaño del archivo expresado en megabytes.</param>
-    /// <returns>
-    /// Valor normalizado con dos decimales cuando se suministra tamaño;
-    /// en caso contrario, <see langword="null"/>.
-    /// </returns>
-    private static decimal? ValidarTamanoArchivoMb(decimal? tamanoArchivoMb)
-    {
-        if (!tamanoArchivoMb.HasValue)
-        {
-            return null;
-        }
-
-        if (tamanoArchivoMb.Value <= 0)
-        {
-            throw new ProductException("El tamaño del archivo digital debe ser mayor que cero.");
-        }
-
-        if (tamanoArchivoMb.Value > TamanoMaximoArchivoMb)
-        {
-            throw new ProductException($"El tamaño del archivo digital no puede superar los {TamanoMaximoArchivoMb} MB.");
-        }
-
-        return decimal.Round(tamanoArchivoMb.Value, 2, MidpointRounding.AwayFromZero);
     }
 
     #endregion

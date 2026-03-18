@@ -1,4 +1,5 @@
-﻿using PlataformaECommerce.Domain.Enums;
+﻿using PlataformaECommerce.Domain.Common;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Events;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Domain.Rules;
@@ -16,8 +17,18 @@ namespace PlataformaECommerce.Domain.Entities.Products;
 /// estado operativo, clasificación funcional y trazabilidad temporal.
 /// 
 /// La entidad utiliza Value Objects para representar conceptos críticos del dominio,
-/// como el SKU y el valor monetario del precio, reduciendo el acoplamiento con tipos
-/// primitivos y fortaleciendo la consistencia del modelo.
+/// como el SKU, el valor monetario del precio y las etiquetas del producto,
+/// reduciendo el acoplamiento con tipos primitivos y fortaleciendo la consistencia
+/// del modelo.
+/// 
+/// La clasificación del producto se resuelve mediante:
+/// - <see cref="CategoriaId"/> para la categoría principal
+/// - <see cref="SubcategoriaId"/> para una categoría hija opcional
+/// - <see cref="Etiquetas"/> para clasificación transversal y filtrado comercial
+/// 
+/// La jerarquía real de categorías se modela en la entidad <c>CategoriaProducto</c>.
+/// Esta entidad solo conserva los identificadores necesarios para mantener
+/// desacoplamiento entre agregados.
 /// 
 /// Además, se apoya en reglas de negocio reutilizables para expresar decisiones
 /// de disponibilidad comercial y suficiencia de stock de manera más limpia,
@@ -26,7 +37,7 @@ namespace PlataformaECommerce.Domain.Entities.Products;
 /// Finalmente, la entidad registra eventos de dominio cuando ocurren hechos
 /// relevantes del negocio, como la transición del inventario a cero unidades.
 /// </remarks>
-public abstract class Producto
+public abstract class Producto : AggregateRoot
 {
     #region Constantes de negocio
 
@@ -52,26 +63,12 @@ public abstract class Producto
 
     #endregion
 
-    #region Reglas de negocio
-
-    /// <summary>
-    /// Regla reutilizable para validar la disponibilidad comercial del producto.
-    /// </summary>
-    private static readonly ProductoDisponibleRule ProductoDisponibleRule = new();
-
-    /// <summary>
-    /// Regla reutilizable para validar suficiencia de inventario.
-    /// </summary>
-    private static readonly StockDisponibleRule StockDisponibleRule = new();
-
-    #endregion
-
     #region Campos privados
 
     /// <summary>
-    /// Colección interna de eventos de dominio generados por la entidad.
+    /// Colección interna de etiquetas de negocio asociadas al producto.
     /// </summary>
-    private readonly List<DomainEvent> _domainEvents = new();
+    private readonly List<EtiquetaProducto> _etiquetas = new();
 
     #endregion
 
@@ -94,6 +91,9 @@ public abstract class Producto
     /// <param name="stock">Cantidad disponible del producto.</param>
     /// <param name="slug">Identificador amigable para URL.</param>
     /// <param name="imagenPrincipalUrl">Ruta o URL de la imagen principal del producto.</param>
+    /// <param name="categoriaId">Identificador de la categoría principal.</param>
+    /// <param name="subcategoriaId">Identificador de la subcategoría.</param>
+    /// <param name="etiquetas">Colección de etiquetas de clasificación comercial.</param>
     protected Producto(
         string nombre,
         string descripcion,
@@ -101,31 +101,23 @@ public abstract class Producto
         Money precio,
         int stock,
         string slug,
-        string? imagenPrincipalUrl)
+        string? imagenPrincipalUrl,
+        Guid? categoriaId,
+        Guid? subcategoriaId,
+        IEnumerable<EtiquetaProducto>? etiquetas)
     {
-        Id = Guid.NewGuid();
-        Nombre = ValidarNombre(nombre);
-        Descripcion = ValidarDescripcion(descripcion);
-        Sku = ValidarSku(sku);
-        Precio = ValidarPrecio(precio);
+        InicializarAggregateRoot();
+        AplicarInformacionBasica(nombre, descripcion, sku, precio, slug, imagenPrincipalUrl);
         Stock = ValidarStock(stock);
-        Slug = ValidarSlug(slug);
-        ImagenPrincipalUrl = ValidarImagenPrincipalUrl(imagenPrincipalUrl);
 
         Activo = false;
         Destacado = false;
-        FechaCreacionUtc = DateTime.UtcNow;
-        FechaActualizacionUtc = null;
+        AplicarClasificacion(categoriaId, subcategoriaId, etiquetas);
     }
 
     #endregion
 
     #region Propiedades públicas
-
-    /// <summary>
-    /// Identificador único e inmutable del producto dentro del dominio.
-    /// </summary>
-    public Guid Id { get; private set; }
 
     /// <summary>
     /// Nombre comercial del producto.
@@ -173,24 +165,24 @@ public abstract class Producto
     public string? ImagenPrincipalUrl { get; private set; }
 
     /// <summary>
-    /// Fecha y hora UTC en que fue creada la entidad dentro del sistema.
-    /// </summary>
-    public DateTime FechaCreacionUtc { get; private set; }
-
-    /// <summary>
-    /// Fecha y hora UTC de la última modificación relevante del producto.
-    /// </summary>
-    public DateTime? FechaActualizacionUtc { get; private set; }
-
-    /// <summary>
     /// Tipo de producto representado por la entidad.
     /// </summary>
     public TipoProducto TipoProducto { get; protected set; }
 
     /// <summary>
-    /// Colección de eventos de dominio generados por la entidad.
+    /// Identificador de la categoría principal del producto.
     /// </summary>
-    public IReadOnlyCollection<DomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+    public Guid? CategoriaId { get; private set; }
+
+    /// <summary>
+    /// Identificador de la subcategoría del producto.
+    /// </summary>
+    public Guid? SubcategoriaId { get; private set; }
+
+    /// <summary>
+    /// Colección de etiquetas comerciales o funcionales asociadas al producto.
+    /// </summary>
+    public IReadOnlyCollection<EtiquetaProducto> Etiquetas => _etiquetas.AsReadOnly();
 
     #endregion
 
@@ -213,14 +205,77 @@ public abstract class Producto
         string slug,
         string? imagenPrincipalUrl)
     {
-        Nombre = ValidarNombre(nombre);
-        Descripcion = ValidarDescripcion(descripcion);
-        Sku = ValidarSku(sku);
-        Precio = ValidarPrecio(precio);
-        Slug = ValidarSlug(slug);
-        ImagenPrincipalUrl = ValidarImagenPrincipalUrl(imagenPrincipalUrl);
+        AplicarInformacionBasica(nombre, descripcion, sku, precio, slug, imagenPrincipalUrl);
 
         MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Actualiza la clasificación del producto.
+    /// </summary>
+    /// <param name="categoriaId">Nuevo identificador de categoría principal.</param>
+    /// <param name="subcategoriaId">Nuevo identificador de subcategoría.</param>
+    /// <param name="etiquetas">Nueva colección de etiquetas.</param>
+    /// <remarks>
+    /// Esta operación centraliza la consistencia de la clasificación comercial del producto.
+    /// La validación de existencia de categorías y de relación padre-hijo pertenece a la capa
+    /// de aplicación, mientras que aquí se protegen las invariantes propias de la entidad.
+    /// </remarks>
+    public void ActualizarClasificacion(
+        Guid? categoriaId,
+        Guid? subcategoriaId,
+        IEnumerable<EtiquetaProducto>? etiquetas)
+    {
+        AplicarClasificacion(categoriaId, subcategoriaId, etiquetas);
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Asigna o actualiza únicamente la categoría principal y subcategoría del producto,
+    /// preservando las etiquetas actuales.
+    /// </summary>
+    /// <param name="categoriaId">Identificador de la categoría principal.</param>
+    /// <param name="subcategoriaId">Identificador de la subcategoría.</param>
+    public void AsignarCategoria(Guid? categoriaId, Guid? subcategoriaId)
+    {
+        AplicarClasificacion(categoriaId, subcategoriaId, _etiquetas);
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Elimina la clasificación de categoría y subcategoría del producto,
+    /// preservando las etiquetas actuales.
+    /// </summary>
+    public void QuitarClasificacion()
+    {
+        AplicarClasificacion(null, null, _etiquetas);
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Reemplaza completamente la colección de etiquetas del producto,
+    /// preservando la clasificación actual por categoría.
+    /// </summary>
+    /// <param name="etiquetas">Nueva colección de etiquetas.</param>
+    public void ReemplazarEtiquetas(IEnumerable<EtiquetaProducto>? etiquetas)
+    {
+        AplicarClasificacion(CategoriaId, SubcategoriaId, etiquetas);
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Indica si el producto contiene una etiqueta determinada.
+    /// </summary>
+    /// <param name="etiqueta">Etiqueta a evaluar.</param>
+    /// <returns>
+    /// <see langword="true"/> si la etiqueta existe dentro del producto;
+    /// de lo contrario, <see langword="false"/>.
+    /// </returns>
+    public bool TieneEtiqueta(EtiquetaProducto etiqueta)
+    {
+        ArgumentNullException.ThrowIfNull(etiqueta);
+
+        return _etiquetas.Contains(etiqueta);
     }
 
     /// <summary>
@@ -229,7 +284,7 @@ public abstract class Producto
     /// <param name="nuevoPrecio">Nuevo valor unitario del producto.</param>
     public void ActualizarPrecio(Money nuevoPrecio)
     {
-        Precio = ValidarPrecio(nuevoPrecio);
+        ActualizarPrecioInterno(nuevoPrecio);
         MarcarActualizacion();
     }
 
@@ -415,49 +470,71 @@ public abstract class Producto
         MarcarActualizacion();
     }
 
-    /// <summary>
-    /// Elimina todos los eventos de dominio registrados por la entidad.
-    /// </summary>
-    public void ClearDomainEvents()
-    {
-        _domainEvents.Clear();
-    }
-
-    /// <summary>
-    /// Devuelve una descripción detallada y legible del producto.
-    /// </summary>
-    /// <returns>Cadena con la información principal del producto.</returns>
-    public virtual string ObtenerDescripcionDetallada()
-    {
-        return $"{Nombre} - {Descripcion} | SKU: {Sku} | Precio: {Precio} | Stock: {Stock} | Activo: {Activo} | Destacado: {Destacado} | Tipo: {TipoProducto}";
-    }
-
     #endregion
 
-    #region Métodos protegidos
+    #region Métodos privados de negocio y validación
 
     /// <summary>
-    /// Registra la fecha de modificación de la entidad en tiempo UTC.
+    /// Aplica de forma consistente la clasificación del producto.
     /// </summary>
-    protected void MarcarActualizacion()
+    /// <param name="categoriaId">Identificador de la categoría principal.</param>
+    /// <param name="subcategoriaId">Identificador de la subcategoría.</param>
+    /// <param name="etiquetas">Colección de etiquetas.</param>
+    private void AplicarClasificacion(
+        Guid? categoriaId,
+        Guid? subcategoriaId,
+        IEnumerable<EtiquetaProducto>? etiquetas)
     {
-        FechaActualizacionUtc = DateTime.UtcNow;
+        ValidarClasificacion(categoriaId, subcategoriaId);
+
+        CategoriaId = categoriaId;
+        SubcategoriaId = subcategoriaId;
+
+        _etiquetas.Clear();
+        _etiquetas.AddRange(ValidarEtiquetas(etiquetas));
     }
 
     /// <summary>
-    /// Registra un nuevo evento de dominio dentro de la entidad.
+    /// Aplica de forma consistente la información comercial base del producto.
     /// </summary>
-    /// <param name="domainEvent">Evento de dominio a registrar.</param>
-    protected void AddDomainEvent(DomainEvent domainEvent)
+    /// <param name="nombre">Nombre comercial.</param>
+    /// <param name="descripcion">Descripción comercial o funcional.</param>
+    /// <param name="sku">SKU del producto.</param>
+    /// <param name="precio">Precio vigente del producto.</param>
+    /// <param name="slug">Slug del producto.</param>
+    /// <param name="imagenPrincipalUrl">Imagen principal asociada.</param>
+    private void AplicarInformacionBasica(
+        string nombre,
+        string descripcion,
+        Sku sku,
+        Money precio,
+        string slug,
+        string? imagenPrincipalUrl)
     {
-        ArgumentNullException.ThrowIfNull(domainEvent);
-
-        _domainEvents.Add(domainEvent);
+        Nombre = ValidarNombre(nombre);
+        Descripcion = ValidarDescripcion(descripcion);
+        Sku = ValidarSku(sku);
+        ActualizarPrecioInterno(precio);
+        Slug = ValidarSlug(slug);
+        ImagenPrincipalUrl = ValidarImagenPrincipalUrl(imagenPrincipalUrl);
     }
 
-    #endregion
+    /// <summary>
+    /// Actualiza el precio del producto preservando la consistencia monetaria del agregado.
+    /// </summary>
+    /// <param name="precio">Precio a establecer.</param>
+    private void ActualizarPrecioInterno(Money precio)
+    {
+        Money precioValidado = ValidarPrecio(precio);
 
-    #region Métodos privados de validación
+        if (Precio is not null && !MonedaConsistenteRule.IsSatisfiedBy(Precio.Currency, precioValidado))
+        {
+            throw new ProductException(
+                $"No es posible cambiar la moneda del producto una vez establecida. Moneda esperada: '{Precio.Currency}', moneda recibida: '{precioValidado.Currency}'.");
+        }
+
+        Precio = precioValidado;
+    }
 
     /// <summary>
     /// Valida el nombre del producto conforme a las reglas del dominio.
@@ -572,6 +649,11 @@ public abstract class Producto
             throw new ProductException($"El slug del producto no puede superar los {LongitudMaximaSlug} caracteres.");
         }
 
+        if (slugNormalizado.Contains(' '))
+        {
+            throw new ProductException("El slug del producto no puede contener espacios.");
+        }
+
         return slugNormalizado;
     }
 
@@ -590,6 +672,59 @@ public abstract class Producto
         return imagenPrincipalUrl.Trim();
     }
 
+    /// <summary>
+    /// Valida la consistencia básica entre categoría y subcategoría.
+    /// </summary>
+    /// <param name="categoriaId">Identificador de la categoría principal.</param>
+    /// <param name="subcategoriaId">Identificador de la subcategoría.</param>
+    private static void ValidarClasificacion(Guid? categoriaId, Guid? subcategoriaId)
+    {
+        if (categoriaId == Guid.Empty)
+        {
+            throw new ProductException("El identificador de categoría no puede ser vacío.");
+        }
+
+        if (subcategoriaId == Guid.Empty)
+        {
+            throw new ProductException("El identificador de subcategoría no puede ser vacío.");
+        }
+
+        if (!categoriaId.HasValue && subcategoriaId.HasValue)
+        {
+            throw new ProductException("No es válido asignar una subcategoría sin una categoría principal.");
+        }
+
+        if (categoriaId.HasValue && subcategoriaId.HasValue && categoriaId.Value == subcategoriaId.Value)
+        {
+            throw new ProductException("La categoría y la subcategoría del producto no pueden ser iguales.");
+        }
+    }
+
+    /// <summary>
+    /// Valida la colección de etiquetas del producto.
+    /// </summary>
+    /// <param name="etiquetas">Etiquetas a evaluar.</param>
+    /// <returns>Colección validada y sin duplicados.</returns>
+    private static List<EtiquetaProducto> ValidarEtiquetas(IEnumerable<EtiquetaProducto>? etiquetas)
+    {
+        if (etiquetas is null)
+        {
+            return new List<EtiquetaProducto>();
+        }
+
+        List<EtiquetaProducto> etiquetasNormalizadas = etiquetas
+            .Where(etiqueta => etiqueta is not null)
+            .Distinct()
+            .ToList();
+
+        if (etiquetasNormalizadas.Count > DomainLimits.MaximoEtiquetasPorProducto)
+        {
+            throw new ProductException($"El producto no puede tener más de {DomainLimits.MaximoEtiquetasPorProducto} etiquetas.");
+        }
+
+        return etiquetasNormalizadas;
+    }
+
     #endregion
 
     #region Representación textual
@@ -600,7 +735,11 @@ public abstract class Producto
     /// <returns>Cadena representativa del estado principal del producto.</returns>
     public override string ToString()
     {
-        return $"Producto: {Id} | Nombre: {Nombre} | SKU: {Sku} | Precio: {Precio} | Stock: {Stock} | Activo: {Activo} | Destacado: {Destacado} | Tipo: {TipoProducto}";
+        string etiquetasTexto = _etiquetas.Count > 0
+            ? string.Join(", ", _etiquetas.Select(x => x.Value))
+            : "Sin etiquetas";
+
+        return $"Producto: {Id} | Nombre: {Nombre} | SKU: {Sku} | Precio: {Precio} | Stock: {Stock} | Activo: {Activo} | Destacado: {Destacado} | Tipo: {TipoProducto} | Categoría: {CategoriaId} | Subcategoría: {SubcategoriaId} | Etiquetas: {etiquetasTexto}";
     }
 
     #endregion

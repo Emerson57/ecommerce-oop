@@ -1,4 +1,5 @@
-﻿using PlataformaECommerce.Domain.Entities.Products;
+﻿using PlataformaECommerce.Domain.Common;
+using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Domain.Rules;
@@ -24,24 +25,6 @@ public sealed class ItemCarrito
     /// Cantidad mínima permitida para un ítem del carrito.
     /// </summary>
     private const int CantidadMinima = 1;
-
-    /// <summary>
-    /// Cantidad máxima permitida para un ítem del carrito dentro de una sola línea.
-    /// </summary>
-    /// <remarks>
-    /// Este límite protege el dominio frente a cantidades desproporcionadas y ayuda
-    /// a mantener una operación razonable desde la perspectiva funcional.
-    /// </remarks>
-    private const int CantidadMaximaPorLinea = 999;
-
-    #endregion
-
-    #region Campos privados
-
-    /// <summary>
-    /// Regla reutilizable para validar disponibilidad de stock.
-    /// </summary>
-    private static readonly StockDisponibleRule StockDisponibleRule = new();
 
     #endregion
 
@@ -176,9 +159,9 @@ public sealed class ItemCarrito
 
         int nuevaCantidad = Cantidad + cantidad;
 
-        if (nuevaCantidad > CantidadMaximaPorLinea)
+        if (nuevaCantidad > DomainLimits.MaximoCantidadPorLinea)
         {
-            throw new CartException($"La cantidad total del ítem no puede superar {CantidadMaximaPorLinea} unidades.");
+            throw new CartException($"La cantidad total del ítem no puede superar {DomainLimits.MaximoCantidadPorLinea} unidades.");
         }
 
         ValidarStockDisponible(stockDisponible, nuevaCantidad);
@@ -272,9 +255,9 @@ public sealed class ItemCarrito
             throw new CartException($"La cantidad del ítem del carrito debe ser al menos {CantidadMinima}.");
         }
 
-        if (cantidad > CantidadMaximaPorLinea)
+        if (cantidad > DomainLimits.MaximoCantidadPorLinea)
         {
-            throw new CartException($"La cantidad del ítem del carrito no puede superar {CantidadMaximaPorLinea} unidades.");
+            throw new CartException($"La cantidad del ítem del carrito no puede superar {DomainLimits.MaximoCantidadPorLinea} unidades.");
         }
 
         return cantidad;

@@ -1,241 +1,307 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Domain.Entities.Products;
+using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Domain.ValueObjects;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
 using PlataformaECommerce.Infrastructure.Persistence.Entities;
 
-namespace PlataformaECommerce.Infrastructure.Repositories.Products
+namespace PlataformaECommerce.Infrastructure.Repositories.Products;
+
+/// <summary>
+/// Implementa el repositorio de productos sobre Entity Framework Core.
+/// </summary>
+/// <remarks>
+/// Esta implementación traduce entre el agregado <see cref="Producto"/> y su representación
+/// persistente <see cref="ProductEntity"/>, manteniendo consultas orientadas al dominio.
+/// </remarks>
+public sealed class ProductRepository : IProductRepository
 {
-    public sealed class ProductRepository : IProductoRepository
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly ECommerceDbContext _context;
+
+    /// <summary>
+    /// Inicializa una nueva instancia del repositorio de productos.
+    /// </summary>
+    /// <param name="context">Contexto EF Core asociado.</param>
+    public ProductRepository(ECommerceDbContext context)
     {
-        #region Campos privados
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+    }
 
-        private readonly ECommerceDbContext _context;
+    /// <inheritdoc />
+    public async Task<IReadOnlyCollection<Producto>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        List<ProductEntity> entities = await _context.Products
+            .AsNoTracking()
+            .OrderBy(product => product.Nombre)
+            .ToListAsync(cancellationToken);
 
-        #endregion
+        return entities
+            .Select(MapToDomain)
+            .ToArray();
+    }
 
-        #region Constructor
-
-        /// Inicializa una nueva instancia del repositorio de productos.
-        public ProductRepository(ECommerceDbContext context)
+    /// <inheritdoc />
+    public async Task<Producto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (id == Guid.Empty)
         {
-            _context = context ?? throw new ArgumentNullException(nameof(context));
+            return null;
         }
 
-        #endregion
+        ProductEntity? entity = await _context.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(product => product.Id == id, cancellationToken);
 
-        #region Métodos públicos
+        return entity is null ? null : MapToDomain(entity);
+    }
 
-        /// Obtiene todos los productos registrados en la base de datos.
-        public async Task<IReadOnlyList<Producto>> ObtenerTodosAsync()
+    /// <inheritdoc />
+    public async Task<Producto?> GetBySkuAsync(string sku, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sku))
         {
-            List<ProductEntity> entities = await _context.Products
-                .AsNoTracking()
-                .OrderBy(p => p.Nombre)
-                .ToListAsync();
-
-            return entities
-                .Select(MapearADominio)
-                .ToList()
-                .AsReadOnly();
+            return null;
         }
 
-        /// Obtiene un producto por su identificador.
-        public async Task<Producto?> ObtenerPorIdAsync(int id)
+        string normalizedSku = sku.Trim().ToUpperInvariant();
+
+        ProductEntity? entity = await _context.Products
+            .AsNoTracking()
+            .FirstOrDefaultAsync(product => product.Sku == normalizedSku, cancellationToken);
+
+        return entity is null ? null : MapToDomain(entity);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyCollection<Producto>> GetActiveProductsAsync(CancellationToken cancellationToken = default)
+    {
+        List<ProductEntity> entities = await _context.Products
+            .AsNoTracking()
+            .Where(product => product.Activo)
+            .OrderBy(product => product.Nombre)
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(MapToDomain).ToArray();
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyCollection<Producto>> GetFeaturedProductsAsync(CancellationToken cancellationToken = default)
+    {
+        List<ProductEntity> entities = await _context.Products
+            .AsNoTracking()
+            .Where(product => product.Destacado)
+            .OrderBy(product => product.Nombre)
+            .ToListAsync(cancellationToken);
+
+        return entities.Select(MapToDomain).ToArray();
+    }
+
+    /// <inheritdoc />
+    public Task<bool> ExistsByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (id == Guid.Empty)
         {
-            ProductEntity? entity = await _context.Products
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Id == id);
-
-            if (entity is null)
-                return null;
-
-            return MapearADominio(entity);
+            return Task.FromResult(false);
         }
 
-        /// Verifica si existe un producto con el identificador indicado.
-        public async Task<bool> ExistePorIdAsync(int id)
+        return _context.Products.AnyAsync(product => product.Id == id, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sku))
         {
-            return await _context.Products.AnyAsync(p => p.Id == id);
+            return Task.FromResult(false);
         }
 
-        /// Agrega un nuevo producto a la base de datos.
-        public async Task AgregarAsync(Producto producto)
+        string normalizedSku = sku.Trim().ToUpperInvariant();
+        return _context.Products.AnyAsync(product => product.Sku == normalizedSku, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task AddAsync(Producto producto, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(producto);
+
+        ProductEntity entity = MapToEntity(producto);
+        await _context.Products.AddAsync(entity, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateAsync(Producto producto, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(producto);
+
+        ProductEntity? entity = await _context.Products
+            .FirstOrDefaultAsync(current => current.Id == producto.Id, cancellationToken);
+
+        if (entity is null)
         {
-            if (producto is null)
-                throw new ArgumentNullException(nameof(producto));
-
-            ProductEntity entity = MapearAEntity(producto);
-
-            await _context.Products.AddAsync(entity);
+            throw new InvalidOperationException($"No se encontró el producto con identificador '{producto.Id}' para actualizar.");
         }
 
-        /// Actualiza un producto existente en la base de datos.
-        public async Task ActualizarAsync(Producto producto)
+        UpdateEntityFromDomain(entity, producto);
+    }
+
+    /// <inheritdoc />
+    public async Task RemoveAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (id == Guid.Empty)
         {
-            if (producto is null)
-                throw new ArgumentNullException(nameof(producto));
-
-            ProductEntity? entityExistente = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == producto.Id);
-
-            if (entityExistente is null)
-                throw new InvalidOperationException($"No se encontró el producto con Id {producto.Id} para actualizar.");
-
-            ActualizarEntityDesdeDominio(entityExistente, producto);
+            return;
         }
 
-        /// Elimina un producto de la base de datos por su identificador.
-        public async Task EliminarAsync(int id)
+        ProductEntity? entity = await _context.Products
+            .FirstOrDefaultAsync(product => product.Id == id, cancellationToken);
+
+        if (entity is null)
         {
-            ProductEntity? entity = await _context.Products
-                .FirstOrDefaultAsync(p => p.Id == id);
-
-            if (entity is null)
-                return;
-
-            _context.Products.Remove(entity);
+            return;
         }
 
-        #endregion
+        _context.Products.Remove(entity);
+    }
 
-        #region Métodos privados de mapeo
+    private static Producto MapToDomain(ProductEntity entity)
+    {
+        ArgumentNullException.ThrowIfNull(entity);
 
-        /// Convierte una entidad de persistencia en una entidad del dominio.
-        private static Producto MapearADominio(ProductEntity entity)
+        Producto product = entity.TipoProducto.Trim().Equals(TipoProducto.Fisico.ToString(), StringComparison.OrdinalIgnoreCase)
+            ? new ProductoFisico(
+                entity.Nombre,
+                entity.Descripcion,
+                new Sku(entity.Sku),
+                new Money(entity.Precio, entity.Moneda),
+                entity.Stock,
+                entity.Slug,
+                entity.ImagenPrincipalUrl,
+                entity.CategoriaId,
+                entity.SubcategoriaId,
+                DeserializeTags(entity.EtiquetasSerializadas),
+                entity.PesoKg ?? 0m,
+                entity.AltoCm ?? 0m,
+                entity.AnchoCm ?? 0m,
+                entity.LargoCm ?? 0m,
+                entity.RequiereEnvio ?? true)
+            : new ProductoDigital(
+                entity.Nombre,
+                entity.Descripcion,
+                new Sku(entity.Sku),
+                new Money(entity.Precio, entity.Moneda),
+                entity.Stock,
+                entity.Slug,
+                entity.ImagenPrincipalUrl,
+                entity.CategoriaId,
+                entity.SubcategoriaId,
+                DeserializeTags(entity.EtiquetasSerializadas),
+                entity.FormatoArchivo ?? string.Empty,
+                entity.TamanoMB,
+                entity.RequiereLicencia ?? false);
+
+        ApplyPersistenceState(product, entity);
+        return product;
+    }
+
+    private static ProductEntity MapToEntity(Producto producto)
+    {
+        ProductEntity entity = new();
+        UpdateEntityFromDomain(entity, producto);
+        return entity;
+    }
+
+    private static void UpdateEntityFromDomain(ProductEntity entity, Producto producto)
+    {
+        entity.Id = producto.Id;
+        entity.Nombre = producto.Nombre;
+        entity.Descripcion = producto.Descripcion;
+        entity.Sku = producto.Sku.Value;
+        entity.Precio = producto.Precio.Amount;
+        entity.Moneda = producto.Precio.Currency;
+        entity.Stock = producto.Stock;
+        entity.Activo = producto.Activo;
+        entity.Destacado = producto.Destacado;
+        entity.TipoProducto = producto.TipoProducto.ToString();
+        entity.Slug = producto.Slug;
+        entity.ImagenPrincipalUrl = producto.ImagenPrincipalUrl;
+        entity.CategoriaId = producto.CategoriaId;
+        entity.SubcategoriaId = producto.SubcategoriaId;
+        entity.EtiquetasSerializadas = SerializeTags(producto.Etiquetas);
+        entity.FechaCreacionUtc = producto.FechaCreacionUtc;
+        entity.FechaActualizacionUtc = producto.FechaActualizacionUtc;
+        entity.FormatoArchivo = null;
+        entity.TamanoMB = null;
+        entity.RequiereLicencia = null;
+        entity.PesoKg = null;
+        entity.AltoCm = null;
+        entity.AnchoCm = null;
+        entity.LargoCm = null;
+        entity.RequiereEnvio = null;
+
+        if (producto is ProductoDigital digital)
         {
-            if (EsTipoFisico(entity.TipoProducto))
-            {
-                ProductoFisico productoFisico = new(
-                    entity.Id,
-                    entity.Nombre,
-                    entity.Descripcion,
-                    entity.Precio,
-                    entity.Stock,
-                    entity.PesoKg ?? 0,
-                    entity.AltoCm ?? 0,
-                    entity.AnchoCm ?? 0,
-                    entity.LargoCm ?? 0);
-
-                if (!entity.Activo)
-                    productoFisico.Desactivar();
-
-                return productoFisico;
-            }
-
-            if (EsTipoDigital(entity.TipoProducto))
-            {
-                ProductoDigital productoDigital = new(
-                    entity.Id,
-                    entity.Nombre,
-                    entity.Descripcion,
-                    entity.Precio,
-                    entity.Stock,
-                    entity.FormatoArchivo ?? string.Empty,
-                    entity.TamanoMB ?? 0);
-
-                if (!entity.Activo)
-                    productoDigital.Desactivar();
-
-                return productoDigital;
-            }
-
-            throw new InvalidOperationException($"El tipo de producto '{entity.TipoProducto}' no es válido.");
+            entity.FormatoArchivo = digital.FormatoArchivo;
+            entity.TamanoMB = digital.TamanoArchivoMb;
+            entity.RequiereLicencia = digital.RequiereLicencia;
+            return;
         }
 
-        /// Convierte una entidad del dominio en una entidad de persistencia.
-        private static ProductEntity MapearAEntity(Producto producto)
+        if (producto is ProductoFisico physical)
         {
-            ProductEntity entity = new()
-            {
-                Id = producto.Id,
-                Nombre = producto.Nombre,
-                Descripcion = producto.Descripcion,
-                Precio = producto.Precio,
-                Stock = producto.Stock,
-                Activo = producto.Activo,
-                TipoProducto = ObtenerTipoProducto(producto),
-                FechaCreacion = producto.FechaCreacion,
-                FechaActualizacion = producto.FechaActualizacion
-            };
+            entity.PesoKg = physical.PesoKg;
+            entity.AltoCm = physical.AltoCm;
+            entity.AnchoCm = physical.AnchoCm;
+            entity.LargoCm = physical.LargoCm;
+            entity.RequiereEnvio = physical.RequiereEnvio;
+        }
+    }
 
-            if (producto is ProductoDigital digital)
-            {
-                entity.FormatoArchivo = digital.FormatoArchivo;
-                entity.TamanoMB = digital.TamanoMB;
-            }
-            else if (producto is ProductoFisico fisico)
-            {
-                entity.PesoKg = fisico.PesoKg;
-                entity.AltoCm = fisico.AltoCm;
-                entity.AnchoCm = fisico.AnchoCm;
-                entity.LargoCm = fisico.LargoCm;
-            }
-
-            return entity;
+    private static IReadOnlyCollection<EtiquetaProducto> DeserializeTags(string? serializedTags)
+    {
+        if (string.IsNullOrWhiteSpace(serializedTags))
+        {
+            return Array.Empty<EtiquetaProducto>();
         }
 
-        /// Actualiza una entidad de persistencia a partir de una entidad del dominio.
-        private static void ActualizarEntityDesdeDominio(ProductEntity entity, Producto producto)
+        string[]? values = JsonSerializer.Deserialize<string[]>(serializedTags, JsonOptions);
+        if (values is null || values.Length == 0)
         {
-            entity.Nombre = producto.Nombre;
-            entity.Descripcion = producto.Descripcion;
-            entity.Precio = producto.Precio;
-            entity.Stock = producto.Stock;
-            entity.Activo = producto.Activo;
-            entity.TipoProducto = ObtenerTipoProducto(producto);
-            entity.FechaCreacion = producto.FechaCreacion;
-            entity.FechaActualizacion = producto.FechaActualizacion;
-
-            // Limpiar campos específicos antes de volver a asignar
-            entity.FormatoArchivo = null;
-            entity.TamanoMB = null;
-            entity.PesoKg = null;
-            entity.AltoCm = null;
-            entity.AnchoCm = null;
-            entity.LargoCm = null;
-
-            if (producto is ProductoDigital digital)
-            {
-                entity.FormatoArchivo = digital.FormatoArchivo;
-                entity.TamanoMB = digital.TamanoMB;
-            }
-            else if (producto is ProductoFisico fisico)
-            {
-                entity.PesoKg = fisico.PesoKg;
-                entity.AltoCm = fisico.AltoCm;
-                entity.AnchoCm = fisico.AnchoCm;
-                entity.LargoCm = fisico.LargoCm;
-            }
+            return Array.Empty<EtiquetaProducto>();
         }
 
-        #endregion
+        return values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => new EtiquetaProducto(value))
+            .ToArray();
+    }
 
-        #region Métodos privados auxiliares
+    private static string? SerializeTags(IEnumerable<EtiquetaProducto> tags)
+    {
+        string[] values = tags
+            .Select(tag => tag.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
 
-        /// Determina si el tipo indicado corresponde a un producto físico.
-        private static bool EsTipoFisico(string tipoProducto)
-        {
-            return tipoProducto.Trim().Equals("Fisico", StringComparison.OrdinalIgnoreCase);
-        }
+        return values.Length == 0
+            ? null
+            : JsonSerializer.Serialize(values, JsonOptions);
+    }
 
-        /// Determina si el tipo indicado corresponde a un producto digital.
-        private static bool EsTipoDigital(string tipoProducto)
-        {
-            return tipoProducto.Trim().Equals("Digital", StringComparison.OrdinalIgnoreCase);
-        }
+    private static void ApplyPersistenceState(Producto product, ProductEntity entity)
+    {
+        const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
-        /// Obtiene el tipo lógico del producto según su tipo concreto.
-        private static string ObtenerTipoProducto(Producto producto)
-        {
-            return producto switch
-            {
-                ProductoFisico => "Fisico",
-                ProductoDigital => "Digital",
-                _ => throw new InvalidOperationException("Tipo de producto no soportado.")
-            };
-        }
-
-        #endregion
+        typeof(Producto).GetProperty(nameof(Producto.Activo), Flags)?.SetValue(product, entity.Activo);
+        typeof(Producto).GetProperty(nameof(Producto.Destacado), Flags)?.SetValue(product, entity.Destacado);
+        typeof(Producto).GetProperty(nameof(Producto.Id), Flags)?.SetValue(product, entity.Id);
+        typeof(Producto).GetProperty(nameof(Producto.FechaCreacionUtc), Flags)?.SetValue(product, entity.FechaCreacionUtc);
+        typeof(Producto).GetProperty(nameof(Producto.FechaActualizacionUtc), Flags)?.SetValue(product, entity.FechaActualizacionUtc);
     }
 }

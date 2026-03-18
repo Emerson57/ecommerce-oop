@@ -2,105 +2,109 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using PlataformaECommerce.Infrastructure.Persistence.Entities;
 
-namespace PlataformaECommerce.Infrastructure.Persistence.Configurations
+namespace PlataformaECommerce.Infrastructure.Persistence.Configurations;
+
+/// <summary>
+/// Configura la entidad persistente <see cref="ProductEntity"/> mediante Fluent API.
+/// </summary>
+public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<ProductEntity>
 {
-    public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<ProductEntity>
+    /// <inheritdoc />
+    public void Configure(EntityTypeBuilder<ProductEntity> builder)
     {
-        /// Configura la entidad ProductEntity mediante Fluent API.
-        public void Configure(EntityTypeBuilder<ProductEntity> builder)
-        {
-            #region Tabla
+        builder.ToTable("Products");
 
-            builder.ToTable("Products");
+        builder.HasKey(product => product.Id);
+        builder.Property(product => product.Id)
+            .ValueGeneratedNever();
 
-            #endregion
+        builder.Property(product => product.Nombre)
+            .IsRequired()
+            .HasMaxLength(150);
 
-            #region Clave primaria
+        builder.Property(product => product.Descripcion)
+            .IsRequired()
+            .HasMaxLength(2000);
 
-            builder.HasKey(p => p.Id);
+        builder.Property(product => product.Sku)
+            .IsRequired()
+            .HasMaxLength(40);
 
-            builder.Property(p => p.Id)
-                .ValueGeneratedNever();
+        builder.Property(product => product.Precio)
+            .IsRequired()
+            .HasPrecision(18, 2);
 
-            #endregion
+        builder.Property(product => product.Moneda)
+            .IsRequired()
+            .HasMaxLength(3);
 
-            #region Propiedades comunes obligatorias
+        builder.Property(product => product.Stock)
+            .IsRequired();
 
-            builder.Property(p => p.Nombre)
-                   .IsRequired()
-                   .HasMaxLength(150);
+        builder.Property(product => product.Activo)
+            .IsRequired();
 
-            builder.Property(p => p.Descripcion)
-                   .IsRequired()
-                   .HasMaxLength(500);
+        builder.Property(product => product.Destacado)
+            .IsRequired();
 
-            builder.Property(p => p.Precio)
-                   .IsRequired()
-                   .HasPrecision(18, 2);
+        builder.Property(product => product.TipoProducto)
+            .IsRequired()
+            .HasMaxLength(20);
 
-            builder.Property(p => p.Stock)
-                   .IsRequired();
+        builder.Property(product => product.Slug)
+            .IsRequired()
+            .HasMaxLength(160);
 
-            builder.Property(p => p.Activo)
-                   .IsRequired()
-                   .HasDefaultValue(true);
+        builder.Property(product => product.ImagenPrincipalUrl)
+            .HasMaxLength(500)
+            .IsRequired(false);
 
-            builder.Property(p => p.TipoProducto)
-                   .IsRequired()
-                   .HasMaxLength(20);
+        builder.Property(product => product.EtiquetasSerializadas)
+            .HasMaxLength(4000)
+            .IsRequired(false);
 
-            builder.Property(p => p.FechaCreacion)
-                   .IsRequired();
+        builder.Property(product => product.FechaCreacionUtc)
+            .IsRequired();
 
-            builder.Property(p => p.FechaActualizacion)
-                   .IsRequired();
+        builder.Property(product => product.FechaActualizacionUtc)
+            .IsRequired(false);
 
-            #endregion
+        builder.Property(product => product.FormatoArchivo)
+            .HasMaxLength(20)
+            .IsRequired(false);
 
-            #region Propiedades opcionales para productos digitales
+        builder.Property(product => product.TamanoMB)
+            .HasPrecision(18, 2)
+            .IsRequired(false);
 
-            builder.Property(p => p.FormatoArchivo)
-                   .HasMaxLength(20)
-                   .IsRequired(false);
+        builder.Property(product => product.RequiereLicencia)
+            .IsRequired(false);
 
-            builder.Property(p => p.TamanoMB)
-                   .HasPrecision(18, 2)
-                   .IsRequired(false);
+        builder.Property(product => product.PesoKg)
+            .HasPrecision(18, 3)
+            .IsRequired(false);
 
-            #endregion
+        builder.Property(product => product.AltoCm)
+            .HasPrecision(18, 2)
+            .IsRequired(false);
 
-            #region Propiedades opcionales para productos físicos
+        builder.Property(product => product.AnchoCm)
+            .HasPrecision(18, 2)
+            .IsRequired(false);
 
-            builder.Property(p => p.PesoKg)
-                   .HasPrecision(18, 2)
-                   .IsRequired(false);
+        builder.Property(product => product.LargoCm)
+            .HasPrecision(18, 2)
+            .IsRequired(false);
 
-            builder.Property(p => p.AltoCm)
-                   .HasPrecision(18, 2)
-                   .IsRequired(false);
+        builder.Property(product => product.RequiereEnvio)
+            .IsRequired(false);
 
-            builder.Property(p => p.AnchoCm)
-                   .HasPrecision(18, 2)
-                   .IsRequired(false);
+        builder.HasIndex(product => product.Sku)
+            .IsUnique();
 
-            builder.Property(p => p.LargoCm)
-                   .HasPrecision(18, 2)
-                   .IsRequired(false);
-
-            #endregion
-
-            #region Índices
-
-            /// Índice útil para consultas por tipo de producto.
-            builder.HasIndex(p => p.TipoProducto);
-
-            /// Índice útil para consultas por estado activo/inactivo.
-            builder.HasIndex(p => p.Activo);
-
-            /// Índice útil para búsquedas por nombre.
-            builder.HasIndex(p => p.Nombre);
-
-            #endregion
-        }
+        builder.HasIndex(product => product.TipoProducto);
+        builder.HasIndex(product => product.Activo);
+        builder.HasIndex(product => product.Nombre);
+        builder.HasIndex(product => product.CategoriaId);
     }
 }

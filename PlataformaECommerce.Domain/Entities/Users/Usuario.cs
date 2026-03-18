@@ -1,4 +1,5 @@
-﻿using PlataformaECommerce.Domain.Enums;
+﻿using PlataformaECommerce.Domain.Common;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Domain.ValueObjects;
 
@@ -20,7 +21,7 @@ namespace PlataformaECommerce.Domain.Entities.Users;
 /// únicamente un hash de contraseña que debe ser generado por una capa externa
 /// especializada en autenticación o seguridad.
 /// </remarks>
-public abstract class Usuario
+public abstract class Usuario : AggregateRoot
 {
     #region Constantes de negocio
 
@@ -61,26 +62,19 @@ public abstract class Usuario
         Email correoElectronico,
         string contrasenaHash)
     {
-        Id = Guid.NewGuid();
+        InicializarAggregateRoot();
         Nombre = ValidarNombre(nombre);
         CorreoElectronico = ValidarCorreoElectronico(correoElectronico);
         ContrasenaHash = ValidarContrasenaHash(contrasenaHash);
 
         Activo = true;
         CorreoConfirmado = false;
-        FechaCreacionUtc = DateTime.UtcNow;
-        FechaActualizacionUtc = null;
         FechaUltimoAccesoUtc = null;
     }
 
     #endregion
 
     #region Propiedades públicas
-
-    /// <summary>
-    /// Identificador único e inmutable del usuario dentro del dominio.
-    /// </summary>
-    public Guid Id { get; private set; }
 
     /// <summary>
     /// Nombre completo del usuario.
@@ -111,16 +105,6 @@ public abstract class Usuario
     /// Indica si el correo electrónico del usuario ya fue confirmado.
     /// </summary>
     public bool CorreoConfirmado { get; private set; }
-
-    /// <summary>
-    /// Fecha y hora UTC en que fue creada la entidad dentro del sistema.
-    /// </summary>
-    public DateTime FechaCreacionUtc { get; private set; }
-
-    /// <summary>
-    /// Fecha y hora UTC de la última modificación relevante del usuario.
-    /// </summary>
-    public DateTime? FechaActualizacionUtc { get; private set; }
 
     /// <summary>
     /// Fecha y hora UTC del último acceso registrado del usuario.
@@ -223,27 +207,6 @@ public abstract class Usuario
     public bool EstaHabilitado()
     {
         return Activo && CorreoConfirmado;
-    }
-
-    /// <summary>
-    /// Devuelve una representación legible y resumida del perfil del usuario.
-    /// </summary>
-    /// <returns>Cadena descriptiva del usuario.</returns>
-    public virtual string MostrarPerfil()
-    {
-        return $"ID: {Id} | Nombre: {Nombre} | Correo: {CorreoElectronico} | Rol: {Rol} | Activo: {Activo} | Correo confirmado: {CorreoConfirmado}";
-    }
-
-    #endregion
-
-    #region Métodos protegidos
-
-    /// <summary>
-    /// Registra la fecha de modificación de la entidad en tiempo UTC.
-    /// </summary>
-    protected void MarcarActualizacion()
-    {
-        FechaActualizacionUtc = DateTime.UtcNow;
     }
 
     #endregion

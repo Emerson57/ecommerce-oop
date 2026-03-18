@@ -33,8 +33,6 @@
     <Folder Include="Application\Orders\" />
     <Folder Include="Common\" />
     <Folder Include="Domain\Entities\" />
-    <Folder Include="Domain\Cart\" />
-    <Folder Include="Domain\Orders\" />
     <Folder Include="Domain\Users\" />
     <Folder Include="Domain\Products\" />
     <Folder Include="Infrastructure\Audit\" />
