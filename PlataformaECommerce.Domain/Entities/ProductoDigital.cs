@@ -24,8 +24,8 @@ namespace PlataformaECommerce.Domain.Entities
 
         #region Constructores
 
-        /// Constructor protegido sin parámetros.
-        protected ProductoDigital()
+        /// Constructor privado sin parámetros requerido por EF Core.
+        private ProductoDigital()
         {
         }
 

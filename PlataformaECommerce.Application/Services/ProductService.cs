@@ -11,7 +11,7 @@ namespace PlataformaECommerce.Application.Services
 
         private readonly IProductoRepository _productoRepository;
         private readonly IProductoAuditRepository _productoAuditRepository;
-        private readonly IUnitOfWork? _unitOfWork;
+        private readonly IUnitOfWork _unitOfWork;
 
         #endregion
 
@@ -21,11 +21,11 @@ namespace PlataformaECommerce.Application.Services
         public ProductService(
             IProductoRepository productoRepository,
             IProductoAuditRepository productoAuditRepository,
-            IUnitOfWork? unitOfWork = null)
+            IUnitOfWork unitOfWork)
         {
             _productoRepository = productoRepository ?? throw new ArgumentNullException(nameof(productoRepository));
             _productoAuditRepository = productoAuditRepository ?? throw new ArgumentNullException(nameof(productoAuditRepository));
-            _unitOfWork = unitOfWork;
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         }
 
         #endregion
@@ -66,8 +66,7 @@ namespace PlataformaECommerce.Application.Services
 
             await _productoRepository.AgregarAsync(producto);
 
-            if (_unitOfWork is not null)
-                await _unitOfWork.GuardarCambiosAsync();
+            await _unitOfWork.GuardarCambiosAsync();
 
             await _productoAuditRepository.RegistrarEventoAsync(
                 producto.Id,
@@ -98,8 +97,7 @@ namespace PlataformaECommerce.Application.Services
 
             await _productoRepository.ActualizarAsync(producto);
 
-            if (_unitOfWork is not null)
-                await _unitOfWork.GuardarCambiosAsync();
+            await _unitOfWork.GuardarCambiosAsync();
 
             await _productoAuditRepository.RegistrarEventoAsync(
                 producto.Id,
@@ -123,8 +121,7 @@ namespace PlataformaECommerce.Application.Services
 
             await _productoRepository.EliminarAsync(id);
 
-            if (_unitOfWork is not null)
-                await _unitOfWork.GuardarCambiosAsync();
+            await _unitOfWork.GuardarCambiosAsync();
 
             await _productoAuditRepository.RegistrarEventoAsync(
                 id,
