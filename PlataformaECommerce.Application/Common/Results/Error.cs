@@ -9,7 +9,7 @@
 /// de la aplicación sin depender directamente de excepciones.
 ///
 /// Su propósito es estandarizar la forma en que los casos de uso,
-/// servicios de aplicación y handlers retornan errores hacia capas
+/// servicios de aplicación y componentes de orquestación retornan errores hacia capas
 /// superiores, permitiendo una comunicación clara, consistente y trazable.
 ///
 /// La clase se modela como un objeto inmutable y comparable por valor,

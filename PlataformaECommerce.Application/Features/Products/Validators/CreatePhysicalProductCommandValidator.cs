@@ -12,7 +12,7 @@ namespace PlataformaECommerce.Application.Features.Products.Validators;
 /// antes de ejecutar el caso de uso de creación de un producto físico.
 ///
 /// Su responsabilidad es proteger la capa Application frente a solicitudes
-/// incompletas, inconsistentes o mal formadas, permitiendo que el handler
+/// incompletas, inconsistentes o mal formadas, permitiendo que el servicio de aplicación
 /// reciba un comando previamente saneado desde el punto de vista estructural.
 ///
 /// Las validaciones aquí definidas no reemplazan las reglas del dominio,

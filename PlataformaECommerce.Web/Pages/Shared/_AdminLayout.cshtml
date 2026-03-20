@@ -1,0 +1,100 @@
+@using System.Security.Claims
+@using PlataformaECommerce.Web.Authorization
+@{
+    string currentPath = Context.Request.Path.Value ?? string.Empty;
+    bool isDashboard = currentPath.Equals("/Admin", StringComparison.OrdinalIgnoreCase) || currentPath.Equals("/Admin/Index", StringComparison.OrdinalIgnoreCase);
+    bool isAudit = currentPath.StartsWith("/Admin/Audit", StringComparison.OrdinalIgnoreCase);
+    bool isProducts = currentPath.StartsWith("/Admin/Products", StringComparison.OrdinalIgnoreCase);
+    string adminName = User.Identity?.Name ?? "Administrador";
+    string adminEmail = User.FindFirstValue(ClaimTypes.Email) ?? "Sin correo";
+    string adminArea = User.FindFirst("area")?.Value ?? "Operaciones";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - NovaShop Backoffice</title>
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PlataformaECommerce.Web.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="container-fluid admin-shell">
+        <div class="row g-0">
+            <aside class="col-12 col-lg-3 col-xl-2 admin-sidebar p-4">
+                <div class="d-flex flex-column h-100">
+                    <div class="mb-4">
+                        <a asp-page="/Admin/Index" class="admin-brand d-inline-flex align-items-center gap-2">
+                            <span class="badge text-bg-light text-dark">N</span>
+                            <span>NovaShop Backoffice</span>
+                        </a>
+                        <p class="text-light-emphasis small mt-3 mb-0">
+                            Panel operativo para la administración interna, trazabilidad y supervisión del e-commerce.
+                        </p>
+                    </div>
+
+                    <nav class="mb-4">
+                        <a asp-page="/Admin/Index" class="admin-nav-link @(isDashboard ? "active" : string.Empty)">Dashboard</a>
+                        <a asp-page="/Admin/Audit/Index" class="admin-nav-link @(isAudit ? "active" : string.Empty)">Auditoría transversal</a>
+                        <a asp-page="/Admin/Products/Index" class="admin-nav-link @(isProducts ? "active" : string.Empty)">Productos</a>
+                        <span class="admin-nav-link disabled">Pedidos · Próximamente</span>
+                        <span class="admin-nav-link disabled">Usuarios · Próximamente</span>
+                        <span class="admin-nav-link disabled">Carritos · Próximamente</span>
+                    </nav>
+
+                    <div class="mt-auto rounded-4 border border-light-subtle p-3 bg-dark bg-opacity-25">
+                        <div class="admin-muted-label text-light-emphasis">Sesión activa</div>
+                        <div class="fw-semibold mt-2">@adminName</div>
+                        <div class="small text-light-emphasis">@adminEmail</div>
+                        <div class="small text-light-emphasis">Área: @adminArea</div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="col-12 col-lg-9 col-xl-10 admin-content">
+                <header class="admin-topbar px-4 px-lg-5 py-3 d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                    <div>
+                        <div class="admin-muted-label">Backoffice</div>
+                        <div class="fw-semibold">@adminName</div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <a asp-page="/Index" class="btn btn-outline-secondary btn-sm">Ir al storefront</a>
+                        <form method="post" asp-page="/Auth/Logout" class="d-inline">
+                            <button type="submit" class="btn btn-primary btn-sm">Cerrar sesión</button>
+                        </form>
+                    </div>
+                </header>
+
+                <main class="px-4 px-lg-5 py-4">
+                    <div class="admin-page-header p-4 mb-4">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3">
+                            <div>
+                                <div class="admin-muted-label">NovaShop Admin</div>
+                                <h1 class="h3 fw-bold mb-2">@(ViewData["Title"] ?? "Backoffice")</h1>
+                                @if (ViewData["Subtitle"] is string subtitle && !string.IsNullOrWhiteSpace(subtitle))
+                                {
+                                    <p class="text-muted mb-0">@subtitle</p>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,344 +1,287 @@
-﻿using PlataformaECommerce.Application.Common.Results;
+using FluentValidation;
+using PlataformaECommerce.Application.Common.Execution;
+using PlataformaECommerce.Application.Common.Results;
+using PlataformaECommerce.Application.Features.Admin.Commands;
 using PlataformaECommerce.Application.Features.Admin.DTOs;
+using PlataformaECommerce.Application.Features.Admin.Mappings;
 using PlataformaECommerce.Application.Features.Admin.Queries;
+using PlataformaECommerce.Application.Interfaces.Persistence;
+using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
+using PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
+using PlataformaECommerce.Application.Interfaces.Services.Admin;
+using PlataformaECommerce.Application.Interfaces.Services.Audit;
+using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Entities.Orders;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Domain.ValueObjects;
 
 namespace PlataformaECommerce.Application.Features.Admin.Services;
 
 /// <summary>
-/// Proporciona los casos de uso de aplicación relacionados con consultas
-/// administrativas y tableros de control del e-Commerce.
+/// Proporciona los casos de uso de aplicación relacionados con la gestión de administradores.
 /// </summary>
 /// <remarks>
-/// Esta clase actúa como servicio de aplicación para construir vistas
-/// consolidadas del contexto administrativo del sistema, coordinando:
-///
-/// - acceso de solo lectura a repositorios,
-/// - validaciones de seguridad del contexto actual,
-/// - agregación de métricas,
-/// - composición de indicadores,
-/// - y proyección hacia DTOs de alto nivel.
-///
-/// Su objetivo es ofrecer una forma profesional, mantenible y desacoplada
-/// de construir tableros ejecutivos y operativos sin exponer directamente
-/// entidades del dominio ni detalles de infraestructura.
-///
-/// Este servicio no reemplaza una futura implementación basada en handlers
-/// CQRS, pero constituye una capa de orquestación sólida para el módulo
-/// administrativo.
+/// Este servicio constituye la implementación pública de los casos de uso administrativos
+/// del backoffice, utilizando comandos y consultas como modelos de entrada para coordinar
+/// validación, persistencia, seguridad, auditoría y construcción del dashboard desde <c>Application</c>.
 /// </remarks>
-public sealed class AdminApplicationService
+public sealed class AdminApplicationService : IAdminApplicationService
 {
-    #region Campos privados
-
-    /// <summary>
-    /// Repositorio de usuarios.
-    /// </summary>
-    private readonly IUserRepository _userRepository;
-
-    /// <summary>
-    /// Repositorio de productos.
-    /// </summary>
     private readonly IProductRepository _productRepository;
-
-    /// <summary>
-    /// Repositorio de pedidos.
-    /// </summary>
     private readonly IOrderRepository _orderRepository;
-
-    /// <summary>
-    /// Servicio que expone el usuario actualmente autenticado.
-    /// </summary>
+    private readonly IUserRepository _userRepository;
+    private readonly ICartRepository _cartRepository;
+    private readonly IAuditRepository _auditRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly IAuditTrailService _auditTrailService;
     private readonly ICurrentUserService _currentUserService;
-
-    /// <summary>
-    /// Servicio de tiempo controlado para la capa Application.
-    /// </summary>
-    private readonly IDateTimeProvider _dateTimeProvider;
-
-    #endregion
-
-    #region Constructor
+    private readonly IValidator<RegisterAdminCommand> _registerAdminCommandValidator;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="AdminApplicationService"/>.
     /// </summary>
-    /// <param name="userRepository">Repositorio de usuarios.</param>
     /// <param name="productRepository">Repositorio de productos.</param>
     /// <param name="orderRepository">Repositorio de pedidos.</param>
-    /// <param name="currentUserService">Servicio del usuario actual.</param>
-    /// <param name="dateTimeProvider">Servicio de tiempo.</param>
+    /// <param name="userRepository">Repositorio de usuarios.</param>
+    /// <param name="cartRepository">Repositorio de carritos.</param>
+    /// <param name="auditRepository">Repositorio documental de auditoría.</param>
+    /// <param name="unitOfWork">Unidad de trabajo.</param>
+    /// <param name="passwordHasher">Servicio de hashing de contraseñas.</param>
+    /// <param name="auditTrailService">Servicio transversal de auditoría.</param>
+    /// <param name="currentUserService">Servicio de usuario actual.</param>
+    /// <param name="registerAdminCommandValidator">Validador estructural del comando de registro administrativo.</param>
     public AdminApplicationService(
-        IUserRepository userRepository,
         IProductRepository productRepository,
         IOrderRepository orderRepository,
+        IUserRepository userRepository,
+        ICartRepository cartRepository,
+        IAuditRepository auditRepository,
+        IUnitOfWork unitOfWork,
+        IPasswordHasher passwordHasher,
+        IAuditTrailService auditTrailService,
         ICurrentUserService currentUserService,
-        IDateTimeProvider dateTimeProvider)
+        IValidator<RegisterAdminCommand> registerAdminCommandValidator)
     {
-        _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
         _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
+        _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
+        _cartRepository = cartRepository ?? throw new ArgumentNullException(nameof(cartRepository));
+        _auditRepository = auditRepository ?? throw new ArgumentNullException(nameof(auditRepository));
+        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
+        _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
         _currentUserService = currentUserService ?? throw new ArgumentNullException(nameof(currentUserService));
-        _dateTimeProvider = dateTimeProvider ?? throw new ArgumentNullException(nameof(dateTimeProvider));
+        _registerAdminCommandValidator = registerAdminCommandValidator ?? throw new ArgumentNullException(nameof(registerAdminCommandValidator));
     }
 
-    #endregion
+    /// <inheritdoc />
+    public async Task<Result<AdminDto>> RegisterAdminAsync(
+        RegisterAdminCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
 
-    #region Casos de uso públicos
+        Error? validationError = await ValidateAsync(command, cancellationToken).ConfigureAwait(false);
+        if (validationError is not null)
+        {
+            return Result.Failure<AdminDto>(validationError);
+        }
 
-    /// <summary>
-    /// Obtiene el tablero administrativo consolidado del sistema.
-    /// </summary>
-    /// <param name="query">Consulta del tablero administrativo.</param>
-    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
-    /// <returns>
-    /// Un resultado con el tablero consolidado cuando la operación es exitosa.
-    /// </returns>
-    public async Task<Result<AdminDashboardDto>> GetAdminDashboardAsync(
+        return await ExecuteAsync(async () =>
+        {
+            Email email = CreateEmail(command.Email);
+
+            bool emailExists = await _userRepository.ExistsByEmailAsync(email, cancellationToken).ConfigureAwait(false);
+            if (emailExists)
+            {
+                return Result.Failure<AdminDto>(
+                    Error.Conflict("Admin.EmailAlreadyExists", $"Ya existe un usuario registrado con el correo '{command.Email}'."));
+            }
+
+            string passwordHash = _passwordHasher.HashPassword(command.Password);
+
+            Administrador admin = new(
+                command.Name,
+                email,
+                passwordHash,
+                command.Area);
+
+            if (!command.IsActive)
+            {
+                admin.Desactivar();
+            }
+
+            if (command.IsEmailConfirmed)
+            {
+                admin.ConfirmarCorreoElectronico();
+            }
+
+            await _userRepository.AddAsync(admin, cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await AuditAdminEventAsync(admin, cancellationToken).ConfigureAwait(false);
+
+            return Result.Success(admin.ToAdminDto());
+        }, "Admin.Domain").ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public Task<Result<AdminDashboardDto>> GetDashboardAsync(
         GetAdminDashboardQuery query,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        Error? validationError = ValidateDashboardQuery(query);
-        if (validationError is not null)
+        return ExecuteAsync(async () =>
         {
-            return Result.Failure<AdminDashboardDto>(validationError);
-        }
+            DateTime windowEndUtc = query.ReferenceDateUtc ?? DateTime.UtcNow;
+            int windowInDays = query.NormalizedWindowInDays;
+            DateTime windowStartUtc = windowEndUtc.AddDays(-windowInDays);
 
-        Error? authorizationError = ValidateDashboardAccess(query);
-        if (authorizationError is not null)
-        {
-            return Result.Failure<AdminDashboardDto>(authorizationError);
-        }
+            IReadOnlyCollection<Producto> products = await _productRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            IReadOnlyCollection<Pedido> orders = await _orderRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            IReadOnlyCollection<Usuario> users = await _userRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
+            IReadOnlyCollection<CarritoCompra> carts = await _cartRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
 
-        DateTime referenceDateUtc = query.ReferenceDateUtc ?? _dateTimeProvider.UtcNow;
-        DateTime windowStartUtc = referenceDateUtc.AddDays(-query.NormalizedWindowInDays);
+            string currency = orders.FirstOrDefault()?.Total.Currency
+                ?? products.FirstOrDefault()?.Precio.Currency
+                ?? "COP";
 
-        IReadOnlyCollection<Usuario> users = query.IncludeUserMetrics || query.IncludeOperationalAlerts
-            ? await _userRepository.GetAllAsync(cancellationToken)
-            : Array.Empty<Usuario>();
+            AuditSearchResult recentAuditWindow = await _auditRepository.SearchAsync(
+                new AuditSearchFilter
+                {
+                    FromUtc = windowEndUtc.AddHours(-24),
+                    PageNumber = 1,
+                    PageSize = 1,
+                    SortDescending = true
+                },
+                cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyCollection<Cliente> customers = query.IncludeUserMetrics
-            ? await _userRepository.GetCustomersAsync(cancellationToken)
-            : Array.Empty<Cliente>();
+            AuditSearchResult recentActivity = await _auditRepository.SearchAsync(
+                new AuditSearchFilter
+                {
+                    PageNumber = 1,
+                    PageSize = 5,
+                    SortDescending = true
+                },
+                cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyCollection<Administrador> administrators = query.IncludeUserMetrics
-            ? await _userRepository.GetAdministratorsAsync(cancellationToken)
-            : Array.Empty<Administrador>();
+            int lowStockThreshold = query.NormalizedLowStockThreshold;
 
-        IReadOnlyCollection<Producto> products = query.IncludeProductMetrics || query.IncludeOrderMetrics || query.IncludeFinancialMetrics || query.IncludeOperationalAlerts
-            ? await _productRepository.GetAllAsync(cancellationToken)
-            : Array.Empty<Producto>();
-
-        IReadOnlyCollection<Pedido> orders = query.IncludeOrderMetrics || query.IncludeFinancialMetrics || query.IncludeOperationalAlerts
-            ? await _orderRepository.GetAllAsync(cancellationToken)
-            : Array.Empty<Pedido>();
-
-        AdminDashboardDto dashboard = new()
-        {
-            GeneratedAtUtc = referenceDateUtc,
-            WindowStartUtc = windowStartUtc,
-            WindowEndUtc = referenceDateUtc,
-            WindowInDays = query.NormalizedWindowInDays,
-            GeneratedByUserId = query.RequestedByUserId ?? _currentUserService.UserId,
-            GeneratedByUserName = query.RequestedByUserName ?? _currentUserService.UserName,
-            Source = query.Source,
-            ExternalReference = query.ExternalReference,
-
-            TotalUsers = query.IncludeUserMetrics ? users.Count : 0,
-            TotalCustomers = query.IncludeUserMetrics ? customers.Count : 0,
-            TotalAdministrators = query.IncludeUserMetrics ? administrators.Count : 0,
-            ActiveUsers = query.IncludeUserMetrics ? users.Count(user => user.Activo) : 0,
-            InactiveUsers = query.IncludeUserMetrics ? users.Count(user => !user.Activo) : 0,
-            EmailConfirmedUsers = query.IncludeUserMetrics ? users.Count(user => user.CorreoConfirmado) : 0,
-            NewUsersInWindow = query.IncludeUserMetrics ? users.Count(user => user.FechaCreacionUtc >= windowStartUtc && user.FechaCreacionUtc <= referenceDateUtc) : 0,
-            UsersWithRecentAccess = query.IncludeUserMetrics ? users.Count(user => user.FechaUltimoAccesoUtc.HasValue && user.FechaUltimoAccesoUtc.Value >= windowStartUtc && user.FechaUltimoAccesoUtc.Value <= referenceDateUtc) : 0,
-
-            TotalProducts = query.IncludeProductMetrics ? products.Count : 0,
-            ActiveProducts = query.IncludeProductMetrics ? products.Count(product => product.Activo) : 0,
-            InactiveProducts = query.IncludeProductMetrics ? products.Count(product => !product.Activo) : 0,
-            FeaturedProducts = query.IncludeProductMetrics ? products.Count(product => product.Destacado) : 0,
-            AvailableProducts = query.IncludeProductMetrics ? products.Count(product => product.EstaDisponible()) : 0,
-            UnavailableProducts = query.IncludeProductMetrics ? products.Count(product => !product.EstaDisponible()) : 0,
-            OutOfStockProducts = query.IncludeProductMetrics ? products.Count(product => !product.TieneStock()) : 0,
-            LowStockProducts = query.IncludeProductMetrics ? products.Count(product => product.Stock > 0 && product.Stock <= query.NormalizedLowStockThreshold) : 0,
-            NewProductsInWindow = query.IncludeProductMetrics ? products.Count(product => product.FechaCreacionUtc >= windowStartUtc && product.FechaCreacionUtc <= referenceDateUtc) : 0,
-            PhysicalProducts = query.IncludeProductMetrics ? products.Count(product => product.TipoProducto == TipoProducto.Fisico) : 0,
-            DigitalProducts = query.IncludeProductMetrics ? products.Count(product => product.TipoProducto == TipoProducto.Digital) : 0,
-
-            TotalOrders = query.IncludeOrderMetrics ? orders.Count : 0,
-            NewOrdersInWindow = query.IncludeOrderMetrics ? orders.Count(order => order.FechaCreacionUtc >= windowStartUtc && order.FechaCreacionUtc <= referenceDateUtc) : 0,
-            PendingOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Pendiente) : 0,
-            ConfirmedOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Confirmado) : 0,
-            PaidOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Pagado) : 0,
-            ProcessingOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.EnProceso) : 0,
-            ShippedOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Enviado) : 0,
-            DeliveredOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Entregado) : 0,
-            CancelledOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Cancelado) : 0,
-            ActiveOrders = query.IncludeOrderMetrics ? orders.Count(order => !order.EstaFinalizado()) : 0,
-            FinalizedOrders = query.IncludeOrderMetrics ? orders.Count(order => order.EstaFinalizado()) : 0,
-
-            Currency = ResolveDashboardCurrency(orders, products),
-            TotalOrdersAmount = query.IncludeFinancialMetrics ? CalculateOrdersAmount(orders) : 0m,
-            OrdersAmountInWindow = query.IncludeFinancialMetrics ? CalculateOrdersAmount(orders.Where(order => order.FechaCreacionUtc >= windowStartUtc && order.FechaCreacionUtc <= referenceDateUtc)) : 0m,
-            PaidOrdersAmount = query.IncludeFinancialMetrics ? CalculateOrdersAmount(orders.Where(order => order.Estado == EstadoPedido.Pagado || order.Estado == EstadoPedido.EnProceso || order.Estado == EstadoPedido.Enviado || order.Estado == EstadoPedido.Entregado)) : 0m,
-            DeliveredOrdersAmount = query.IncludeFinancialMetrics ? CalculateOrdersAmount(orders.Where(order => order.Estado == EstadoPedido.Entregado)) : 0m,
-            CancelledOrdersAmount = query.IncludeFinancialMetrics ? CalculateOrdersAmount(orders.Where(order => order.Estado == EstadoPedido.Cancelado)) : 0m,
-
-            HasOutOfStockAlerts = query.IncludeOperationalAlerts && products.Any(product => !product.TieneStock()),
-            HasLowStockAlerts = query.IncludeOperationalAlerts && products.Any(product => product.Stock > 0 && product.Stock <= query.NormalizedLowStockThreshold),
-            HasOperationalBacklog = query.IncludeOperationalAlerts && orders.Any(order =>
-                order.Estado == EstadoPedido.Pendiente ||
-                order.Estado == EstadoPedido.Confirmado ||
-                order.Estado == EstadoPedido.Pagado ||
-                order.Estado == EstadoPedido.EnProceso ||
-                order.Estado == EstadoPedido.Enviado)
-        };
-
-        return Result.Success(dashboard);
+            return Result.Success(new AdminDashboardDto
+            {
+                GeneratedAtUtc = windowEndUtc,
+                WindowStartUtc = windowStartUtc,
+                WindowEndUtc = windowEndUtc,
+                WindowInDays = windowInDays,
+                GeneratedByUserId = _currentUserService.UserId ?? query.RequestedByUserId,
+                GeneratedByUserName = _currentUserService.UserName ?? _currentUserService.Email ?? query.RequestedByUserName,
+                Source = query.Source ?? "Admin.Backoffice",
+                ExternalReference = query.ExternalReference,
+                TotalProducts = query.IncludeProductMetrics ? products.Count : 0,
+                ActiveProducts = query.IncludeProductMetrics ? products.Count(product => product.Activo) : 0,
+                InactiveProducts = query.IncludeProductMetrics ? products.Count(product => !product.Activo) : 0,
+                FeaturedProducts = query.IncludeProductMetrics ? products.Count(product => product.Destacado) : 0,
+                AvailableProducts = query.IncludeProductMetrics ? products.Count(product => product.EstaDisponible()) : 0,
+                UnavailableProducts = query.IncludeProductMetrics ? products.Count(product => !product.EstaDisponible()) : 0,
+                OutOfStockProducts = query.IncludeProductMetrics ? products.Count(product => product.Stock <= 0) : 0,
+                LowStockProducts = query.IncludeProductMetrics ? products.Count(product => product.Stock is > 0 && product.Stock <= lowStockThreshold) : 0,
+                NewProductsInWindow = query.IncludeProductMetrics ? products.Count(product => product.FechaCreacionUtc >= windowStartUtc) : 0,
+                PhysicalProducts = query.IncludeProductMetrics ? products.Count(product => product.TipoProducto == TipoProducto.Fisico) : 0,
+                DigitalProducts = query.IncludeProductMetrics ? products.Count(product => product.TipoProducto == TipoProducto.Digital) : 0,
+                TotalOrders = query.IncludeOrderMetrics ? orders.Count : 0,
+                NewOrdersInWindow = query.IncludeOrderMetrics ? orders.Count(order => order.FechaCreacionUtc >= windowStartUtc) : 0,
+                PendingOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Pendiente) : 0,
+                ConfirmedOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Confirmado) : 0,
+                PaidOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Pagado) : 0,
+                ProcessingOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.EnProceso) : 0,
+                ShippedOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Enviado) : 0,
+                DeliveredOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Entregado) : 0,
+                CancelledOrders = query.IncludeOrderMetrics ? orders.Count(order => order.Estado == EstadoPedido.Cancelado) : 0,
+                ActiveOrders = query.IncludeOrderMetrics ? orders.Count(order => !order.EstaFinalizado()) : 0,
+                FinalizedOrders = query.IncludeOrderMetrics ? orders.Count(order => order.EstaFinalizado()) : 0,
+                Currency = currency,
+                TotalOrdersAmount = query.IncludeFinancialMetrics ? orders.Sum(order => order.Total.Amount) : 0m,
+                OrdersAmountInWindow = query.IncludeFinancialMetrics ? orders.Where(order => order.FechaCreacionUtc >= windowStartUtc).Sum(order => order.Total.Amount) : 0m,
+                PaidOrdersAmount = query.IncludeFinancialMetrics ? orders.Where(order => order.Estado == EstadoPedido.Pagado).Sum(order => order.Total.Amount) : 0m,
+                DeliveredOrdersAmount = query.IncludeFinancialMetrics ? orders.Where(order => order.Estado == EstadoPedido.Entregado).Sum(order => order.Total.Amount) : 0m,
+                CancelledOrdersAmount = query.IncludeFinancialMetrics ? orders.Where(order => order.Estado == EstadoPedido.Cancelado).Sum(order => order.Total.Amount) : 0m,
+                TotalUsers = query.IncludeUserMetrics ? users.Count : 0,
+                TotalCustomers = query.IncludeUserMetrics ? users.OfType<Cliente>().Count() : 0,
+                TotalAdministrators = query.IncludeUserMetrics ? users.OfType<Administrador>().Count() : 0,
+                ActiveUsers = query.IncludeUserMetrics ? users.Count(user => user.Activo) : 0,
+                InactiveUsers = query.IncludeUserMetrics ? users.Count(user => !user.Activo) : 0,
+                EmailConfirmedUsers = query.IncludeUserMetrics ? users.Count(user => user.CorreoConfirmado) : 0,
+                NewUsersInWindow = query.IncludeUserMetrics ? users.Count(user => user.FechaCreacionUtc >= windowStartUtc) : 0,
+                UsersWithRecentAccess = query.IncludeUserMetrics ? users.Count(user => user.FechaUltimoAccesoUtc >= windowStartUtc) : 0,
+                HasOutOfStockAlerts = query.IncludeOperationalAlerts && products.Any(product => product.Stock <= 0),
+                HasLowStockAlerts = query.IncludeOperationalAlerts && products.Any(product => product.Stock is > 0 && product.Stock <= lowStockThreshold),
+                HasOperationalBacklog = query.IncludeOperationalAlerts && orders.Any(order => !order.EstaFinalizado()),
+                ActiveCarts = query.IncludeOperationalAlerts ? carts.Count(cart => cart.Activo) : 0,
+                AuditEventsLast24Hours = query.IncludeOperationalAlerts ? recentAuditWindow.TotalCount : 0,
+                RecentActivities = query.IncludeOperationalAlerts
+                    ? recentActivity.Items
+                        .Select(entry => new AdminDashboardRecentActivityDto
+                        {
+                            OccurredAtUtc = entry.OccurredAtUtc,
+                            Module = entry.Module,
+                            Action = entry.Action,
+                            Detail = entry.Detail,
+                            PerformedBy = entry.PerformedBy
+                        })
+                        .ToArray()
+                    : Array.Empty<AdminDashboardRecentActivityDto>()
+            });
+        }, "Admin.Dashboard");
     }
 
-    #endregion
-
-    #region Validaciones privadas
-
-    /// <summary>
-    /// Valida estructuralmente la consulta del tablero administrativo.
-    /// </summary>
-    /// <param name="query">Consulta a validar.</param>
-    /// <returns>
-    /// Un error de validación cuando la consulta es inválida;
-    /// en caso contrario, <see langword="null"/>.
-    /// </returns>
-    private static Error? ValidateDashboardQuery(GetAdminDashboardQuery query)
+    private static Email CreateEmail(string value)
     {
-        if (!query.HasAnyMetricEnabled)
-        {
-            return Error.Validation(
-                "AdminDashboard.NoMetricsEnabled",
-                "La consulta del tablero debe habilitar al menos una sección métrica.");
-        }
-
-        if (query.RequestedByUserId.HasValue && query.RequestedByUserId.Value == Guid.Empty)
-        {
-            return Error.Validation(
-                "AdminDashboard.InvalidRequestedByUserId",
-                "El identificador del usuario solicitante no es válido.");
-        }
-
-        if (query.ReferenceDateUtc.HasValue && query.ReferenceDateUtc.Value.Kind != DateTimeKind.Utc)
-        {
-            return Error.Validation(
-                "AdminDashboard.InvalidReferenceDateUtc",
-                "La fecha de referencia del tablero debe estar expresada en UTC.");
-        }
-
-        return null;
+        return new Email(value);
     }
 
-    /// <summary>
-    /// Valida si el contexto actual tiene permisos suficientes para consultar el tablero.
-    /// </summary>
-    /// <param name="query">Consulta en proceso.</param>
-    /// <returns>
-    /// Un error de autorización cuando el acceso no está permitido;
-    /// en caso contrario, <see langword="null"/>.
-    /// </returns>
-    private Error? ValidateDashboardAccess(GetAdminDashboardQuery query)
+    private Task<Error?> ValidateAsync(RegisterAdminCommand command, CancellationToken cancellationToken)
     {
-        if (!query.RequireAdministratorAccess)
-        {
-            return null;
-        }
-
-        if (!_currentUserService.IsAuthenticated)
-        {
-            return Error.Unauthorized(
-                "AdminDashboard.AuthenticationRequired",
-                "Se requiere un usuario autenticado para consultar el tablero administrativo.");
-        }
-
-        bool isAdministrator = _currentUserService.IsInRole(RolUsuario.Administrador.ToString());
-        if (!isAdministrator)
-        {
-            return Error.Unauthorized(
-                "AdminDashboard.AdministratorRoleRequired",
-                "La consulta del tablero administrativo requiere privilegios de administrador.");
-        }
-
-        if (query.RequestedByUserId.HasValue &&
-            _currentUserService.UserId.HasValue &&
-            query.RequestedByUserId.Value != _currentUserService.UserId.Value)
-        {
-            return Error.Unauthorized(
-                "AdminDashboard.UserContextMismatch",
-                "El usuario solicitante informado no coincide con el contexto autenticado actual.");
-        }
-
-        return null;
+        return ApplicationExecution.ValidateAsync(
+            command,
+            _registerAdminCommandValidator,
+            "Admin.Validation",
+            "La solicitud contiene errores de validación.",
+            cancellationToken);
     }
 
-    #endregion
-
-    #region Métodos auxiliares de agregación
-
-    /// <summary>
-    /// Calcula el monto total de una colección de pedidos.
-    /// </summary>
-    /// <param name="orders">Pedidos a agregar.</param>
-    /// <returns>Monto total acumulado.</returns>
-    private static decimal CalculateOrdersAmount(IEnumerable<Pedido> orders)
+    private static Task<Result<TResponse>> ExecuteAsync<TResponse>(
+        Func<Task<Result<TResponse>>> operation,
+        string errorCode)
     {
-        ArgumentNullException.ThrowIfNull(orders);
-
-        decimal total = 0m;
-
-        foreach (Pedido order in orders)
-        {
-            total += order.Total.Amount;
-        }
-
-        return decimal.Round(total, 2, MidpointRounding.AwayFromZero);
+        return ApplicationExecution.ExecuteAsync(operation, errorCode);
     }
 
-    /// <summary>
-    /// Determina la moneda base más apropiada para el tablero.
-    /// </summary>
-    /// <param name="orders">Colección de pedidos disponibles.</param>
-    /// <param name="products">Colección de productos disponibles.</param>
-    /// <returns>Código de moneda del tablero.</returns>
-    private static string ResolveDashboardCurrency(
-        IEnumerable<Pedido> orders,
-        IEnumerable<Producto> products)
+    private Task AuditAdminEventAsync(Administrador admin, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(orders);
-        ArgumentNullException.ThrowIfNull(products);
+        ArgumentNullException.ThrowIfNull(admin);
 
-        string? orderCurrency = orders
-            .Select(order => order.Total.Currency)
-            .FirstOrDefault(currency => !string.IsNullOrWhiteSpace(currency));
-
-        if (!string.IsNullOrWhiteSpace(orderCurrency))
-        {
-            return orderCurrency;
-        }
-
-        string? productCurrency = products
-            .Select(product => product.Precio.Currency)
-            .FirstOrDefault(currency => !string.IsNullOrWhiteSpace(currency));
-
-        return string.IsNullOrWhiteSpace(productCurrency)
-            ? "COP"
-            : productCurrency;
+        return _auditTrailService.RegisterAsync(
+            admin.Id,
+            nameof(Administrador),
+            "Admin",
+            "admin.registered",
+            $"Se registró un nuevo administrador con correo '{admin.CorreoElectronico.Value}'.",
+            new Dictionary<string, string>
+            {
+                ["role"] = admin.Rol.ToString(),
+                ["email"] = admin.CorreoElectronico.Value,
+                ["area"] = admin.Area,
+                ["isActive"] = admin.Activo.ToString(),
+                ["isEmailConfirmed"] = admin.CorreoConfirmado.ToString()
+            },
+            cancellationToken);
     }
-
-    #endregion
 }

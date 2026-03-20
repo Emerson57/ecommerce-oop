@@ -1,13 +1,18 @@
-﻿using FluentValidation.Results;
+﻿using FluentValidation;
+using PlataformaECommerce.Application.Common.Execution;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Cart.Commands;
 using PlataformaECommerce.Application.Features.Cart.DTOs;
 using PlataformaECommerce.Application.Features.Cart.Queries;
 using PlataformaECommerce.Application.Features.Cart.Validators;
+using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
+using PlataformaECommerce.Application.Interfaces.Services.Cart;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Features.Cart.Mappings;
 using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Entities.Users;
@@ -29,11 +34,11 @@ namespace PlataformaECommerce.Application.Features.Cart.Services;
 /// - transformación de datos hacia DTOs,
 /// - y orquestación de acciones de negocio sin invadir el dominio.
 ///
-/// Este servicio no reemplaza a handlers CQRS, pero constituye una capa
-/// de orquestación válida y profesional para centralizar los principales
-/// casos de uso del módulo de carrito.
+/// Este servicio constituye la implementación pública de los casos de uso del
+/// módulo de carrito, utilizando comandos y consultas como modelos de entrada
+/// para orquestar operaciones coherentes dentro de <c>Application</c>.
 /// </remarks>
-public sealed class CartApplicationService
+public sealed class CartApplicationService : ICartApplicationService
 {
     #region Campos privados
 
@@ -57,6 +62,14 @@ public sealed class CartApplicationService
     /// </summary>
     private readonly IUnitOfWork _unitOfWork;
 
+    /// <summary>
+    /// Servicio transversal de auditoría.
+    /// </summary>
+    private readonly IAuditTrailService _auditTrailService;
+
+    private readonly IValidator<AddProductToCartCommand> _addProductToCartCommandValidator;
+    private readonly IValidator<UpdateCartItemQuantityCommand> _updateCartItemQuantityCommandValidator;
+
     #endregion
 
     #region Constructor
@@ -68,16 +81,23 @@ public sealed class CartApplicationService
     /// <param name="productRepository">Repositorio de productos.</param>
     /// <param name="userRepository">Repositorio de usuarios.</param>
     /// <param name="unitOfWork">Unidad de trabajo.</param>
+    /// <param name="auditTrailService">Servicio transversal de auditoría.</param>
     public CartApplicationService(
         ICartRepository cartRepository,
         IProductRepository productRepository,
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IAuditTrailService auditTrailService,
+        IValidator<AddProductToCartCommand> addProductToCartCommandValidator,
+        IValidator<UpdateCartItemQuantityCommand> updateCartItemQuantityCommandValidator)
     {
         _cartRepository = cartRepository ?? throw new ArgumentNullException(nameof(cartRepository));
         _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
+        _addProductToCartCommandValidator = addProductToCartCommandValidator ?? throw new ArgumentNullException(nameof(addProductToCartCommandValidator));
+        _updateCartItemQuantityCommandValidator = updateCartItemQuantityCommandValidator ?? throw new ArgumentNullException(nameof(updateCartItemQuantityCommandValidator));
     }
 
     #endregion
@@ -104,37 +124,60 @@ public sealed class CartApplicationService
                 Error.Validation("Cart.InvalidCustomerId", "El identificador del cliente es obligatorio."));
         }
 
-        Cliente? customer = await _userRepository.GetCustomerByIdAsync(command.CustomerId, cancellationToken);
-        if (customer is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.CustomerNotFound", $"No se encontró un cliente con identificador '{command.CustomerId}'."));
-        }
-
-        CarritoCompra? existingCart = await _cartRepository.GetByCustomerIdAsync(command.CustomerId, cancellationToken);
-        if (existingCart is not null)
-        {
-            if (command.IsActive && !existingCart.Activo)
+            Cliente? customer = await _userRepository.GetCustomerByIdAsync(command.CustomerId, cancellationToken);
+            if (customer is null)
             {
-                existingCart.Activar();
-                await _cartRepository.UpdateAsync(existingCart, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                return Result.Failure<CartDto>(
+                    Error.NotFound("Cart.CustomerNotFound", $"No se encontró un cliente con identificador '{command.CustomerId}'."));
             }
 
-            return Result.Success(MapToCartDto(existingCart));
-        }
+            CarritoCompra? existingCart = await _cartRepository.GetByCustomerIdAsync(command.CustomerId, cancellationToken);
+            if (existingCart is not null)
+            {
+                if (command.IsActive && !existingCart.Activo)
+                {
+                    existingCart.Activar();
+                    await _cartRepository.UpdateAsync(existingCart, cancellationToken);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await AuditCartEventAsync(
+                        existingCart,
+                        "cart.reactivated",
+                        $"Se reactivó el carrito del cliente '{existingCart.ClienteId}'.",
+                        new Dictionary<string, string>
+                        {
+                            ["customerId"] = existingCart.ClienteId.ToString(),
+                            ["isActive"] = existingCart.Activo.ToString()
+                        },
+                        cancellationToken);
+                }
 
-        CarritoCompra cart = new(command.CustomerId);
+                return Result.Success(existingCart.ToCartDto());
+            }
 
-        if (!command.IsActive)
-        {
-            cart.Desactivar();
-        }
+            CarritoCompra cart = new(command.CustomerId);
 
-        await _cartRepository.AddAsync(cart, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (!command.IsActive)
+            {
+                cart.Desactivar();
+            }
 
-        return Result.Success(MapToCartDto(cart));
+            await _cartRepository.AddAsync(cart, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditCartEventAsync(
+                cart,
+                "cart.created",
+                $"Se creó un nuevo carrito para el cliente '{cart.ClienteId}'.",
+                new Dictionary<string, string>
+                {
+                    ["customerId"] = cart.ClienteId.ToString(),
+                    ["isActive"] = cart.Activo.ToString()
+                },
+                cancellationToken);
+
+            return Result.Success(cart.ToCartDto());
+        }, "Cart.Domain");
     }
 
     /// <summary>
@@ -151,34 +194,47 @@ public sealed class CartApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new AddProductToCartCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _addProductToCartCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<CartDto>(BuildValidationError(validationResult, "Cart.Validation"));
+            return Result.Failure<CartDto>(validationError);
         }
 
-        CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
-        if (cart is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
-        }
+            CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
+            if (cart is null)
+            {
+                return Result.Failure<CartDto>(
+                    Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
+            }
 
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
-        {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.ProductNotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
-        }
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<CartDto>(
+                    Error.NotFound("Cart.ProductNotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        cart.AgregarProducto(product, command.Quantity);
+            cart.AgregarProducto(product, command.Quantity);
 
-        await _cartRepository.UpdateAsync(cart, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cartRepository.UpdateAsync(cart, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditCartEventAsync(
+                cart,
+                "cart.product.added",
+                $"Se agregó el producto '{product.Id}' al carrito '{cart.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["productId"] = product.Id.ToString(),
+                    ["quantity"] = command.Quantity.ToString(),
+                    ["itemsCount"] = cart.CantidadItems.ToString(),
+                    ["totalUnits"] = cart.CantidadTotalUnidades.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(MapToCartDto(cart));
+            return Result.Success(cart.ToCartDto());
+        }, "Cart.Domain");
     }
 
     /// <summary>
@@ -195,60 +251,76 @@ public sealed class CartApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new UpdateCartItemQuantityCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _updateCartItemQuantityCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<CartDto>(BuildValidationError(validationResult, "Cart.Validation"));
+            return Result.Failure<CartDto>(validationError);
         }
 
-        CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
-        if (cart is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
-        }
-
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
-        {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.ProductNotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
-        }
-
-        ItemCarrito? item = cart.ObtenerItemPorProductoId(command.ProductId);
-        if (item is null)
-        {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.ItemNotFound", $"No se encontró un ítem asociado al producto '{command.ProductId}' dentro del carrito."));
-        }
-
-        if (command.CartItemId != item.Id)
-        {
-            return Result.Failure<CartDto>(
-                Error.Validation("Cart.ItemMismatch", "El identificador del ítem del carrito no corresponde al producto informado."));
-        }
-
-        if (command.IsRemovalRequest)
-        {
-            bool removed = cart.RemoverProducto(command.ProductId);
-
-            if (!removed)
+            CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
+            if (cart is null)
             {
                 return Result.Failure<CartDto>(
-                    Error.NotFound("Cart.ItemNotFound", $"No fue posible remover el producto '{command.ProductId}' del carrito."));
+                    Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
             }
-        }
-        else
-        {
-            cart.ActualizarCantidadProducto(product, command.NewQuantity);
-        }
 
-        await _cartRepository.UpdateAsync(cart, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<CartDto>(
+                    Error.NotFound("Cart.ProductNotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        return Result.Success(MapToCartDto(cart));
+            ItemCarrito? item = cart.ObtenerItemPorProductoId(command.ProductId);
+            if (item is null)
+            {
+                return Result.Failure<CartDto>(
+                    Error.NotFound("Cart.ItemNotFound", $"No se encontró un ítem asociado al producto '{command.ProductId}' dentro del carrito."));
+            }
+
+            if (command.CartItemId != item.Id)
+            {
+                return Result.Failure<CartDto>(
+                    Error.Validation("Cart.ItemMismatch", "El identificador del ítem del carrito no corresponde al producto informado."));
+            }
+
+            if (command.IsRemovalRequest)
+            {
+                bool removed = cart.RemoverProducto(command.ProductId);
+
+                if (!removed)
+                {
+                    return Result.Failure<CartDto>(
+                        Error.NotFound("Cart.ItemNotFound", $"No fue posible remover el producto '{command.ProductId}' del carrito."));
+                }
+            }
+            else
+            {
+                cart.ActualizarCantidadProducto(product, command.NewQuantity);
+            }
+
+            await _cartRepository.UpdateAsync(cart, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditCartEventAsync(
+                cart,
+                command.IsRemovalRequest ? "cart.product.removed" : "cart.item.quantity.updated",
+                command.IsRemovalRequest
+                    ? $"Se removió el producto '{command.ProductId}' del carrito '{cart.Id}'."
+                    : $"Se actualizó la cantidad del producto '{command.ProductId}' en el carrito '{cart.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["productId"] = command.ProductId.ToString(),
+                    ["cartItemId"] = command.CartItemId.ToString(),
+                    ["newQuantity"] = command.NewQuantity.ToString(),
+                    ["itemsCount"] = cart.CantidadItems.ToString(),
+                    ["totalUnits"] = cart.CantidadTotalUnidades.ToString()
+                },
+                cancellationToken);
+
+            return Result.Success(cart.ToCartDto());
+        }, "Cart.Domain");
     }
 
     /// <summary>
@@ -277,34 +349,49 @@ public sealed class CartApplicationService
                 Error.Validation("Cart.InvalidProductId", "El identificador del producto es obligatorio."));
         }
 
-        CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
-        if (cart is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
-        }
-
-        if (command.HasCartItemId)
-        {
-            ItemCarrito? item = cart.ObtenerItemPorProductoId(command.ProductId);
-            if (item is null || item.Id != command.CartItemId!.Value)
+            CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
+            if (cart is null)
             {
                 return Result.Failure<CartDto>(
-                    Error.NotFound("Cart.ItemNotFound", "No se encontró el ítem del carrito indicado para el producto especificado."));
+                    Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
             }
-        }
 
-        bool removed = cart.RemoverProducto(command.ProductId);
-        if (!removed)
-        {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.ItemNotFound", $"No se encontró el producto '{command.ProductId}' dentro del carrito."));
-        }
+            if (command.HasCartItemId)
+            {
+                ItemCarrito? item = cart.ObtenerItemPorProductoId(command.ProductId);
+                if (item is null || item.Id != command.CartItemId!.Value)
+                {
+                    return Result.Failure<CartDto>(
+                        Error.NotFound("Cart.ItemNotFound", "No se encontró el ítem del carrito indicado para el producto especificado."));
+                }
+            }
 
-        await _cartRepository.UpdateAsync(cart, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            bool removed = cart.RemoverProducto(command.ProductId);
+            if (!removed)
+            {
+                return Result.Failure<CartDto>(
+                    Error.NotFound("Cart.ItemNotFound", $"No se encontró el producto '{command.ProductId}' dentro del carrito."));
+            }
 
-        return Result.Success(MapToCartDto(cart));
+            await _cartRepository.UpdateAsync(cart, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditCartEventAsync(
+                cart,
+                "cart.product.removed",
+                $"Se removió el producto '{command.ProductId}' del carrito '{cart.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["productId"] = command.ProductId.ToString(),
+                    ["cartItemId"] = command.CartItemId?.ToString() ?? string.Empty,
+                    ["itemsCount"] = cart.CantidadItems.ToString(),
+                    ["totalUnits"] = cart.CantidadTotalUnidades.ToString()
+                },
+                cancellationToken);
+
+            return Result.Success(cart.ToCartDto());
+        }, "Cart.Domain");
     }
 
     /// <summary>
@@ -327,19 +414,34 @@ public sealed class CartApplicationService
                 Error.Validation("Cart.InvalidId", "El identificador del carrito es obligatorio."));
         }
 
-        CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
-        if (cart is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<CartDto>(
-                Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
-        }
+            CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
+            if (cart is null)
+            {
+                return Result.Failure<CartDto>(
+                    Error.NotFound("Cart.NotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
+            }
 
-        cart.VaciarCarrito();
+            int previousItemsCount = cart.CantidadItems;
+            int previousTotalUnits = cart.CantidadTotalUnidades;
+            cart.VaciarCarrito();
 
-        await _cartRepository.UpdateAsync(cart, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _cartRepository.UpdateAsync(cart, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditCartEventAsync(
+                cart,
+                "cart.cleared",
+                $"Se vació completamente el carrito '{cart.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["previousItemsCount"] = previousItemsCount.ToString(),
+                    ["previousTotalUnits"] = previousTotalUnits.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(MapToCartDto(cart));
+            return Result.Success(cart.ToCartDto());
+        }, "Cart.Domain");
     }
 
     #endregion
@@ -386,7 +488,7 @@ public sealed class CartApplicationService
                 Error.NotFound("Cart.ActiveCartNotFound", $"No se encontró un carrito activo asociado al cliente '{query.CustomerId}'."));
         }
 
-        return Result.Success(MapToCartDto(cart));
+        return Result.Success(cart.ToCartDto());
     }
 
     #endregion
@@ -405,72 +507,51 @@ public sealed class CartApplicationService
         return products.FirstOrDefault(product => product.Id == productId);
     }
 
-    /// <summary>
-    /// Construye un error de validación de aplicación a partir del resultado de FluentValidation.
-    /// </summary>
-    /// <param name="validationResult">Resultado de validación.</param>
-    /// <param name="errorCode">Código base del error.</param>
-    /// <returns>Error de validación estructurado.</returns>
-    private static Error BuildValidationError(ValidationResult validationResult, string errorCode)
+    private static Task<Error?> ValidateAsync<TCommand>(
+        TCommand command,
+        IValidator<TCommand> validator,
+        CancellationToken cancellationToken)
     {
-        string message = string.Join(
-            " | ",
-            validationResult.Errors
-                .Where(error => !string.IsNullOrWhiteSpace(error.ErrorMessage))
-                .Select(error => error.ErrorMessage.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase));
+        return ApplicationExecution.ValidateAsync(
+            command,
+            validator,
+            "Cart.Validation",
+            "La solicitud del carrito contiene errores de validación.",
+            cancellationToken);
+    }
 
-        return Error.Validation(
-            errorCode,
-            string.IsNullOrWhiteSpace(message)
-                ? "La solicitud del carrito contiene errores de validación."
-                : message);
+    private static Task<Result<TResponse>> ExecuteAsync<TResponse>(
+        Func<Task<Result<TResponse>>> operation,
+        string errorCode)
+    {
+        return ApplicationExecution.ExecuteAsync(operation, errorCode);
     }
 
     /// <summary>
-    /// Proyecta una entidad de dominio <see cref="CarritoCompra"/> hacia un <see cref="CartDto"/>.
+    /// Registra un evento de auditoría asociado a una operación exitosa sobre carritos.
     /// </summary>
-    /// <param name="cart">Carrito a proyectar.</param>
-    /// <returns>DTO del carrito.</returns>
-    private static CartDto MapToCartDto(CarritoCompra cart)
+    /// <param name="cart">Carrito afectado por la operación.</param>
+    /// <param name="action">Acción semántica auditada.</param>
+    /// <param name="detail">Detalle legible del evento.</param>
+    /// <param name="metadata">Metadatos complementarios del evento.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    private Task AuditCartEventAsync(
+        CarritoCompra cart,
+        string action,
+        string detail,
+        IReadOnlyDictionary<string, string>? metadata,
+        CancellationToken cancellationToken)
     {
-        return new CartDto
-        {
-            Id = cart.Id,
-            CustomerId = cart.ClienteId,
-            IsActive = cart.Activo,
-            Items = cart.Items.Select(MapToCartItemDto).ToArray(),
-            ItemsCount = cart.CantidadItems,
-            TotalUnits = cart.CantidadTotalUnidades,
-            TotalAmount = cart.Total.Amount,
-            Currency = cart.Total.Currency,
-            CreatedAtUtc = cart.FechaCreacionUtc,
-            UpdatedAtUtc = cart.FechaActualizacionUtc
-        };
-    }
+        ArgumentNullException.ThrowIfNull(cart);
 
-    /// <summary>
-    /// Proyecta una entidad de dominio <see cref="ItemCarrito"/> hacia un <see cref="CartItemDto"/>.
-    /// </summary>
-    /// <param name="item">Ítem del carrito a proyectar.</param>
-    /// <returns>DTO del ítem del carrito.</returns>
-    private static CartItemDto MapToCartItemDto(ItemCarrito item)
-    {
-        return new CartItemDto
-        {
-            Id = item.Id,
-            ProductId = item.ProductoId,
-            ProductName = item.NombreProducto,
-            ProductSku = item.SkuProducto.Value,
-            ProductType = item.TipoProducto,
-            MainImageUrl = item.ImagenPrincipalUrl,
-            Quantity = item.Cantidad,
-            UnitPrice = item.PrecioUnitario.Amount,
-            Currency = item.PrecioUnitario.Currency,
-            Subtotal = item.Subtotal.Amount,
-            CreatedAtUtc = item.FechaCreacionUtc,
-            UpdatedAtUtc = item.FechaActualizacionUtc
-        };
+        return _auditTrailService.RegisterAsync(
+            cart.Id,
+            nameof(CarritoCompra),
+            "Cart",
+            action,
+            detail,
+            metadata,
+            cancellationToken);
     }
 
     #endregion

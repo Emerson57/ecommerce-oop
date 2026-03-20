@@ -1,4 +1,245 @@
-﻿@page
+﻿@page "{id:guid}"
+@using PlataformaECommerce.Domain.Enums
 @model PlataformaECommerce.Web.Pages.Admin.Products.EditModel
 @{
+    ViewData["Title"] = "Editar producto";
+    ViewData["Subtitle"] = "Actualización administrativa del catálogo";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mb-4" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-xl-8">
+        <div class="card admin-summary-card border-0">
+            <div class="card-body p-4 p-lg-5">
+                <form method="post" novalidate>
+                    <input asp-for="Input.Id" type="hidden" />
+                    <input asp-for="Input.ProductType" type="hidden" />
+                    <input asp-for="Input.IsActive" type="hidden" />
+                    <input asp-for="Input.IsFeatured" type="hidden" />
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-8">
+                            <div class="admin-muted-label">Producto</div>
+                            <h2 class="h4 fw-bold mt-2 mb-2">@Model.Input.Name</h2>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge @(Model.Input.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                                    @(Model.Input.IsActive ? "Activo" : "Inactivo")
+                                </span>
+                                <span class="badge @(Model.Input.IsFeatured ? "text-bg-warning" : "text-bg-light")">
+                                    @(Model.Input.IsFeatured ? "Destacado" : "Estándar")
+                                </span>
+                                <span class="badge @(Model.Input.ProductType == TipoProducto.Fisico ? "text-bg-secondary" : "text-bg-info")">
+                                    @Model.Input.ProductType
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="rounded-4 border bg-light p-4 h-100">
+                                <div class="small text-muted">Estado operativo</div>
+                                <div class="fw-semibold mt-2">@(Model.Input.IsActive ? "Disponible para gestión comercial" : "Fuera de operación comercial")</div>
+                                <div class="small text-muted mt-2">Las acciones de activación y destacado se mantienen desde el listado administrativo.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.Name" class="form-label">Nombre</label>
+                            <input asp-for="Input.Name" class="form-control" />
+                            <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Sku" class="form-label">SKU</label>
+                            <input asp-for="Input.Sku" class="form-control" />
+                            <span asp-validation-for="Input.Sku" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Input.Description" class="form-label">Descripción</label>
+                            <textarea asp-for="Input.Description" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.Price" class="form-label">Precio base</label>
+                            <input asp-for="Input.Price" class="form-control" />
+                            <span asp-validation-for="Input.Price" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.Currency" class="form-label">Moneda</label>
+                            <input asp-for="Input.Currency" class="form-control" />
+                            <span asp-validation-for="Input.Currency" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Input.Stock" class="form-label">Stock</label>
+                            <input asp-for="Input.Stock" class="form-control" />
+                            <span asp-validation-for="Input.Stock" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Slug" class="form-label">Slug</label>
+                            <input asp-for="Input.Slug" class="form-control" />
+                            <span asp-validation-for="Input.Slug" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.MainImageUrl" class="form-label">Imagen principal</label>
+                            <input asp-for="Input.MainImageUrl" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.CategoryId" class="form-label">Categoría (GUID)</label>
+                            <input asp-for="Input.CategoryId" class="form-control" placeholder="Opcional" />
+                            <span asp-validation-for="Input.CategoryId" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Tags" class="form-label">Etiquetas</label>
+                            <input asp-for="Input.Tags" class="form-control" placeholder="tag-1, tag-2, tag-3" />
+                        </div>
+                    </div>
+
+                    @if (Model.Input.IsPhysicalProduct)
+                    {
+                        <div class="mt-5">
+                            <div class="admin-muted-label">Producto físico</div>
+                            <h3 class="h5 fw-semibold mt-2 mb-3">Dimensiones y logística</h3>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label asp-for="Input.WeightKg" class="form-label">Peso (kg)</label>
+                                    <input asp-for="Input.WeightKg" class="form-control" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label asp-for="Input.HeightCm" class="form-label">Alto (cm)</label>
+                                    <input asp-for="Input.HeightCm" class="form-control" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label asp-for="Input.WidthCm" class="form-label">Ancho (cm)</label>
+                                    <input asp-for="Input.WidthCm" class="form-control" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label asp-for="Input.LengthCm" class="form-label">Largo (cm)</label>
+                                    <input asp-for="Input.LengthCm" class="form-control" />
+                                </div>
+                                <div class="col-12 form-check mt-2 ms-2">
+                                    <input asp-for="Input.RequiresShipping" class="form-check-input" />
+                                    <label asp-for="Input.RequiresShipping" class="form-check-label">Requiere envío</label>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.Input.IsDigitalProduct)
+                    {
+                        <div class="mt-5">
+                            <div class="admin-muted-label">Producto digital</div>
+                            <h3 class="h5 fw-semibold mt-2 mb-3">Entrega y licencia</h3>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="Input.FileFormat" class="form-label">Formato de archivo</label>
+                                    <input asp-for="Input.FileFormat" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Input.FileSizeMb" class="form-label">Tamaño (MB)</label>
+                                    <input asp-for="Input.FileSizeMb" class="form-control" />
+                                </div>
+                                <div class="col-12 form-check mt-2 ms-2">
+                                    <input asp-for="Input.RequiresLicense" class="form-check-input" />
+                                    <label asp-for="Input.RequiresLicense" class="form-check-label">Requiere licencia</label>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="d-flex flex-wrap gap-2 mt-5">
+                        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                        <a asp-page="./Index" class="btn btn-outline-secondary">Volver al listado</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card admin-summary-card border-0 mb-4">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Promoción vigente</div>
+                @if (Model.PromotionSummary is null)
+                {
+                    <h3 class="h6 fw-semibold mt-2 mb-2">Sin promoción activa</h3>
+                    <p class="small text-muted mb-0">El producto no tiene un descuento promocional activo en este momento.</p>
+                }
+                else
+                {
+                    <h3 class="h6 fw-semibold mt-2 mb-3">Promoción activa</h3>
+                    <div class="d-flex flex-column gap-2 small">
+                        <div>
+                            <div class="text-muted">Precio vigente</div>
+                            <div class="fw-semibold text-success">@Model.PromotionSummary.Currency @Model.PromotionSummary.CurrentPrice.ToString("N2")</div>
+                        </div>
+                        <div>
+                            <div class="text-muted">Precio base</div>
+                            <div class="fw-semibold text-decoration-line-through">@Model.PromotionSummary.Currency @Model.PromotionSummary.BasePrice.ToString("N2")</div>
+                        </div>
+                        <div>
+                            <div class="text-muted">Descuento aplicado</div>
+                            <div class="fw-semibold">@Model.PromotionSummary.CurrentDiscountPercentage?.ToString("N2")%</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card admin-summary-card border-0">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Historial promocional</div>
+                <h3 class="h6 fw-semibold mt-2 mb-3">Actividad reciente</h3>
+
+                @if (Model.PromotionHistory.Count == 0)
+                {
+                    <p class="small text-muted mb-0">No se registran eventos promocionales recientes para este producto.</p>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var item in Model.PromotionHistory)
+                        {
+                            <div class="border rounded-4 p-3 bg-light-subtle">
+                                <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <div class="fw-semibold">@item.Action</div>
+                                        <div class="small text-muted">@item.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm") UTC</div>
+                                    </div>
+                                    <span class="badge @(item.IsRemoval ? "text-bg-danger" : "text-bg-success")">
+                                        @(item.IsRemoval ? "Restauración" : "Descuento")
+                                    </span>
+                                </div>
+                                <div class="small text-muted mt-2">@item.Detail</div>
+                                <div class="small mt-2"><strong>Actor:</strong> @item.PerformedBy</div>
+                                @if (item.DiscountPercentage.HasValue)
+                                {
+                                    <div class="small"><strong>Descuento:</strong> @item.DiscountPercentage.Value.ToString("N2")%</div>
+                                }
+                                @if (item.FromPrice.HasValue || item.ToPrice.HasValue)
+                                {
+                                    <div class="small mt-1">
+                                        <strong>Precio:</strong>
+                                        @(item.Currency ?? Model.Input.Currency) @(item.FromPrice?.ToString("N2") ?? "-")
+                                        <span class="mx-1">→</span>
+                                        @(item.Currency ?? Model.Input.Currency) @(item.ToPrice?.ToString("N2") ?? "-")
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 }

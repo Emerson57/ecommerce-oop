@@ -22,8 +22,8 @@ namespace PlataformaECommerce.Application.Interfaces.Repositories.Orders;
 /// el repositorio es implementado en la capa Infrastructure
 /// y consumido por:
 /// - servicios de aplicación,
-/// - command handlers,
-/// - query handlers.
+/// - consultas de aplicación,
+/// - y componentes especializados de orquestación.
 ///
 /// La interfaz se orienta al agregado <see cref="Pedido"/>,
 /// por lo que las operaciones deben tratar al pedido como una unidad coherente,

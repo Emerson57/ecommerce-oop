@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="~/PlataformaECommerce.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
+    @{
+        bool isAdminAuthenticated = User.Identity?.IsAuthenticated == true && User.IsInRole("Administrador");
+    }
+
     <div class="site-wrapper">
         <header class="store-header">
             <div class="top-header">
@@ -31,7 +35,18 @@
                         </form>
 
                         <div class="header-actions">
-                            <a href="#" class="header-action disabled-link" aria-disabled="true">Iniciar sesión</a>
+                            @if (isAdminAuthenticated)
+                            {
+                                <a asp-area="" asp-page="/Admin/Index" class="header-action">Backoffice</a>
+                                <form method="post" asp-page="/Auth/Logout" class="d-inline">
+                                    <button type="submit" class="header-action btn btn-link p-0 border-0 text-decoration-none">Cerrar sesión admin</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a asp-area="" asp-page="/Auth/Login" class="header-action">Acceso admin</a>
+                            }
+
                             <a href="#" class="header-action disabled-link" aria-disabled="true">Crear cuenta</a>
                             <a href="#" class="header-action cart-action disabled-link" aria-disabled="true">Carrito</a>
 
@@ -89,7 +104,15 @@
 
                     <div>
                         <h5>Mi cuenta</h5>
-                        <a href="#" class="disabled-link" aria-disabled="true">Iniciar sesión</a>
+                        @if (isAdminAuthenticated)
+                        {
+                            <a asp-area="" asp-page="/Admin/Index">Backoffice</a>
+                        }
+                        else
+                        {
+                            <a asp-area="" asp-page="/Auth/Login">Acceso admin</a>
+                        }
+
                         <a href="#" class="disabled-link" aria-disabled="true">Crear cuenta</a>
                         <a href="#" class="disabled-link" aria-disabled="true">Carrito</a>
                     </div>
@@ -100,6 +123,10 @@
                         <a href="#" class="disabled-link" aria-disabled="true">Privacidad</a>
                         <a href="#">Términos</a>
                         <a href="#">Contacto</a>
+                        @if (isAdminAuthenticated)
+                        {
+                            <a asp-area="" asp-page="/Admin/Index">Backoffice</a>
+                        }
                     </div>
                 </div>
 

@@ -1,11 +1,17 @@
-﻿using FluentValidation.Results;
+﻿using System.Globalization;
+using FluentValidation;
+using PlataformaECommerce.Application.Common.Execution;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Features.Products.Validators;
+using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Interfaces.Services.Products;
+using PlataformaECommerce.Application.Features.Products.Mappings;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -26,11 +32,11 @@ namespace PlataformaECommerce.Application.Features.Products.Services;
 /// - transformación de datos hacia DTOs,
 /// - y orquestación de acciones de negocio sin invadir el dominio.
 ///
-/// Este servicio no reemplaza a handlers CQRS, pero constituye una capa
-/// de orquestación válida y profesional para centralizar los principales
-/// casos de uso del módulo de productos.
+/// Este servicio constituye la implementación pública de los casos de uso del
+/// módulo de productos, utilizando comandos y consultas como modelos de entrada
+/// para orquestar decisiones de aplicación sin abrir una frontera paralela.
 /// </remarks>
-public sealed class ProductApplicationService
+public sealed class ProductApplicationService : IProductApplicationService
 {
     private const decimal MaxPromotionDiscountPercentage = 90m;
 
@@ -42,9 +48,19 @@ public sealed class ProductApplicationService
     private readonly IProductRepository _productRepository;
 
     /// <summary>
+    /// Servicio transversal de auditoría.
+    /// </summary>
+    private readonly IAuditTrailService _auditTrailService;
+
+    /// <summary>
     /// Unidad de trabajo asociada a la persistencia.
     /// </summary>
     private readonly IUnitOfWork _unitOfWork;
+
+    private readonly IValidator<CreatePhysicalProductCommand> _createPhysicalProductCommandValidator;
+    private readonly IValidator<CreateDigitalProductCommand> _createDigitalProductCommandValidator;
+    private readonly IValidator<UpdateProductCommand> _updateProductCommandValidator;
+    private readonly IValidator<UpdateProductStockCommand> _updateProductStockCommandValidator;
 
     #endregion
 
@@ -54,13 +70,24 @@ public sealed class ProductApplicationService
     /// Inicializa una nueva instancia de <see cref="ProductApplicationService"/>.
     /// </summary>
     /// <param name="productRepository">Repositorio de productos.</param>
+    /// <param name="auditTrailService">Servicio transversal de auditoría.</param>
     /// <param name="unitOfWork">Unidad de trabajo.</param>
     public ProductApplicationService(
         IProductRepository productRepository,
-        IUnitOfWork unitOfWork)
+        IAuditTrailService auditTrailService,
+        IUnitOfWork unitOfWork,
+        IValidator<CreatePhysicalProductCommand> createPhysicalProductCommandValidator,
+        IValidator<CreateDigitalProductCommand> createDigitalProductCommandValidator,
+        IValidator<UpdateProductCommand> updateProductCommandValidator,
+        IValidator<UpdateProductStockCommand> updateProductStockCommandValidator)
     {
         _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+        _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _createPhysicalProductCommandValidator = createPhysicalProductCommandValidator ?? throw new ArgumentNullException(nameof(createPhysicalProductCommandValidator));
+        _createDigitalProductCommandValidator = createDigitalProductCommandValidator ?? throw new ArgumentNullException(nameof(createDigitalProductCommandValidator));
+        _updateProductCommandValidator = updateProductCommandValidator ?? throw new ArgumentNullException(nameof(updateProductCommandValidator));
+        _updateProductStockCommandValidator = updateProductStockCommandValidator ?? throw new ArgumentNullException(nameof(updateProductStockCommandValidator));
     }
 
     #endregion
@@ -81,44 +108,57 @@ public sealed class ProductApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new CreatePhysicalProductCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _createPhysicalProductCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<Guid>(BuildValidationError(validationResult));
+            return Result.Failure<Guid>(validationError);
         }
 
-        bool skuExists = await _productRepository.ExistsBySkuAsync(command.Sku, cancellationToken);
-        if (skuExists)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<Guid>(
-                Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
-        }
+            bool skuExists = await _productRepository.ExistsBySkuAsync(command.Sku, cancellationToken);
+            if (skuExists)
+            {
+                return Result.Failure<Guid>(
+                    Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
+            }
 
-        ProductoFisico product = new(
-            command.Name,
-            command.Description,
-            CreateSku(command.Sku),
-            CreateMoney(command.Price, command.Currency),
-            command.Stock,
-            command.Slug,
-            command.MainImageUrl,
-            command.CategoryId,
-            command.SubcategoryId,
-            CreateTags(command.Tags),
-            command.WeightKg,
-            command.HeightCm,
-            command.WidthCm,
-            command.LengthCm,
-            command.RequiresShipping);
+            ProductoFisico product = new(
+                command.Name,
+                command.Description,
+                CreateSku(command.Sku),
+                CreateMoney(command.Price, command.Currency),
+                command.Stock,
+                command.Slug,
+                command.MainImageUrl,
+                command.CategoryId,
+                command.SubcategoryId,
+                CreateTags(command.Tags),
+                command.WeightKg,
+                command.HeightCm,
+                command.WidthCm,
+                command.LengthCm,
+                command.RequiresShipping);
 
-        ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
+            ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
 
-        await _productRepository.AddAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _productRepository.AddAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.created",
+                $"Se registró un nuevo producto físico con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["productType"] = product.TipoProducto.ToString(),
+                    ["sku"] = product.Sku.Value,
+                    ["currency"] = product.Precio.Currency,
+                    ["initialStock"] = product.Stock.ToString(CultureInfo.InvariantCulture)
+                },
+                cancellationToken);
 
-        return Result.Success(product.Id);
+            return Result.Success(product.Id);
+        }, "Products.Domain");
     }
 
     /// <summary>
@@ -135,42 +175,55 @@ public sealed class ProductApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new CreateDigitalProductCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _createDigitalProductCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<Guid>(BuildValidationError(validationResult));
+            return Result.Failure<Guid>(validationError);
         }
 
-        bool skuExists = await _productRepository.ExistsBySkuAsync(command.Sku, cancellationToken);
-        if (skuExists)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<Guid>(
-                Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
-        }
+            bool skuExists = await _productRepository.ExistsBySkuAsync(command.Sku, cancellationToken);
+            if (skuExists)
+            {
+                return Result.Failure<Guid>(
+                    Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
+            }
 
-        ProductoDigital product = new(
-            command.Name,
-            command.Description,
-            CreateSku(command.Sku),
-            CreateMoney(command.Price, command.Currency),
-            command.Stock,
-            command.Slug,
-            command.MainImageUrl,
-            command.CategoryId,
-            null,
-            CreateTags(command.Tags),
-            command.FileFormat,
-            command.FileSizeMb,
-            command.RequiresLicense);
+            ProductoDigital product = new(
+                command.Name,
+                command.Description,
+                CreateSku(command.Sku),
+                CreateMoney(command.Price, command.Currency),
+                command.Stock,
+                command.Slug,
+                command.MainImageUrl,
+                command.CategoryId,
+                null,
+                CreateTags(command.Tags),
+                command.FileFormat,
+                command.FileSizeMb,
+                command.RequiresLicense);
 
-        ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
+            ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
 
-        await _productRepository.AddAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _productRepository.AddAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.created",
+                $"Se registró un nuevo producto digital con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["productType"] = product.TipoProducto.ToString(),
+                    ["sku"] = product.Sku.Value,
+                    ["currency"] = product.Precio.Currency,
+                    ["initialStock"] = product.Stock.ToString(CultureInfo.InvariantCulture)
+                },
+                cancellationToken);
 
-        return Result.Success(product.Id);
+            return Result.Success(product.Id);
+        }, "Products.Domain");
     }
 
     #endregion
@@ -191,70 +244,85 @@ public sealed class ProductApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new UpdateProductCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _updateProductCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<ProductResponseDto>(BuildValidationError(validationResult));
+            return Result.Failure<ProductResponseDto>(validationError);
         }
 
-        Producto? product = await FindProductByIdAsync(command.Id, cancellationToken);
-        if (product is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.Id}'."));
-        }
-
-        Producto? productWithSameSku = await _productRepository.GetBySkuAsync(command.Sku, cancellationToken);
-        if (productWithSameSku is not null && productWithSameSku.Id != product.Id)
-        {
-            return Result.Failure<ProductResponseDto>(
-                Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
-        }
-
-        product.ActualizarInformacionBasica(
-            command.Name,
-            command.Description,
-            CreateSku(command.Sku),
-            CreateMoney(command.Price, command.Currency),
-            command.Slug,
-            command.MainImageUrl);
-
-        product.ActualizarStock(command.Stock);
-        ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
-
-        switch (product)
-        {
-            case ProductoFisico physicalProduct when command.ProductType == TipoProducto.Fisico:
-                physicalProduct.ActualizarInformacionFisica(
-                    command.WeightKg!.Value,
-                    command.HeightCm!.Value,
-                    command.WidthCm!.Value,
-                    command.LengthCm!.Value,
-                    command.RequiresShipping!.Value);
-                break;
-
-            case ProductoDigital digitalProduct when command.ProductType == TipoProducto.Digital:
-                digitalProduct.ActualizarInformacionDigital(
-                    command.FileFormat!,
-                    command.FileSizeMb,
-                    command.RequiresLicense!.Value);
-                break;
-
-            case ProductoFisico:
+            Producto? product = await FindProductByIdAsync(command.Id, cancellationToken);
+            if (product is null)
+            {
                 return Result.Failure<ProductResponseDto>(
-                    Error.Validation("Products.InvalidTypeChange", "No es válido actualizar un producto físico utilizando información de producto digital."));
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.Id}'."));
+            }
 
-            case ProductoDigital:
+            Producto? productWithSameSku = await _productRepository.GetBySkuAsync(command.Sku, cancellationToken);
+            if (productWithSameSku is not null && productWithSameSku.Id != product.Id)
+            {
                 return Result.Failure<ProductResponseDto>(
-                    Error.Validation("Products.InvalidTypeChange", "No es válido actualizar un producto digital utilizando información de producto físico."));
-        }
+                    Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
+            }
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            product.ActualizarInformacionBasica(
+                command.Name,
+                command.Description,
+                CreateSku(command.Sku),
+                CreateMoney(command.Price, command.Currency),
+                command.Slug,
+                command.MainImageUrl);
 
-        return Result.Success(MapToProductResponseDto(product));
+            product.ActualizarStock(command.Stock);
+            ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
+
+            switch (product)
+            {
+                case ProductoFisico physicalProduct when command.ProductType == TipoProducto.Fisico:
+                    physicalProduct.ActualizarInformacionFisica(
+                        command.WeightKg!.Value,
+                        command.HeightCm!.Value,
+                        command.WidthCm!.Value,
+                        command.LengthCm!.Value,
+                        command.RequiresShipping!.Value);
+                    break;
+
+                case ProductoDigital digitalProduct when command.ProductType == TipoProducto.Digital:
+                    digitalProduct.ActualizarInformacionDigital(
+                        command.FileFormat!,
+                        command.FileSizeMb,
+                        command.RequiresLicense!.Value);
+                    break;
+
+                case ProductoFisico:
+                    return Result.Failure<ProductResponseDto>(
+                        Error.Validation("Products.InvalidTypeChange", "No es válido actualizar un producto físico utilizando información de producto digital."));
+
+                case ProductoDigital:
+                    return Result.Failure<ProductResponseDto>(
+                        Error.Validation("Products.InvalidTypeChange", "No es válido actualizar un producto digital utilizando información de producto físico."));
+            }
+
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.updated",
+                $"Se actualizó integralmente el producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["productType"] = product.TipoProducto.ToString(),
+                    ["sku"] = product.Sku.Value,
+                    ["currency"] = product.Precio.Currency,
+                    ["stock"] = product.Stock.ToString(CultureInfo.InvariantCulture),
+                    ["isActive"] = product.Activo.ToString(),
+                    ["isFeatured"] = product.Destacado.ToString()
+                },
+                cancellationToken);
+
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
     }
 
     /// <summary>
@@ -271,44 +339,57 @@ public sealed class ProductApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new UpdateProductStockCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _updateProductStockCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<ProductResponseDto>(BuildValidationError(validationResult));
+            return Result.Failure<ProductResponseDto>(validationError);
         }
 
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
-        }
-
-        switch (command.UpdateType)
-        {
-            case StockUpdateType.Set:
-                product.ActualizarStock(command.Quantity);
-                break;
-
-            case StockUpdateType.Increase:
-                product.IncrementarStock(command.Quantity);
-                break;
-
-            case StockUpdateType.Decrease:
-                product.DisminuirStock(command.Quantity);
-                break;
-
-            default:
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
                 return Result.Failure<ProductResponseDto>(
-                    Error.Validation("Products.InvalidStockUpdateType", "El tipo de actualización de inventario no es válido."));
-        }
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            switch (command.UpdateType)
+            {
+                case StockUpdateType.Set:
+                    product.ActualizarStock(command.Quantity);
+                    break;
 
-        return Result.Success(MapToProductResponseDto(product));
+                case StockUpdateType.Increase:
+                    product.IncrementarStock(command.Quantity);
+                    break;
+
+                case StockUpdateType.Decrease:
+                    product.DisminuirStock(command.Quantity);
+                    break;
+
+                default:
+                    return Result.Failure<ProductResponseDto>(
+                        Error.Validation("Products.InvalidStockUpdateType", "El tipo de actualización de inventario no es válido."));
+            }
+
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.stock.updated",
+                $"Se actualizó el inventario del producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["updateType"] = command.UpdateType.ToString(),
+                    ["quantity"] = command.Quantity.ToString(CultureInfo.InvariantCulture),
+                    ["resultingStock"] = product.Stock.ToString(CultureInfo.InvariantCulture),
+                    ["currency"] = product.Precio.Currency
+                },
+                cancellationToken);
+
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
     }
 
     /// <summary>
@@ -331,19 +412,32 @@ public sealed class ProductApplicationService
                 Error.Validation("Products.InvalidId", "El identificador del producto es obligatorio."));
         }
 
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
-        }
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        product.Activar();
+            product.Activar();
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.activated",
+                $"Se activó el producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["isActive"] = product.Activo.ToString(),
+                    ["sku"] = product.Sku.Value
+                },
+                cancellationToken);
 
-        return Result.Success(MapToProductResponseDto(product));
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
     }
 
     /// <summary>
@@ -366,19 +460,32 @@ public sealed class ProductApplicationService
                 Error.Validation("Products.InvalidId", "El identificador del producto es obligatorio."));
         }
 
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
-        }
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        product.Desactivar();
+            product.Desactivar();
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.deactivated",
+                $"Se desactivó el producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["isActive"] = product.Activo.ToString(),
+                    ["sku"] = product.Sku.Value
+                },
+                cancellationToken);
 
-        return Result.Success(MapToProductResponseDto(product));
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
     }
 
     /// <summary>
@@ -403,34 +510,99 @@ public sealed class ProductApplicationService
             return Result.Failure<ProductResponseDto>(validationError);
         }
 
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
+
+            if (!product.EstaDisponible())
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.Failure("Products.NotAvailable", "No es posible aplicar una promoción a un producto no disponible."));
+            }
+
+            Money previousPrice = product.Precio;
+            Money previousBasePrice = product.PrecioBase;
+            product.AplicarPromocion(command.DiscountPercentage);
+
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.promotion.applied",
+                $"Se aplicó una promoción sobre el producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["discountPercentage"] = command.DiscountPercentage.ToString(CultureInfo.InvariantCulture),
+                    ["previousPrice"] = previousPrice.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["basePrice"] = previousBasePrice.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["newPrice"] = product.Precio.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["currency"] = product.Precio.Currency
+                },
+                cancellationToken);
+
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
+    }
+
+    /// <summary>
+    /// Retira una promoción activa y restaura el precio base del producto.
+    /// </summary>
+    /// <param name="command">Comando para retirar la promoción.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>
+    /// Un resultado con la representación actualizada del producto cuando la operación es exitosa.
+    /// </returns>
+    public async Task<Result<ProductResponseDto>> RemoveProductPromotionAsync(
+        RemoveProductPromotionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        Error? validationError = ValidateProductId(command.ProductId);
+        if (validationError is not null)
+        {
+            return Result.Failure<ProductResponseDto>(validationError);
         }
 
-        if (!product.EstaDisponible())
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.Failure("Products.NotAvailable", "No es posible aplicar una promoción a un producto no disponible."));
-        }
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        decimal discountFactor = ResolveDiscountFactor(command.DiscountPercentage);
-        Money newPrice = CreateMoney(product.Precio.Amount * discountFactor, product.Precio.Currency);
+            if (!product.TienePromocion)
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.Failure("Products.PromotionNotActive", "El producto no tiene una promoción activa para restaurar."));
+            }
 
-        if (!newPrice.IsPositive() || newPrice >= product.Precio)
-        {
-            return Result.Failure<ProductResponseDto>(
-                Error.Validation("Products.InvalidPromotion", "La promoción debe generar una reducción real y dejar un precio mayor que cero."));
-        }
+            Money previousPromotionalPrice = product.Precio;
+            product.QuitarPromocion();
 
-        product.ActualizarPrecio(newPrice);
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.promotion.removed",
+                $"Se retiró la promoción activa del producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["previousPromotionalPrice"] = previousPromotionalPrice.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["restoredBasePrice"] = product.PrecioBase.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["currency"] = product.Precio.Currency
+                },
+                cancellationToken);
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result.Success(MapToProductResponseDto(product));
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
     }
 
     /// <summary>
@@ -453,19 +625,32 @@ public sealed class ProductApplicationService
             return Result.Failure<ProductResponseDto>(validationError);
         }
 
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
-        }
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        product.MarcarComoDestacado();
+            product.MarcarComoDestacado();
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.featured",
+                $"Se marcó como destacado el producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["isFeatured"] = product.Destacado.ToString(),
+                    ["sku"] = product.Sku.Value
+                },
+                cancellationToken);
 
-        return Result.Success(MapToProductResponseDto(product));
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
     }
 
     /// <summary>
@@ -488,19 +673,32 @@ public sealed class ProductApplicationService
             return Result.Failure<ProductResponseDto>(validationError);
         }
 
-        Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
-        if (product is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<ProductResponseDto>(
-                Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
-        }
+            Producto? product = await FindProductByIdAsync(command.ProductId, cancellationToken);
+            if (product is null)
+            {
+                return Result.Failure<ProductResponseDto>(
+                    Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{command.ProductId}'."));
+            }
 
-        product.QuitarDestacado();
+            product.QuitarDestacado();
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditProductEventAsync(
+                product,
+                "product.unfeatured",
+                $"Se retiró la marca de destacado del producto con SKU '{product.Sku.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["isFeatured"] = product.Destacado.ToString(),
+                    ["sku"] = product.Sku.Value
+                },
+                cancellationToken);
 
-        return Result.Success(MapToProductResponseDto(product));
+            return Result.Success(product.ToProductResponseDto());
+        }, "Products.Domain");
     }
 
     #endregion
@@ -534,7 +732,7 @@ public sealed class ProductApplicationService
                 Error.NotFound("Products.NotFound", $"No se encontró un producto con identificador '{query.ProductId}'."));
         }
 
-        return Result.Success(MapToProductDetailDto(product));
+        return Result.Success(product.ToProductDetailDto());
     }
 
     /// <summary>
@@ -543,9 +741,9 @@ public sealed class ProductApplicationService
     /// <param name="query">Consulta de listado de productos.</param>
     /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
     /// <returns>
-    /// Un resultado con la colección de productos cuando la operación es exitosa.
+    /// Un resultado con la colección paginada de productos cuando la operación es exitosa.
     /// </returns>
-    public async Task<Result<IReadOnlyCollection<ProductDto>>> GetProductsAsync(
+    public async Task<Result<ProductQueryResultDto>> GetProductsAsync(
         GetProductsQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -603,13 +801,27 @@ public sealed class ProductApplicationService
 
         products = ApplySorting(products, query);
 
-        IReadOnlyCollection<ProductDto> result = products
+        int totalCount = products.Count();
+        IReadOnlyCollection<ProductDto> items = products
             .Skip(query.Offset)
             .Take(query.NormalizedPageSize)
-            .Select(MapToProductDto)
-            .ToArray();
+            .ToProductDtos();
 
-        return Result.Success(result);
+        int totalPages = totalCount == 0
+            ? 0
+            : (int)Math.Ceiling(totalCount / (double)query.NormalizedPageSize);
+
+        return Result.Success(new ProductQueryResultDto
+        {
+            Items = items,
+            TotalCount = totalCount,
+            ReturnedCount = items.Count,
+            PageNumber = query.NormalizedPageNumber,
+            PageSize = query.NormalizedPageSize,
+            TotalPages = totalPages,
+            HasPreviousPage = query.NormalizedPageNumber > 1 && totalPages > 0,
+            HasNextPage = totalPages > 0 && query.NormalizedPageNumber < totalPages
+        });
     }
 
     #endregion
@@ -764,133 +976,52 @@ public sealed class ProductApplicationService
     }
 
     /// <summary>
-    /// Construye un error de validación de aplicación a partir del resultado de FluentValidation.
+    /// Registra un evento de auditoría asociado a una operación exitosa sobre productos.
     /// </summary>
-    /// <param name="validationResult">Resultado de validación.</param>
-    /// <returns>Error de validación estructurado.</returns>
-    private static Error BuildValidationError(ValidationResult validationResult)
+    /// <param name="product">Producto afectado por la operación.</param>
+    /// <param name="action">Acción semántica auditada.</param>
+    /// <param name="detail">Detalle legible del evento.</param>
+    /// <param name="metadata">Metadatos complementarios del evento.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    private Task AuditProductEventAsync(
+        Producto product,
+        string action,
+        string detail,
+        IReadOnlyDictionary<string, string>? metadata,
+        CancellationToken cancellationToken)
     {
-        string message = string.Join(
-            " | ",
-            validationResult.Errors
-                .Where(error => !string.IsNullOrWhiteSpace(error.ErrorMessage))
-                .Select(error => error.ErrorMessage.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase));
+        ArgumentNullException.ThrowIfNull(product);
 
-        return Error.Validation(
+        return _auditTrailService.RegisterAsync(
+            product.Id,
+            nameof(Producto),
+            "Products",
+            action,
+            detail,
+            metadata,
+            cancellationToken);
+    }
+
+    private static Task<Error?> ValidateAsync<TCommand>(
+        TCommand command,
+        IValidator<TCommand> validator,
+        CancellationToken cancellationToken)
+    {
+        return ApplicationExecution.ValidateAsync(
+            command,
+            validator,
             "Products.Validation",
-            string.IsNullOrWhiteSpace(message)
-                ? "La solicitud de producto contiene errores de validación."
-                : message);
+            "La solicitud de producto contiene errores de validación.",
+            cancellationToken);
     }
 
-    /// <summary>
-    /// Proyecta una entidad de dominio <see cref="Producto"/> hacia un <see cref="ProductDto"/>.
-    /// </summary>
-    /// <param name="product">Producto a proyectar.</param>
-    /// <returns>DTO de producto.</returns>
-    private static ProductDto MapToProductDto(Producto product)
+    private static Task<Result<TResponse>> ExecuteAsync<TResponse>(
+        Func<Task<Result<TResponse>>> operation,
+        string errorCode)
     {
-        return new ProductDto
-        {
-            Id = product.Id,
-            Name = product.Nombre,
-            Description = product.Descripcion,
-            Sku = product.Sku.Value,
-            Price = product.Precio.Amount,
-            Currency = product.Precio.Currency,
-            Stock = product.Stock,
-            IsActive = product.Activo,
-            IsFeatured = product.Destacado,
-            Slug = product.Slug,
-            MainImageUrl = product.ImagenPrincipalUrl,
-            ProductType = product.TipoProducto,
-            CreatedAtUtc = product.FechaCreacionUtc,
-            UpdatedAtUtc = product.FechaActualizacionUtc,
-            WeightKg = product is ProductoFisico physical ? physical.PesoKg : null,
-            HeightCm = product is ProductoFisico physicalHeight ? physicalHeight.AltoCm : null,
-            WidthCm = product is ProductoFisico physicalWidth ? physicalWidth.AnchoCm : null,
-            LengthCm = product is ProductoFisico physicalLength ? physicalLength.LargoCm : null,
-            RequiresShipping = product is ProductoFisico physicalShipping ? physicalShipping.RequiereEnvio : null,
-            FileFormat = product is ProductoDigital digital ? digital.FormatoArchivo : null,
-            FileSizeMb = product is ProductoDigital digitalSize ? digitalSize.TamanoArchivoMb : null,
-            RequiresLicense = product is ProductoDigital digitalLicense ? digitalLicense.RequiereLicencia : null
-        };
+        return ApplicationExecution.ExecuteAsync(operation, errorCode);
     }
 
-    /// <summary>
-    /// Proyecta una entidad de dominio <see cref="Producto"/> hacia un <see cref="ProductDetailDto"/>.
-    /// </summary>
-    /// <param name="product">Producto a proyectar.</param>
-    /// <returns>DTO detallado del producto.</returns>
-    private static ProductDetailDto MapToProductDetailDto(Producto product)
-    {
-        return new ProductDetailDto
-        {
-            Id = product.Id,
-            Name = product.Nombre,
-            Description = product.Descripcion,
-            Sku = product.Sku.Value,
-            Slug = product.Slug,
-            Price = product.Precio.Amount,
-            Currency = product.Precio.Currency,
-            Stock = product.Stock,
-            IsActive = product.Activo,
-            IsFeatured = product.Destacado,
-            ProductType = product.TipoProducto,
-            MainImageUrl = product.ImagenPrincipalUrl,
-            ImageGallery = product.ImagenPrincipalUrl is null
-                ? Array.Empty<string>()
-                : new[] { product.ImagenPrincipalUrl },
-            CreatedAtUtc = product.FechaCreacionUtc,
-            UpdatedAtUtc = product.FechaActualizacionUtc,
-            WeightKg = product is ProductoFisico physical ? physical.PesoKg : null,
-            HeightCm = product is ProductoFisico physicalHeight ? physicalHeight.AltoCm : null,
-            WidthCm = product is ProductoFisico physicalWidth ? physicalWidth.AnchoCm : null,
-            LengthCm = product is ProductoFisico physicalLength ? physicalLength.LargoCm : null,
-            RequiresShipping = product is ProductoFisico physicalShipping ? physicalShipping.RequiereEnvio : null,
-            FileFormat = product is ProductoDigital digital ? digital.FormatoArchivo : null,
-            FileSizeMb = product is ProductoDigital digitalSize ? digitalSize.TamanoArchivoMb : null,
-            RequiresLicense = product is ProductoDigital digitalLicense ? digitalLicense.RequiereLicencia : null
-        };
-    }
-
-    /// <summary>
-    /// Proyecta una entidad de dominio <see cref="Producto"/> hacia un <see cref="ProductResponseDto"/>.
-    /// </summary>
-    /// <param name="product">Producto a proyectar.</param>
-    /// <returns>DTO de respuesta del producto.</returns>
-    private static ProductResponseDto MapToProductResponseDto(Producto product)
-    {
-        return new ProductResponseDto
-        {
-            Id = product.Id,
-            Name = product.Nombre,
-            Description = product.Descripcion,
-            Sku = product.Sku.Value,
-            Slug = product.Slug,
-            Price = product.Precio.Amount,
-            Currency = product.Precio.Currency,
-            Stock = product.Stock,
-            IsActive = product.Activo,
-            IsFeatured = product.Destacado,
-            ProductType = product.TipoProducto,
-            MainImageUrl = product.ImagenPrincipalUrl,
-            ImageGallery = product.ImagenPrincipalUrl is null
-                ? Array.Empty<string>()
-                : new[] { product.ImagenPrincipalUrl },
-            CreatedAtUtc = product.FechaCreacionUtc,
-            UpdatedAtUtc = product.FechaActualizacionUtc,
-            WeightKg = product is ProductoFisico physical ? physical.PesoKg : null,
-            HeightCm = product is ProductoFisico physicalHeight ? physicalHeight.AltoCm : null,
-            WidthCm = product is ProductoFisico physicalWidth ? physicalWidth.AnchoCm : null,
-            LengthCm = product is ProductoFisico physicalLength ? physicalLength.LargoCm : null,
-            RequiresShipping = product is ProductoFisico physicalShipping ? physicalShipping.RequiereEnvio : null,
-            FileFormat = product is ProductoDigital digital ? digital.FormatoArchivo : null,
-            FileSizeMb = product is ProductoDigital digitalSize ? digitalSize.TamanoArchivoMb : null,
-            RequiresLicense = product is ProductoDigital digitalLicense ? digitalLicense.RequiereLicencia : null
-        };
-    }
 
     #endregion
 }

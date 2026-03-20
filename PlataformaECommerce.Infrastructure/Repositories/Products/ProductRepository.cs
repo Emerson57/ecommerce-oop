@@ -224,6 +224,9 @@ public sealed class ProductRepository : IProductRepository
         entity.Descripcion = producto.Descripcion;
         entity.Sku = producto.Sku.Value;
         entity.Precio = producto.Precio.Amount;
+        entity.PrecioBase = producto.PrecioBase.Amount;
+        entity.PrecioPromocionalActual = producto.PrecioPromocionalActual?.Amount;
+        entity.DescuentoPromocionalActual = producto.DescuentoPromocionalActual;
         entity.Moneda = producto.Precio.Currency;
         entity.Stock = producto.Stock;
         entity.Activo = producto.Activo;
@@ -303,5 +306,17 @@ public sealed class ProductRepository : IProductRepository
         typeof(Producto).GetProperty(nameof(Producto.Id), Flags)?.SetValue(product, entity.Id);
         typeof(Producto).GetProperty(nameof(Producto.FechaCreacionUtc), Flags)?.SetValue(product, entity.FechaCreacionUtc);
         typeof(Producto).GetProperty(nameof(Producto.FechaActualizacionUtc), Flags)?.SetValue(product, entity.FechaActualizacionUtc);
+        decimal precioBase = entity.PrecioBase > 0m
+            ? entity.PrecioBase
+            : entity.Precio;
+
+        typeof(Producto).GetProperty(nameof(Producto.PrecioBase), Flags)?.SetValue(product, new Money(precioBase, entity.Moneda));
+        typeof(Producto).GetProperty(nameof(Producto.PrecioPromocionalActual), Flags)?.SetValue(
+            product,
+            entity.PrecioPromocionalActual.HasValue
+                ? new Money(entity.PrecioPromocionalActual.Value, entity.Moneda)
+                : null);
+        typeof(Producto).GetProperty(nameof(Producto.DescuentoPromocionalActual), Flags)?.SetValue(product, entity.DescuentoPromocionalActual);
+        typeof(Producto).GetProperty(nameof(Producto.Precio), Flags)?.SetValue(product, new Money(entity.Precio, entity.Moneda));
     }
 }

@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.0" />
     <PackageReference Include="NUnit" Version="4.3.2" />
     <PackageReference Include="NUnit.Analyzers" Version="4.7.0" />
@@ -25,19 +26,6 @@
 
   <ItemGroup>
     <Using Include="NUnit.Framework" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Application\Catalog\" />
-    <Folder Include="Application\Auth\" />
-    <Folder Include="Application\Orders\" />
-    <Folder Include="Common\" />
-    <Folder Include="Domain\Entities\" />
-    <Folder Include="Domain\Users\" />
-    <Folder Include="Domain\Products\" />
-    <Folder Include="Infrastructure\Audit\" />
-    <Folder Include="Infrastructure\Products\" />
-    <Folder Include="Web\" />
   </ItemGroup>
 
 </Project>

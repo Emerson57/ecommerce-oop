@@ -8,7 +8,7 @@ namespace PlataformaECommerce.Application.Common.Exceptions;
 /// </summary>
 /// <remarks>
 /// Esta excepción debe utilizarse cuando un caso de uso, servicio de aplicación
-/// o handler intenta recuperar una entidad, agregado, DTO o recurso lógico
+/// o componente de orquestación intenta recuperar una entidad, agregado, DTO o recurso lógico
 /// que no existe dentro del contexto solicitado.
 ///
 /// Su propósito es estandarizar los errores de tipo "no encontrado"

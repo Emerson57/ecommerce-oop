@@ -7,10 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Folder Include="Abstractions\" />
+    <Folder Include="Common\Audit\" />
     <Folder Include="Features\Catalog\Commands\" />
     <Folder Include="Features\Catalog\Validators\" />
-    <Folder Include="Interfaces\Services\Audit\" />
-    <Folder Include="Interfaces\Services\Products\" />
+    <Folder Include="Mappings\" />
+    <Folder Include="Services\" />
   </ItemGroup>
 
   <ItemGroup>

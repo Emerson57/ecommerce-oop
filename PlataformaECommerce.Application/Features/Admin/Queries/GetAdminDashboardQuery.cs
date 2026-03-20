@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Admin.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Admin.Queries;
@@ -26,10 +25,10 @@ namespace PlataformaECommerce.Application.Features.Admin.Queries;
 /// - y control operacional del e-Commerce.
 ///
 /// Esta clase no debe contener lógica de negocio ni acceso a datos.
-/// Dichas responsabilidades corresponden al servicio de aplicación o handler
+/// Dichas responsabilidades corresponden al servicio de aplicación
 /// especializado que procese la consulta.
 /// </remarks>
-public sealed class GetAdminDashboardQuery : IQuery<Result<AdminDashboardDto>>
+public sealed class GetAdminDashboardQuery
 {
     #region Constantes
 

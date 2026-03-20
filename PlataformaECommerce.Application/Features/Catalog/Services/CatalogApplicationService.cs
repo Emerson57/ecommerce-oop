@@ -2,6 +2,7 @@
 using PlataformaECommerce.Application.Features.Catalog.DTOs;
 using PlataformaECommerce.Application.Features.Catalog.Queries;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
+using PlataformaECommerce.Application.Interfaces.Services.Catalog;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Enums;
 
@@ -30,7 +31,7 @@ namespace PlataformaECommerce.Application.Features.Catalog.Services;
 /// coordina operaciones de consulta y proyección sobre el agregado
 /// <see cref="Producto"/> y sus especializaciones.
 /// </remarks>
-public sealed class CatalogApplicationService
+public sealed class CatalogApplicationService : ICatalogApplicationService
 {
     #region Constantes internas
 

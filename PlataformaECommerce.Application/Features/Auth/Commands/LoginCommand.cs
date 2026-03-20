@@ -1,5 +1,4 @@
 ﻿using System;
-using PlataformaECommerce.Application.Abstractions;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
 
@@ -29,7 +28,7 @@ namespace PlataformaECommerce.Application.Features.Auth.Commands;
 /// que contiene un <see cref="AuthResponseDto"/> cuando la autenticación
 /// se realiza correctamente.
 /// </remarks>
-public sealed class LoginCommand : ICommand<Result<AuthResponseDto>>
+public sealed class LoginCommand
 {
     #region Credenciales principales
 

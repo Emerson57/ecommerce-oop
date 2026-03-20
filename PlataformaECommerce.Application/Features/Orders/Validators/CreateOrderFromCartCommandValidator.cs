@@ -10,7 +10,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Validators;
 /// Este validador pertenece a la capa de aplicación y tiene como objetivo
 /// garantizar que la solicitud de creación de pedido a partir de un carrito
 /// cumpla con las validaciones estructurales mínimas antes de que el caso de uso
-/// sea ejecutado por su handler correspondiente.
+/// sea ejecutado por el servicio de aplicación correspondiente.
 ///
 /// Las reglas aquí definidas se enfocan en:
 /// - integridad básica de identificadores,

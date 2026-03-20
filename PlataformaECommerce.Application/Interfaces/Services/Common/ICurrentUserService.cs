@@ -15,7 +15,7 @@
 /// - o frameworks de transporte.
 ///
 /// Su propósito es permitir que comandos, consultas, servicios de aplicación
-/// y handlers puedan conocer de forma desacoplada:
+/// y componentes de orquestación puedan conocer de forma desacoplada:
 /// - quién ejecuta la operación,
 /// - si está autenticado,
 /// - qué rol posee,

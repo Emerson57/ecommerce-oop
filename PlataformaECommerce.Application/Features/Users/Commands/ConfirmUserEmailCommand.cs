@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Users.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Users.Commands;
@@ -20,13 +19,13 @@ namespace PlataformaECommerce.Application.Features.Users.Commands;
 /// - activación o desactivación.
 ///
 /// La lógica de validación del token, código o mecanismo de confirmación
-/// debe resolverse en el handler correspondiente y en los servicios auxiliares
+/// debe resolverse en el servicio de aplicación correspondiente y en los servicios auxiliares
 /// que la capa Application utilice para este propósito.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="UserDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class ConfirmUserEmailCommand : ICommand<Result<UserDto>>
+public sealed class ConfirmUserEmailCommand
 {
     #region Identificación
 

@@ -29,7 +29,7 @@ namespace PlataformaECommerce.Application.Features.Admin.DTOs;
 /// - y señales operativas de atención.
 ///
 /// Esta clase no debe contener lógica de negocio compleja. Los cálculos y reglas
-/// de composición deben realizarse en servicios de aplicación, handlers o
+/// de composición deben realizarse en servicios de aplicación o
 /// componentes especializados de agregación.
 /// </remarks>
 public sealed class AdminDashboardDto
@@ -297,6 +297,21 @@ public sealed class AdminDashboardDto
     /// Indica si actualmente existen pedidos activos pendientes de atención.
     /// </summary>
     public bool HasOperationalBacklog { get; init; }
+
+    /// <summary>
+    /// Cantidad total de carritos activos registrados actualmente.
+    /// </summary>
+    public int ActiveCarts { get; init; }
+
+    /// <summary>
+    /// Cantidad de eventos de auditoría registrados durante las últimas 24 horas.
+    /// </summary>
+    public int AuditEventsLast24Hours { get; init; }
+
+    /// <summary>
+    /// Colección de actividades recientes provenientes del rastro transversal de auditoría.
+    /// </summary>
+    public IReadOnlyCollection<AdminDashboardRecentActivityDto> RecentActivities { get; init; } = Array.Empty<AdminDashboardRecentActivityDto>();
 
     #endregion
 

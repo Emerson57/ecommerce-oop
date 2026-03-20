@@ -1,15 +1,17 @@
-﻿using FluentValidation.Results;
+﻿using FluentValidation;
+using PlataformaECommerce.Application.Common.Execution;
 using PlataformaECommerce.Application.Common.Results;
-using PlataformaECommerce.Application.Features.Admin.Commands;
-using PlataformaECommerce.Application.Features.Admin.DTOs;
-using PlataformaECommerce.Application.Features.Admin.Validators;
 using PlataformaECommerce.Application.Features.Users.Commands;
 using PlataformaECommerce.Application.Features.Users.DTOs;
 using PlataformaECommerce.Application.Features.Users.Queries;
 using PlataformaECommerce.Application.Features.Users.Validators;
+using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Interfaces.Services.Users;
+using PlataformaECommerce.Application.Features.Users.Mappings;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.ValueObjects;
 
@@ -30,11 +32,11 @@ namespace PlataformaECommerce.Application.Features.Users.Services;
 /// - aplicación de servicios transversales como hashing de contraseñas,
 /// - y orquestación de acciones de negocio sin invadir el dominio.
 ///
-/// Este servicio no reemplaza a handlers CQRS, pero constituye una capa
-/// de orquestación válida y profesional para centralizar los principales
-/// casos de uso del módulo de usuarios.
+/// Este servicio constituye la implementación pública de los casos de uso del
+/// módulo de usuarios, utilizando comandos y consultas como modelos de entrada
+/// para mantener una frontera clara y estable dentro de <c>Application</c>.
 /// </remarks>
-public sealed class UserApplicationService
+public sealed class UserApplicationService : IUserApplicationService
 {
     #region Campos privados
 
@@ -53,6 +55,14 @@ public sealed class UserApplicationService
     /// </summary>
     private readonly IPasswordHasher _passwordHasher;
 
+    /// <summary>
+    /// Servicio transversal de auditoría.
+    /// </summary>
+    private readonly IAuditTrailService _auditTrailService;
+
+    private readonly IValidator<RegisterCustomerCommand> _registerCustomerCommandValidator;
+    private readonly IValidator<UpdateUserBasicDataCommand> _updateUserBasicDataCommandValidator;
+
     #endregion
 
     #region Constructor
@@ -63,14 +73,21 @@ public sealed class UserApplicationService
     /// <param name="userRepository">Repositorio de usuarios.</param>
     /// <param name="unitOfWork">Unidad de trabajo.</param>
     /// <param name="passwordHasher">Servicio de hashing de contraseñas.</param>
+    /// <param name="auditTrailService">Servicio transversal de auditoría.</param>
     public UserApplicationService(
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IAuditTrailService auditTrailService,
+        IValidator<RegisterCustomerCommand> registerCustomerCommandValidator,
+        IValidator<UpdateUserBasicDataCommand> updateUserBasicDataCommandValidator)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
+        _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
+        _registerCustomerCommandValidator = registerCustomerCommandValidator ?? throw new ArgumentNullException(nameof(registerCustomerCommandValidator));
+        _updateUserBasicDataCommandValidator = updateUserBasicDataCommandValidator ?? throw new ArgumentNullException(nameof(updateUserBasicDataCommandValidator));
     }
 
     #endregion
@@ -91,97 +108,55 @@ public sealed class UserApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new RegisterCustomerCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _registerCustomerCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<CustomerDto>(BuildValidationError(validationResult, "Users.Validation"));
+            return Result.Failure<CustomerDto>(validationError);
         }
 
-        Email email = CreateEmail(command.Email);
-
-        bool emailExists = await _userRepository.ExistsByEmailAsync(email, cancellationToken);
-        if (emailExists)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<CustomerDto>(
-                Error.Conflict("Users.EmailAlreadyExists", $"Ya existe un usuario registrado con el correo '{command.Email}'."));
-        }
+            Email email = CreateEmail(command.Email);
 
-        string passwordHash = _passwordHasher.HashPassword(command.Password);
+            bool emailExists = await _userRepository.ExistsByEmailAsync(email, cancellationToken);
+            if (emailExists)
+            {
+                return Result.Failure<CustomerDto>(
+                    Error.Conflict("Users.EmailAlreadyExists", $"Ya existe un usuario registrado con el correo '{command.Email}'."));
+            }
 
-        Cliente customer = new(
-            command.Name,
-            email,
-            passwordHash);
+            string passwordHash = _passwordHasher.HashPassword(command.Password);
 
-        foreach (string preference in command.Preferences
-                     .Where(value => !string.IsNullOrWhiteSpace(value))
-                     .Select(value => value.Trim())
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            customer.AgregarPreferencia(preference);
-        }
+            Cliente customer = new(
+                command.Name,
+                email,
+                passwordHash);
 
-        await _userRepository.AddAsync(customer, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            foreach (string preference in command.Preferences
+                         .Where(value => !string.IsNullOrWhiteSpace(value))
+                         .Select(value => value.Trim())
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                customer.AgregarPreferencia(preference);
+            }
 
-        return Result.Success(MapToCustomerDto(customer));
-    }
+            await _userRepository.AddAsync(customer, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditUserEventAsync(
+                customer,
+                "Users",
+                "user.customer.registered",
+                $"Se registró un nuevo cliente con correo '{customer.CorreoElectronico.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["role"] = customer.Rol.ToString(),
+                    ["email"] = customer.CorreoElectronico.Value,
+                    ["preferencesCount"] = customer.Preferencias.Count.ToString()
+                },
+                cancellationToken);
 
-    /// <summary>
-    /// Registra un nuevo administrador dentro del sistema.
-    /// </summary>
-    /// <param name="command">Comando de registro del administrador.</param>
-    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
-    /// <returns>
-    /// Un resultado con la representación del administrador registrado cuando la operación es exitosa.
-    /// </returns>
-    public async Task<Result<AdminDto>> RegisterAdminAsync(
-        RegisterAdminCommand command,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(command);
-
-        ValidationResult validationResult = await new RegisterAdminCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
-        {
-            return Result.Failure<AdminDto>(BuildValidationError(validationResult, "Admin.Validation"));
-        }
-
-        Email email = CreateEmail(command.Email);
-
-        bool emailExists = await _userRepository.ExistsByEmailAsync(email, cancellationToken);
-        if (emailExists)
-        {
-            return Result.Failure<AdminDto>(
-                Error.Conflict("Admin.EmailAlreadyExists", $"Ya existe un usuario registrado con el correo '{command.Email}'."));
-        }
-
-        string passwordHash = _passwordHasher.HashPassword(command.Password);
-
-        Administrador admin = new(
-            command.Name,
-            email,
-            passwordHash,
-            command.Area);
-
-        if (!command.IsActive)
-        {
-            admin.Desactivar();
-        }
-
-        if (command.IsEmailConfirmed)
-        {
-            admin.ConfirmarCorreoElectronico();
-        }
-
-        await _userRepository.AddAsync(admin, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result.Success(MapToAdminDto(admin));
+            return Result.Success(customer.ToCustomerDto());
+        }, "Users.Domain");
     }
 
     #endregion
@@ -202,36 +177,48 @@ public sealed class UserApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new UpdateUserBasicDataCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _updateUserBasicDataCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<UserDto>(BuildValidationError(validationResult, "Users.Validation"));
+            return Result.Failure<UserDto>(validationError);
         }
 
-        Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
-        if (user is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<UserDto>(
-                Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
-        }
+            Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+            if (user is null)
+            {
+                return Result.Failure<UserDto>(
+                    Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
+            }
 
-        Email email = CreateEmail(command.Email);
+            Email email = CreateEmail(command.Email);
 
-        Usuario? userWithSameEmail = await _userRepository.GetByEmailAsync(email, cancellationToken);
-        if (userWithSameEmail is not null && userWithSameEmail.Id != user.Id)
-        {
-            return Result.Failure<UserDto>(
-                Error.Conflict("Users.EmailAlreadyExists", $"Ya existe un usuario registrado con el correo '{command.Email}'."));
-        }
+            Usuario? userWithSameEmail = await _userRepository.GetByEmailAsync(email, cancellationToken);
+            if (userWithSameEmail is not null && userWithSameEmail.Id != user.Id)
+            {
+                return Result.Failure<UserDto>(
+                    Error.Conflict("Users.EmailAlreadyExists", $"Ya existe un usuario registrado con el correo '{command.Email}'."));
+            }
 
-        user.ActualizarDatosBasicos(command.Name, email);
+            user.ActualizarDatosBasicos(command.Name, email);
 
-        await _userRepository.UpdateAsync(user, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditUserEventAsync(
+                user,
+                "Users",
+                "user.basic-data.updated",
+                $"Se actualizó la información básica del usuario con correo '{user.CorreoElectronico.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["email"] = user.CorreoElectronico.Value,
+                    ["role"] = user.Rol.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(MapToUserDto(user));
+            return Result.Success(user.ToUserDto());
+        }, "Users.Domain");
     }
 
     /// <summary>
@@ -261,19 +248,33 @@ public sealed class UserApplicationService
                 Error.Validation("Users.ConfirmationRequired", "Debe suministrarse un token o código de confirmación."));
         }
 
-        Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
-        if (user is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<UserDto>(
-                Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
-        }
+            Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+            if (user is null)
+            {
+                return Result.Failure<UserDto>(
+                    Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
+            }
 
-        user.ConfirmarCorreoElectronico();
+            user.ConfirmarCorreoElectronico();
 
-        await _userRepository.UpdateAsync(user, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditUserEventAsync(
+                user,
+                "Users",
+                "user.email.confirmed",
+                $"Se confirmó el correo electrónico del usuario '{user.CorreoElectronico.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["emailConfirmed"] = user.CorreoConfirmado.ToString(),
+                    ["role"] = user.Rol.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(MapToUserDto(user));
+            return Result.Success(user.ToUserDto());
+        }, "Users.Domain");
     }
 
     /// <summary>
@@ -296,19 +297,33 @@ public sealed class UserApplicationService
                 Error.Validation("Users.InvalidId", "El identificador del usuario es obligatorio."));
         }
 
-        Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
-        if (user is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<UserDto>(
-                Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
-        }
+            Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+            if (user is null)
+            {
+                return Result.Failure<UserDto>(
+                    Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
+            }
 
-        user.Activar();
+            user.Activar();
 
-        await _userRepository.UpdateAsync(user, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditUserEventAsync(
+                user,
+                "Users",
+                "user.activated",
+                $"Se activó el usuario con correo '{user.CorreoElectronico.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["isActive"] = user.Activo.ToString(),
+                    ["role"] = user.Rol.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(MapToUserDto(user));
+            return Result.Success(user.ToUserDto());
+        }, "Users.Domain");
     }
 
     /// <summary>
@@ -331,19 +346,33 @@ public sealed class UserApplicationService
                 Error.Validation("Users.InvalidId", "El identificador del usuario es obligatorio."));
         }
 
-        Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
-        if (user is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<UserDto>(
-                Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
-        }
+            Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+            if (user is null)
+            {
+                return Result.Failure<UserDto>(
+                    Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
+            }
 
-        user.Desactivar();
+            user.Desactivar();
 
-        await _userRepository.UpdateAsync(user, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditUserEventAsync(
+                user,
+                "Users",
+                "user.deactivated",
+                $"Se desactivó el usuario con correo '{user.CorreoElectronico.Value}'.",
+                new Dictionary<string, string>
+                {
+                    ["isActive"] = user.Activo.ToString(),
+                    ["role"] = user.Rol.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(MapToUserDto(user));
+            return Result.Success(user.ToUserDto());
+        }, "Users.Domain");
     }
 
     #endregion
@@ -377,7 +406,7 @@ public sealed class UserApplicationService
                 Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{query.UserId}'."));
         }
 
-        return Result.Success(MapToUserDto(user));
+        return Result.Success(user.ToUserDto());
     }
 
     /// <summary>
@@ -400,16 +429,19 @@ public sealed class UserApplicationService
                 Error.Validation("Users.InvalidEmail", "El correo electrónico del usuario es obligatorio."));
         }
 
-        Email email = CreateEmail(query.Email);
-
-        Usuario? user = await _userRepository.GetByEmailAsync(email, cancellationToken);
-        if (user is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<UserDto>(
-                Error.NotFound("Users.NotFoundByEmail", $"No se encontró un usuario con el correo '{query.Email}'."));
-        }
+            Email email = CreateEmail(query.Email);
 
-        return Result.Success(MapToUserDto(user));
+            Usuario? user = await _userRepository.GetByEmailAsync(email, cancellationToken);
+            if (user is null)
+            {
+                return Result.Failure<UserDto>(
+                    Error.NotFound("Users.NotFoundByEmail", $"No se encontró un usuario con el correo '{query.Email}'."));
+            }
+
+            return Result.Success(user.ToUserDto());
+        }, "Users.Validation", Error.Validation);
     }
 
     #endregion
@@ -426,93 +458,54 @@ public sealed class UserApplicationService
         return new Email(value);
     }
 
-    /// <summary>
-    /// Construye un error de validación de aplicación a partir del resultado de FluentValidation.
-    /// </summary>
-    /// <param name="validationResult">Resultado de validación.</param>
-    /// <param name="errorCode">Código base del error.</param>
-    /// <returns>Error de validación estructurado.</returns>
-    private static Error BuildValidationError(ValidationResult validationResult, string errorCode)
+    private static Task<Error?> ValidateAsync<TCommand>(
+        TCommand command,
+        IValidator<TCommand> validator,
+        CancellationToken cancellationToken)
     {
-        string message = string.Join(
-            " | ",
-            validationResult.Errors
-                .Where(error => !string.IsNullOrWhiteSpace(error.ErrorMessage))
-                .Select(error => error.ErrorMessage.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase));
+        return ApplicationExecution.ValidateAsync(
+            command,
+            validator,
+            "Users.Validation",
+            "La solicitud contiene errores de validación.",
+            cancellationToken);
+    }
 
-        return Error.Validation(
-            errorCode,
-            string.IsNullOrWhiteSpace(message)
-                ? "La solicitud contiene errores de validación."
-                : message);
+    private static Task<Result<TResponse>> ExecuteAsync<TResponse>(
+        Func<Task<Result<TResponse>>> operation,
+        string errorCode,
+        Func<string, string, Error>? errorFactory = null)
+    {
+        return ApplicationExecution.ExecuteAsync(operation, errorCode, errorFactory);
     }
 
     /// <summary>
-    /// Proyecta una entidad de dominio <see cref="Usuario"/> hacia un <see cref="UserDto"/>.
+    /// Registra un evento de auditoría asociado a una operación exitosa sobre usuarios.
     /// </summary>
-    /// <param name="user">Usuario a proyectar.</param>
-    /// <returns>DTO general del usuario.</returns>
-    private static UserDto MapToUserDto(Usuario user)
+    /// <param name="user">Usuario afectado por la operación.</param>
+    /// <param name="module">Módulo funcional asociado al evento.</param>
+    /// <param name="action">Acción semántica auditada.</param>
+    /// <param name="detail">Detalle legible del evento.</param>
+    /// <param name="metadata">Metadatos complementarios del evento.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    private Task AuditUserEventAsync(
+        Usuario user,
+        string module,
+        string action,
+        string detail,
+        IReadOnlyDictionary<string, string>? metadata,
+        CancellationToken cancellationToken)
     {
-        return new UserDto
-        {
-            Id = user.Id,
-            Name = user.Nombre,
-            Email = user.CorreoElectronico.Value,
-            Role = user.Rol,
-            IsActive = user.Activo,
-            IsEmailConfirmed = user.CorreoConfirmado,
-            CreatedAtUtc = user.FechaCreacionUtc,
-            UpdatedAtUtc = user.FechaActualizacionUtc,
-            LastAccessAtUtc = user.FechaUltimoAccesoUtc
-        };
-    }
+        ArgumentNullException.ThrowIfNull(user);
 
-    /// <summary>
-    /// Proyecta una entidad de dominio <see cref="Cliente"/> hacia un <see cref="CustomerDto"/>.
-    /// </summary>
-    /// <param name="customer">Cliente a proyectar.</param>
-    /// <returns>DTO del cliente.</returns>
-    private static CustomerDto MapToCustomerDto(Cliente customer)
-    {
-        return new CustomerDto
-        {
-            Id = customer.Id,
-            Name = customer.Nombre,
-            Email = customer.CorreoElectronico.Value,
-            Role = customer.Rol,
-            IsActive = customer.Activo,
-            IsEmailConfirmed = customer.CorreoConfirmado,
-            TotalPurchases = customer.TotalCompras,
-            PurchaseHistory = customer.HistorialCompras.ToArray(),
-            Preferences = customer.Preferencias.OrderBy(value => value).ToArray(),
-            CreatedAtUtc = customer.FechaCreacionUtc,
-            UpdatedAtUtc = customer.FechaActualizacionUtc,
-            LastAccessAtUtc = customer.FechaUltimoAccesoUtc
-        };
-    }
-
-    /// <summary>
-    /// Proyecta una entidad de dominio <see cref="Administrador"/> hacia un <see cref="AdminDto"/>.
-    /// </summary>
-    /// <param name="admin">Administrador a proyectar.</param>
-    /// <returns>DTO del administrador.</returns>
-    private static AdminDto MapToAdminDto(Administrador admin)
-    {
-        return new AdminDto
-        {
-            Id = admin.Id,
-            Name = admin.Nombre,
-            Email = admin.CorreoElectronico.Value,
-            Role = admin.Rol,
-            IsActive = admin.Activo,
-            IsEmailConfirmed = admin.CorreoConfirmado,
-            Area = admin.Area,
-            CreatedAtUtc = admin.FechaCreacionUtc,
-            UpdatedAtUtc = admin.FechaActualizacionUtc,
-            LastAccessAtUtc = admin.FechaUltimoAccesoUtc
-        };
+        return _auditTrailService.RegisterAsync(
+            user.Id,
+            nameof(Usuario),
+            module,
+            action,
+            detail,
+            metadata,
+            cancellationToken);
     }
 
     #endregion

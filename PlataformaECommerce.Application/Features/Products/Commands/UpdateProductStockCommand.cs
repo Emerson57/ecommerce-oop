@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Products.Commands;
@@ -22,12 +21,12 @@ namespace PlataformaECommerce.Application.Features.Products.Commands;
 /// - decremento.
 ///
 /// La lógica que interpreta el tipo de ajuste y aplica las reglas del dominio
-/// debe residir en el handler correspondiente y en la entidad de dominio.
+/// debe residir en el servicio de aplicación correspondiente y en la entidad de dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene la representación actualizada del producto cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class UpdateProductStockCommand : ICommand<Result<ProductResponseDto>>
+public sealed class UpdateProductStockCommand
 {
     #region Identificación
 

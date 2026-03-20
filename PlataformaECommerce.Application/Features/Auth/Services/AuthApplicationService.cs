@@ -1,4 +1,5 @@
-﻿using FluentValidation.Results;
+﻿using FluentValidation;
+using PlataformaECommerce.Application.Common.Execution;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
@@ -57,6 +58,8 @@ public sealed class AuthApplicationService : IAuthApplicationService
     /// </summary>
     private readonly IUnitOfWork _unitOfWork;
 
+    private readonly IValidator<LoginCommand> _loginCommandValidator;
+
     #endregion
 
     #region Constructor
@@ -72,12 +75,14 @@ public sealed class AuthApplicationService : IAuthApplicationService
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IValidator<LoginCommand> loginCommandValidator)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _loginCommandValidator = loginCommandValidator ?? throw new ArgumentNullException(nameof(loginCommandValidator));
     }
 
     #endregion
@@ -98,60 +103,61 @@ public sealed class AuthApplicationService : IAuthApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new LoginCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _loginCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<AuthResponseDto>(BuildValidationError(validationResult, "Auth.Validation"));
+            return Result.Failure<AuthResponseDto>(validationError);
         }
 
-        string emailAddress = command.Email.Trim();
-
-        Usuario? user = await FindUserByEmailAsync(emailAddress, cancellationToken);
-
-        if (user is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<AuthResponseDto>(
-                Error.Unauthorized("Auth.InvalidCredentials", "Las credenciales suministradas no son válidas."));
-        }
+            string emailAddress = command.Email.Trim();
 
-        if (!user.Activo)
-        {
-            return Result.Failure<AuthResponseDto>(
-                Error.Unauthorized("Auth.UserInactive", "La cuenta del usuario se encuentra inactiva."));
-        }
+            Usuario? user = await FindUserByEmailAsync(emailAddress, cancellationToken);
 
-        if (!_passwordHasher.VerifyPassword(command.Password, user.ContrasenaHash))
-        {
-            return Result.Failure<AuthResponseDto>(
-                Error.Unauthorized("Auth.InvalidCredentials", "Las credenciales suministradas no son válidas."));
-        }
+            if (user is null)
+            {
+                return Result.Failure<AuthResponseDto>(
+                    Error.Unauthorized("Auth.InvalidCredentials", "Las credenciales suministradas no son válidas."));
+            }
 
-        user.RegistrarAcceso();
-        await _userRepository.UpdateAsync(user, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (!user.Activo)
+            {
+                return Result.Failure<AuthResponseDto>(
+                    Error.Unauthorized("Auth.UserInactive", "La cuenta del usuario se encuentra inactiva."));
+            }
 
-        string accessToken = _tokenService.GenerateAccessToken(user);
-        string refreshToken = _tokenService.GenerateRefreshToken(user);
-        DateTime expiresAtUtc = _tokenService.GetAccessTokenExpirationUtc(accessToken);
-        int expiresInSeconds = Convert.ToInt32(Math.Max(0, (expiresAtUtc - DateTime.UtcNow).TotalSeconds));
+            if (!_passwordHasher.VerifyPassword(command.Password, user.ContrasenaHash))
+            {
+                return Result.Failure<AuthResponseDto>(
+                    Error.Unauthorized("Auth.InvalidCredentials", "Las credenciales suministradas no son válidas."));
+            }
 
-        AuthResponseDto response = new()
-        {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken,
-            TokenType = "Bearer",
-            ExpiresAtUtc = expiresAtUtc,
-            ExpiresInSeconds = expiresInSeconds,
-            User = MapToCurrentUserDto(user),
-            RequiresPasswordChange = false,
-            IsPersistentSession = command.RememberMe,
-            IssuedAtUtc = DateTime.UtcNow,
-            ExternalReference = command.ExternalReference
-        };
+            user.RegistrarAcceso();
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(response);
+            string accessToken = _tokenService.GenerateAccessToken(user);
+            string refreshToken = _tokenService.GenerateRefreshToken(user);
+            DateTime expiresAtUtc = _tokenService.GetAccessTokenExpirationUtc(accessToken);
+            int expiresInSeconds = Convert.ToInt32(Math.Max(0, (expiresAtUtc - DateTime.UtcNow).TotalSeconds));
+
+            AuthResponseDto response = new()
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                TokenType = "Bearer",
+                ExpiresAtUtc = expiresAtUtc,
+                ExpiresInSeconds = expiresInSeconds,
+                User = MapToCurrentUserDto(user),
+                RequiresPasswordChange = false,
+                IsPersistentSession = command.RememberMe,
+                IssuedAtUtc = DateTime.UtcNow,
+                ExternalReference = command.ExternalReference
+            };
+
+            return Result.Success(response);
+        }, "Auth.Domain");
     }
 
     /// <summary>
@@ -212,26 +218,24 @@ public sealed class AuthApplicationService : IAuthApplicationService
         }
     }
 
-    /// <summary>
-    /// Construye un error de validación a partir del resultado de FluentValidation.
-    /// </summary>
-    /// <param name="validationResult">Resultado de validación.</param>
-    /// <param name="errorCode">Código base del error.</param>
-    /// <returns>Error de validación estructurado.</returns>
-    private static Error BuildValidationError(ValidationResult validationResult, string errorCode)
+    private static Task<Error?> ValidateAsync<TCommand>(
+        TCommand command,
+        IValidator<TCommand> validator,
+        CancellationToken cancellationToken)
     {
-        string message = string.Join(
-            " | ",
-            validationResult.Errors
-                .Where(error => !string.IsNullOrWhiteSpace(error.ErrorMessage))
-                .Select(error => error.ErrorMessage.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase));
+        return ApplicationExecution.ValidateAsync(
+            command,
+            validator,
+            "Auth.Validation",
+            "La solicitud de autenticación contiene errores de validación.",
+            cancellationToken);
+    }
 
-        return Error.Validation(
-            errorCode,
-            string.IsNullOrWhiteSpace(message)
-                ? "La solicitud de autenticación contiene errores de validación."
-                : message);
+    private static Task<Result<TResponse>> ExecuteAsync<TResponse>(
+        Func<Task<Result<TResponse>>> operation,
+        string errorCode)
+    {
+        return ApplicationExecution.ExecuteAsync(operation, errorCode);
     }
 
     /// <summary>

@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 
 namespace PlataformaECommerce.Application.Features.Products.Commands;
 
@@ -11,16 +10,16 @@ namespace PlataformaECommerce.Application.Features.Products.Commands;
 /// correspondiente al caso de uso de registro de un nuevo producto digital.
 ///
 /// Su responsabilidad es transportar los datos necesarios desde la capa superior
-/// hacia el handler correspondiente, sin contener lógica de negocio ni reglas
+/// hacia el caso de uso correspondiente, sin contener lógica de negocio ni reglas
 /// de validación complejas, las cuales deben resolverse en:
 /// - validadores de Application,
-/// - handlers,
+/// - servicios de aplicación,
 /// - y entidades del dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene el identificador del producto creado cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class CreateDigitalProductCommand : ICommand<Result<Guid>>
+public sealed class CreateDigitalProductCommand
 {
     #region Información comercial base
 

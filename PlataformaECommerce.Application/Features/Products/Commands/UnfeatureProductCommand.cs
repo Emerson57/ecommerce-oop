@@ -1,4 +1,3 @@
-using PlataformaECommerce.Application.Abstractions;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 
@@ -7,7 +6,7 @@ namespace PlataformaECommerce.Application.Features.Products.Commands;
 /// <summary>
 /// Representa el comando de aplicación para retirar la marca de destacado de un producto.
 /// </summary>
-public sealed class UnfeatureProductCommand : ICommand<Result<ProductResponseDto>>
+public sealed class UnfeatureProductCommand
 {
     /// <summary>
     /// Identificador del producto al que se le retirará la marca de destacado.

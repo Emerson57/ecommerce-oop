@@ -1,4 +1,4 @@
-using PlataformaECommerce.Application.Mappings;
+using PlataformaECommerce.Application.Features.Products.Mappings;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.ValueObjects;
 

@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Orders.Commands;
@@ -18,13 +17,13 @@ namespace PlataformaECommerce.Application.Features.Orders.Commands;
 /// de la capa Application.
 ///
 /// La validación de estructura, consistencia y permisos debe resolverse en
-/// validadores y handlers de Application, mientras que la validación final
+/// validadores y servicios de aplicación, mientras que la validación final
 /// del estado permitido debe reforzarse en el dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="OrderDetailDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class ConfirmOrderCommand : ICommand<Result<OrderDetailDto>>
+public sealed class ConfirmOrderCommand
 {
     #region Identificación
 

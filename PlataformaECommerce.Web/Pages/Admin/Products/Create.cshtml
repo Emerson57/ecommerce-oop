@@ -1,4 +1,189 @@
 ﻿@page
+@using PlataformaECommerce.Domain.Enums
 @model PlataformaECommerce.Web.Pages.Admin.Products.CreateModel
 @{
+    ViewData["Title"] = "Crear producto";
+    ViewData["Subtitle"] = "Alta administrativa de catálogo";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mb-4" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+
+<div class="card admin-summary-card border-0">
+    <div class="card-body p-4 p-lg-5">
+        <form method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-lg-8">
+                    <div class="admin-muted-label">Nuevo producto</div>
+                    <h2 class="h4 fw-bold mt-2 mb-2">Registro unificado de catálogo</h2>
+                    <p class="text-muted mb-0">
+                        Complete la información común del producto, seleccione si será físico o digital
+                        y capture únicamente los datos específicos que correspondan al tipo elegido.
+                    </p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="rounded-4 border bg-light p-4 h-100">
+                        <div class="small text-muted">Tipo seleccionado</div>
+                        <div class="fw-semibold mt-2">@Model.Input.ProductType</div>
+                        <div class="small text-muted mt-2">El formulario ajusta los campos visibles según el tipo funcional.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="Input.ProductType" class="form-label">Tipo de producto</label>
+                    <select asp-for="Input.ProductType" class="form-select" id="productTypeSelector">
+                        <option value="@TipoProducto.Fisico">Físico</option>
+                        <option value="@TipoProducto.Digital">Digital</option>
+                    </select>
+                </div>
+                <div class="col-md-4 form-check mt-md-5 pt-md-2 ms-md-2">
+                    <input asp-for="Input.IsActive" class="form-check-input" />
+                    <label asp-for="Input.IsActive" class="form-check-label">Crear como activo</label>
+                </div>
+                <div class="col-md-4 form-check mt-md-5 pt-md-2 ms-md-2">
+                    <input asp-for="Input.IsFeatured" class="form-check-input" />
+                    <label asp-for="Input.IsFeatured" class="form-check-label">Marcar como destacado</label>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="Input.Name" class="form-label">Nombre</label>
+                    <input asp-for="Input.Name" class="form-control" />
+                    <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.Sku" class="form-label">SKU</label>
+                    <input asp-for="Input.Sku" class="form-control" />
+                    <span asp-validation-for="Input.Sku" class="text-danger small"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Input.Description" class="form-label">Descripción</label>
+                    <textarea asp-for="Input.Description" class="form-control" rows="4"></textarea>
+                    <span asp-validation-for="Input.Description" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Input.Price" class="form-label">Precio</label>
+                    <input asp-for="Input.Price" class="form-control" />
+                    <span asp-validation-for="Input.Price" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Input.Currency" class="form-label">Moneda</label>
+                    <input asp-for="Input.Currency" class="form-control" />
+                    <span asp-validation-for="Input.Currency" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Input.Stock" class="form-label">Stock inicial</label>
+                    <input asp-for="Input.Stock" class="form-control" />
+                    <span asp-validation-for="Input.Stock" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.Slug" class="form-label">Slug</label>
+                    <input asp-for="Input.Slug" class="form-control" />
+                    <span asp-validation-for="Input.Slug" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.MainImageUrl" class="form-label">Imagen principal</label>
+                    <input asp-for="Input.MainImageUrl" class="form-control" placeholder="https://... o /images/..." />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.CategoryId" class="form-label">Categoría (GUID)</label>
+                    <input asp-for="Input.CategoryId" class="form-control" placeholder="Opcional" />
+                    <span asp-validation-for="Input.CategoryId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.SubcategoryId" class="form-label">Subcategoría (GUID)</label>
+                    <input asp-for="Input.SubcategoryId" class="form-control" placeholder="Opcional" />
+                    <span asp-validation-for="Input.SubcategoryId" class="text-danger small"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Input.Tags" class="form-label">Etiquetas</label>
+                    <input asp-for="Input.Tags" class="form-control" placeholder="hogar, tecnologia, premium" />
+                </div>
+            </div>
+
+            <div id="physicalFields" class="mt-5 @(Model.Input.IsPhysicalProduct ? string.Empty : "d-none")">
+                <div class="admin-muted-label">Producto físico</div>
+                <h3 class="h5 fw-semibold mt-2 mb-3">Logística y dimensiones</h3>
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label asp-for="Input.WeightKg" class="form-label">Peso (kg)</label>
+                        <input asp-for="Input.WeightKg" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="Input.HeightCm" class="form-label">Alto (cm)</label>
+                        <input asp-for="Input.HeightCm" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="Input.WidthCm" class="form-label">Ancho (cm)</label>
+                        <input asp-for="Input.WidthCm" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="Input.LengthCm" class="form-label">Largo (cm)</label>
+                        <input asp-for="Input.LengthCm" class="form-control" />
+                    </div>
+                    <div class="col-12 form-check mt-2 ms-2">
+                        <input asp-for="Input.RequiresShipping" class="form-check-input" />
+                        <label asp-for="Input.RequiresShipping" class="form-check-label">Requiere envío físico</label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="digitalFields" class="mt-5 @(Model.Input.IsDigitalProduct ? string.Empty : "d-none")">
+                <div class="admin-muted-label">Producto digital</div>
+                <h3 class="h5 fw-semibold mt-2 mb-3">Entrega y licencia</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="Input.FileFormat" class="form-label">Formato de archivo</label>
+                        <input asp-for="Input.FileFormat" class="form-control" placeholder="PDF, MP4, ZIP..." />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.FileSizeMb" class="form-label">Tamaño (MB)</label>
+                        <input asp-for="Input.FileSizeMb" class="form-control" />
+                    </div>
+                    <div class="col-12 form-check mt-2 ms-2">
+                        <input asp-for="Input.RequiresLicense" class="form-check-input" />
+                        <label asp-for="Input.RequiresLicense" class="form-check-label">Requiere licencia o activación</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-5">
+                <button type="submit" class="btn btn-primary">Crear producto</button>
+                <a asp-page="./Index" class="btn btn-outline-secondary">Volver al listado</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const selector = document.getElementById('productTypeSelector');
+            const physicalFields = document.getElementById('physicalFields');
+            const digitalFields = document.getElementById('digitalFields');
+            const physicalOnlyFields = document.querySelectorAll('.physical-only');
+
+            function toggleSections() {
+                if (!selector) {
+                    return;
+                }
+
+                const isPhysical = selector.value === '@TipoProducto.Fisico';
+                physicalFields?.classList.toggle('d-none', !isPhysical);
+                digitalFields?.classList.toggle('d-none', isPhysical);
+                physicalOnlyFields.forEach(field => field.classList.toggle('d-none', !isPhysical));
+            }
+
+            selector?.addEventListener('change', toggleSections);
+            toggleSections();
+        })();
+    </script>
 }

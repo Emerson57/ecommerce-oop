@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Orders.Commands;
@@ -13,10 +12,10 @@ namespace PlataformaECommerce.Application.Features.Orders.Commands;
 /// correspondiente al caso de uso de conversión de carrito a pedido.
 ///
 /// Su responsabilidad es transportar los datos necesarios desde la capa superior
-/// hacia el handler correspondiente, sin contener lógica de negocio ni reglas
+/// hacia el caso de uso correspondiente, sin contener lógica de negocio ni reglas
 /// de validación complejas, las cuales deben resolverse en:
 /// - validadores de Application,
-/// - handlers,
+/// - servicios de aplicación,
 /// - servicios transversales,
 /// - y entidades del dominio.
 ///
@@ -29,7 +28,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Commands;
 /// permitiendo devolver a la capa superior una representación consolidada
 /// y detallada del pedido recién generado.
 /// </remarks>
-public sealed class CreateOrderFromCartCommand : ICommand<Result<OrderDetailDto>>
+public sealed class CreateOrderFromCartCommand
 {
     #region Identificación principal
 
@@ -116,7 +115,7 @@ public sealed class CreateOrderFromCartCommand : ICommand<Result<OrderDetailDto>
     /// <remarks>
     /// Este dato es útil para escenarios de observabilidad,
     /// correlación de eventos y trazabilidad distribuida.
-    /// Cuando no se informe, el handler puede utilizar su propia
+    /// Cuando no se informe, el servicio de aplicación puede utilizar su propia
     /// fuente de tiempo controlada.
     /// </remarks>
     public DateTime? RequestedAtUtc { get; init; }

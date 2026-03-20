@@ -34,6 +34,18 @@ public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<Produc
             .IsRequired()
             .HasPrecision(18, 2);
 
+        builder.Property(product => product.PrecioBase)
+            .IsRequired()
+            .HasPrecision(18, 2);
+
+        builder.Property(product => product.PrecioPromocionalActual)
+            .HasPrecision(18, 2)
+            .IsRequired(false);
+
+        builder.Property(product => product.DescuentoPromocionalActual)
+            .HasPrecision(5, 2)
+            .IsRequired(false);
+
         builder.Property(product => product.Moneda)
             .IsRequired()
             .HasMaxLength(3);

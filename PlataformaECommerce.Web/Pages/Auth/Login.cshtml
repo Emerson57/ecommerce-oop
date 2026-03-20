@@ -1,4 +1,61 @@
 ﻿@page
 @model PlataformaECommerce.Web.Pages.Auth.LoginModel
 @{
+    ViewData["Title"] = "Acceso administrativo";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-xl-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="text-center mb-4">
+                        <h1 class="h3 fw-bold mb-2">Acceso administrativo</h1>
+                        <p class="text-muted mb-0">
+                            Inicie sesión con una cuenta administrativa habilitada para acceder al backoffice y a la trazabilidad del sistema.
+                        </p>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @Model.ErrorMessage
+                        </div>
+                    }
+
+                    <form method="post" novalidate>
+                        <input type="hidden" asp-for="ReturnUrl" />
+
+                        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Email" class="form-label">Correo electrónico</label>
+                            <input asp-for="Input.Email" class="form-control" autocomplete="username" placeholder="admin@novashop.com" />
+                            <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Password" class="form-label">Contraseña</label>
+                            <input asp-for="Input.Password" class="form-control" autocomplete="current-password" placeholder="Ingrese su contraseña" />
+                            <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input asp-for="Input.RememberMe" class="form-check-input" />
+                            <label asp-for="Input.RememberMe" class="form-check-label">Mantener sesión administrativa</label>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Ingresar al backoffice</button>
+                            <a asp-page="/Index" class="btn btn-outline-secondary">Volver al inicio</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 }

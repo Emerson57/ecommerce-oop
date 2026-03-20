@@ -19,9 +19,9 @@ namespace PlataformaECommerce.Application.Interfaces.Repositories.Products;
 /// En una arquitectura basada en DDD y Clean Architecture,
 /// el repositorio es implementado en la capa Infrastructure
 /// y consumido por:
-/// - servicios de aplicación
-/// - command handlers
-/// - query handlers.
+/// - servicios de aplicación,
+/// - consultas de aplicación,
+/// - y componentes especializados de orquestación.
 ///
 /// La interfaz se mantiene orientada al agregado <see cref="Producto"/>
 /// y no expone DTOs ni estructuras de infraestructura.

@@ -1,0 +1,24 @@
+@page
+@model PlataformaECommerce.Web.Pages.Auth.AccessDeniedModel
+@{
+    ViewData["Title"] = "Acceso denegado";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-lg-5 text-center">
+                    <h1 class="h3 fw-bold mb-3">Acceso restringido</h1>
+                    <p class="text-muted mb-4">
+                        La funcionalidad solicitada está reservada exclusivamente para administradores autenticados.
+                    </p>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <a asp-page="/Auth/Login" class="btn btn-primary">Iniciar sesión administrativa</a>
+                        <a asp-page="/Index" class="btn btn-outline-secondary">Volver al inicio</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

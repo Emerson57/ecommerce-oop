@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Orders.Commands;
@@ -14,7 +13,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Commands;
 /// asociado a un pedido.
 ///
 /// Su responsabilidad es transportar la información del contexto de pago
-/// necesaria para que el handler ejecute el caso de uso de manera trazable,
+/// necesaria para que el servicio de aplicación ejecute el caso de uso de manera trazable,
 /// segura y consistente, sin contener lógica de negocio ni reglas del dominio.
 ///
 /// La validación de formatos, obligatoriedad y consistencia de importes debe
@@ -24,7 +23,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Commands;
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="OrderDetailDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class RegisterOrderPaymentCommand : ICommand<Result<OrderDetailDto>>
+public sealed class RegisterOrderPaymentCommand
 {
     #region Identificación principal
 

@@ -6,7 +6,7 @@
 /// </summary>
 /// <typeparam name="TValue">Tipo del valor contenido en el resultado.</typeparam>
 /// <remarks>
-/// Esta clase permite modelar respuestas de casos de uso, handlers,
+/// Esta clase permite modelar respuestas de casos de uso,
 /// servicios de aplicación y consultas que necesitan retornar un valor
 /// cuando la operación es exitosa.
 ///

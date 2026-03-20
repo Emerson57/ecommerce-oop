@@ -63,6 +63,16 @@ public sealed class ProductDetailDto
     public decimal Price { get; init; }
 
     /// <summary>
+    /// Precio base del producto antes de promociones.
+    /// </summary>
+    public decimal BasePrice { get; init; }
+
+    /// <summary>
+    /// Precio promocional vigente del producto cuando existe una promoción activa.
+    /// </summary>
+    public decimal? PromotionalPrice { get; init; }
+
+    /// <summary>
     /// Código de moneda del precio del producto.
     /// </summary>
     public string Currency { get; init; } = string.Empty;
@@ -82,6 +92,16 @@ public sealed class ProductDetailDto
     /// </summary>
     public bool IsFeatured { get; init; }
 
+    /// <summary>
+    /// Indica si el producto tiene una promoción activa.
+    /// </summary>
+    public bool HasPromotion { get; init; }
+
+    /// <summary>
+    /// Porcentaje de descuento promocional actualmente aplicado.
+    /// </summary>
+    public decimal? CurrentDiscountPercentage { get; init; }
+
     #endregion
 
     #region Clasificación
@@ -100,6 +120,11 @@ public sealed class ProductDetailDto
     /// Nombre de la categoría del producto.
     /// </summary>
     public string? CategoryName { get; init; }
+
+    /// <summary>
+    /// Colección de etiquetas asociadas al producto.
+    /// </summary>
+    public IReadOnlyCollection<string> Tags { get; init; } = Array.Empty<string>();
 
     #endregion
 

@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Cart.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Cart.Commands;
@@ -27,7 +26,7 @@ namespace PlataformaECommerce.Application.Features.Cart.Commands;
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="CartDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class CreateCartCommand : ICommand<Result<CartDto>>
+public sealed class CreateCartCommand
 {
     #region Identificación
 

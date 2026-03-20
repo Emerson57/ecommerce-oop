@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Users.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Users.Commands;
@@ -21,12 +20,12 @@ namespace PlataformaECommerce.Application.Features.Users.Commands;
 /// - desactivación.
 ///
 /// La lógica de validación del estado actual del usuario y las reglas del dominio
-/// deben resolverse en el handler correspondiente y en la entidad del dominio.
+/// deben resolverse en el servicio de aplicación correspondiente y en la entidad del dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="UserDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class ActivateUserCommand : ICommand<Result<UserDto>>
+public sealed class ActivateUserCommand
 {
     #region Identificación
 

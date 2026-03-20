@@ -1,4 +1,3 @@
-using PlataformaECommerce.Application.Abstractions;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 
@@ -7,7 +6,7 @@ namespace PlataformaECommerce.Application.Features.Products.Commands;
 /// <summary>
 /// Representa el comando de aplicación para aplicar una promoción porcentual a un producto.
 /// </summary>
-public sealed class ApplyProductPromotionCommand : ICommand<Result<ProductResponseDto>>
+public sealed class ApplyProductPromotionCommand
 {
     /// <summary>
     /// Identificador del producto al que se aplicará la promoción.

@@ -39,6 +39,21 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities
         public decimal Precio { get; set; }
 
         /// <summary>
+        /// Precio base del producto antes de promociones.
+        /// </summary>
+        public decimal PrecioBase { get; set; }
+
+        /// <summary>
+        /// Precio promocional vigente cuando existe una promoción activa.
+        /// </summary>
+        public decimal? PrecioPromocionalActual { get; set; }
+
+        /// <summary>
+        /// Porcentaje de descuento promocional actualmente aplicado.
+        /// </summary>
+        public decimal? DescuentoPromocionalActual { get; set; }
+
+        /// <summary>
         /// Moneda asociada al precio del producto.
         /// </summary>
         public string Moneda { get; set; } = string.Empty;

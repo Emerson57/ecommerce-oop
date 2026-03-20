@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 using PlataformaECommerce.Domain.Enums;
 
@@ -16,14 +15,14 @@ namespace PlataformaECommerce.Application.Features.Orders.Queries;
 /// de un cliente o recuperar pedidos relacionados con un usuario determinado.
 ///
 /// Su responsabilidad es transportar los criterios necesarios para que
-/// el handler correspondiente recupere, filtre y proyecte la información
+/// la capa Application recupere, filtre y proyecte la información
 /// hacia una colección desacoplada del dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene una colección de <see cref="OrderDto"/> cuando la ejecución es exitosa.
 ///
 /// Esta consulta no debe contener lógica de negocio ni acceso a infraestructura;
-/// dichas responsabilidades pertenecen al handler y a los componentes
+/// dichas responsabilidades pertenecen al servicio de aplicación y a los componentes
 /// especializados de la capa Application e Infrastructure.
 ///
 /// Esta query está preparada para soportar escenarios como:
@@ -34,7 +33,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Queries;
 /// - paginación del historial,
 /// - y trazabilidad contextual de lectura.
 /// </remarks>
-public sealed class GetOrdersByCustomerIdQuery : IQuery<Result<IReadOnlyCollection<OrderDto>>>
+public sealed class GetOrdersByCustomerIdQuery
 {
     #region Constantes
 
@@ -180,7 +179,7 @@ public sealed class GetOrdersByCustomerIdQuery : IQuery<Result<IReadOnlyCollecti
     #region Contexto opcional
 
     /// <summary>
-    /// Indica si el handler debe incluir información extendida cuando la implementación lo soporte.
+    /// Indica si el servicio de aplicación debe incluir información extendida cuando la implementación lo soporte.
     /// </summary>
     /// <remarks>
     /// Esta propiedad permite evolucionar la consulta sin romper su contrato,
@@ -190,7 +189,7 @@ public sealed class GetOrdersByCustomerIdQuery : IQuery<Result<IReadOnlyCollecti
     public bool IncludeExtendedData { get; init; }
 
     /// <summary>
-    /// Indica si el handler debe incluir el detalle de líneas o ítems del pedido
+    /// Indica si el servicio de aplicación debe incluir el detalle de líneas o ítems del pedido
     /// dentro de la proyección, cuando la implementación lo soporte.
     /// </summary>
     public bool IncludeItems { get; init; }

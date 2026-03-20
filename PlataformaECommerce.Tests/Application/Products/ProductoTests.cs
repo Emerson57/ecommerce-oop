@@ -70,6 +70,37 @@ public class ProductoTests
     }
 
     [Test]
+    public void AplicarPromocion_DescuentoValido_ActivaPromocion()
+    {
+        ProductoDigital producto = CrearProducto();
+
+        producto.AplicarPromocion(10m);
+
+        Assert.That(producto.TienePromocion, Is.True);
+    }
+
+    [Test]
+    public void AplicarPromocion_DescuentoValido_ConservaPrecioBase()
+    {
+        ProductoDigital producto = CrearProducto();
+
+        producto.AplicarPromocion(10m);
+
+        Assert.That(producto.PrecioBase.Amount, Is.EqualTo(50000m));
+    }
+
+    [Test]
+    public void QuitarPromocion_PromocionActiva_RestauraPrecioBase()
+    {
+        ProductoDigital producto = CrearProducto();
+        producto.AplicarPromocion(10m);
+
+        producto.QuitarPromocion();
+
+        Assert.That(producto.Precio.Amount, Is.EqualTo(50000m));
+    }
+
+    [Test]
     public void ReemplazarEtiquetas_SuperaMaximoPermitido_LanzaProductException()
     {
         ProductoDigital producto = CrearProducto();

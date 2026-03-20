@@ -5,7 +5,7 @@
 /// indicando de forma explícita si fue exitosa o fallida.
 /// </summary>
 /// <remarks>
-/// Esta clase permite modelar respuestas de casos de uso, handlers,
+/// Esta clase permite modelar respuestas de casos de uso,
 /// servicios de aplicación y procesos internos sin depender exclusivamente
 /// de excepciones para comunicar errores esperados.
 ///

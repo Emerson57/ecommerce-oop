@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Auth.Queries;
@@ -18,10 +17,10 @@ namespace PlataformaECommerce.Application.Features.Auth.Queries;
 /// un <see cref="CurrentUserDto"/>, desacoplado del dominio y de la infraestructura.
 ///
 /// Esta clase no debe contener lógica de autorización, resolución de identidad
-/// ni acceso a almacenamiento. Dichas responsabilidades pertenecen al handler
-/// o al servicio de aplicación especializado.
+/// ni acceso a almacenamiento. Dichas responsabilidades pertenecen al servicio
+/// de aplicación especializado y a los componentes auxiliares de Application.
 /// </remarks>
-public sealed class GetCurrentUserQuery : IQuery<Result<CurrentUserDto>>
+public sealed class GetCurrentUserQuery
 {
     #region Constructores
 

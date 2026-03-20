@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 
 namespace PlataformaECommerce.Application.Features.Products.Commands;
 
@@ -16,9 +15,9 @@ namespace PlataformaECommerce.Application.Features.Products.Commands;
 /// - no transforma objetos de valor.
 ///
 /// La validación detallada debe resolverse mediante validadores de Application,
-/// y la conversión a objetos del dominio debe realizarse en el servicio o handler correspondiente.
+/// y la conversión a objetos del dominio debe realizarse en el servicio de aplicación correspondiente.
 /// </remarks>
-public sealed class CreatePhysicalProductCommand : ICommand<Result<Guid>>
+public sealed class CreatePhysicalProductCommand
 {
     #region Información comercial base
 

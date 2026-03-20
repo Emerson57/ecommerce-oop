@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Products.Queries;
@@ -14,17 +13,17 @@ namespace PlataformaECommerce.Application.Features.Products.Queries;
 /// de un producto específico.
 ///
 /// Su responsabilidad es transportar los datos mínimos necesarios para que
-/// el handler correspondiente recupere la información desde la fuente de datos,
+/// la capa Application recupere la información desde la fuente de datos,
 /// la proyecte adecuadamente y retorne una respuesta desacoplada del dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="ProductDetailDto"/> cuando la ejecución es exitosa.
 ///
 /// Esta consulta no debe contener lógica de negocio ni acceso a infraestructura;
-/// dichas responsabilidades pertenecen al handler y a los componentes
+/// dichas responsabilidades pertenecen al servicio de aplicación y a los componentes
 /// especializados de la capa Application e Infrastructure.
 /// </remarks>
-public sealed class GetProductByIdQuery : IQuery<Result<ProductDetailDto>>
+public sealed class GetProductByIdQuery
 {
     #region Constructores
 
@@ -55,7 +54,7 @@ public sealed class GetProductByIdQuery : IQuery<Result<ProductDetailDto>>
 
     /// <summary>
     /// Indica si la consulta debe incluir información extendida o complementaria
-    /// cuando la implementación del handler así lo soporte.
+    /// cuando la implementación del servicio de aplicación así lo soporte.
     /// </summary>
     /// <remarks>
     /// Esta propiedad permite evolucionar la consulta sin romper su contrato,

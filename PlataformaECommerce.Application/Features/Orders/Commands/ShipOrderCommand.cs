@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Orders.Commands;
@@ -23,7 +22,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Commands;
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="OrderDetailDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class ShipOrderCommand : ICommand<Result<OrderDetailDto>>
+public sealed class ShipOrderCommand
 {
     #region Identificación
 

@@ -46,6 +46,8 @@ public class FabricaEntidadesTests
         Assert.That(producto.Nombre, Is.EqualTo("Teclado Mecánico"));
         Assert.That(producto.PesoKg, Is.EqualTo(1.2m));
         Assert.That(producto.CategoriaId, Is.Not.Null);
+        Assert.That(producto.Sku.Value, Is.EqualTo("TECLADO-MECANICO"));
+        Assert.That(producto.Slug, Is.EqualTo("teclado-mecanico"));
     }
 
     [Test]

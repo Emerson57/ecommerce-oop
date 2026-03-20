@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Catalog.DTOs;
 using PlataformaECommerce.Domain.Enums;
 
@@ -26,12 +25,12 @@ namespace PlataformaECommerce.Application.Features.Catalog.Queries;
 ///
 /// Esta clase no debe contener lógica de negocio, reglas de ranking,
 /// selección promocional ni acceso a infraestructura. Dichas responsabilidades
-/// corresponden a handlers, servicios de aplicación y motores especializados.
+/// corresponden a servicios de aplicación y motores especializados.
 ///
 /// El resultado esperado es un <see cref="Result{TValue}"/> que contiene una
 /// colección de <see cref="FeaturedProductDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class GetFeaturedProductsQuery : IQuery<Result<IReadOnlyCollection<FeaturedProductDto>>>
+public sealed class GetFeaturedProductsQuery
 {
     #region Constantes
 

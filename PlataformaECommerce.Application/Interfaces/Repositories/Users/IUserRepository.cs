@@ -23,8 +23,8 @@ namespace PlataformaECommerce.Application.Interfaces.Repositories.Users;
 /// el repositorio es implementado en la capa Infrastructure
 /// y consumido por:
 /// - servicios de aplicación,
-/// - command handlers,
-/// - query handlers,
+/// - consultas de aplicación,
+/// - componentes especializados de orquestación,
 /// - servicios de autenticación.
 ///
 /// La interfaz se orienta al agregado <see cref="Usuario"/>,

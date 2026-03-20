@@ -1,14 +1,19 @@
-﻿using FluentValidation.Results;
+﻿using System.Globalization;
+using FluentValidation;
+using PlataformaECommerce.Application.Common.Execution;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.Commands;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 using PlataformaECommerce.Application.Features.Orders.Queries;
 using PlataformaECommerce.Application.Features.Orders.Validators;
+using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
-using PlataformaECommerce.Application.Mappings;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Interfaces.Services.Orders;
+using PlataformaECommerce.Application.Features.Orders.Mappings;
 using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Entities.Orders;
 using PlataformaECommerce.Domain.Entities.Users;
@@ -44,11 +49,11 @@ namespace PlataformaECommerce.Application.Features.Orders.Services;
 /// - consulta por identificador,
 /// - y consulta de historial por cliente.
 ///
-/// Este servicio no reemplaza una futura implementación basada en handlers
-/// CQRS, pero constituye una capa de orquestación sólida, mantenible y
-/// alineada con una arquitectura limpia.
+/// Este servicio constituye la implementación pública de los casos de uso del
+/// módulo de pedidos, utilizando comandos y consultas como modelos de entrada
+/// y manteniendo una frontera estable para las capas consumidoras.
 /// </remarks>
-public sealed class OrderApplicationService
+public sealed class OrderApplicationService : IOrderApplicationService
 {
     #region Campos privados
 
@@ -72,6 +77,14 @@ public sealed class OrderApplicationService
     /// </summary>
     private readonly IUnitOfWork _unitOfWork;
 
+    /// <summary>
+    /// Servicio transversal de auditoría.
+    /// </summary>
+    private readonly IAuditTrailService _auditTrailService;
+
+    private readonly IValidator<CreateOrderFromCartCommand> _createOrderFromCartCommandValidator;
+    private readonly IValidator<CancelOrderCommand> _cancelOrderCommandValidator;
+
     #endregion
 
     #region Constructor
@@ -83,16 +96,23 @@ public sealed class OrderApplicationService
     /// <param name="cartRepository">Repositorio de carritos.</param>
     /// <param name="userRepository">Repositorio de usuarios.</param>
     /// <param name="unitOfWork">Unidad de trabajo.</param>
+    /// <param name="auditTrailService">Servicio transversal de auditoría.</param>
     public OrderApplicationService(
         IOrderRepository orderRepository,
         ICartRepository cartRepository,
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IAuditTrailService auditTrailService,
+        IValidator<CreateOrderFromCartCommand> createOrderFromCartCommandValidator,
+        IValidator<CancelOrderCommand> cancelOrderCommandValidator)
     {
         _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
         _cartRepository = cartRepository ?? throw new ArgumentNullException(nameof(cartRepository));
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
+        _createOrderFromCartCommandValidator = createOrderFromCartCommandValidator ?? throw new ArgumentNullException(nameof(createOrderFromCartCommandValidator));
+        _cancelOrderCommandValidator = cancelOrderCommandValidator ?? throw new ArgumentNullException(nameof(cancelOrderCommandValidator));
     }
 
     #endregion
@@ -113,56 +133,70 @@ public sealed class OrderApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new CreateOrderFromCartCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _createOrderFromCartCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<OrderDetailDto>(BuildValidationError(validationResult, "Orders.Validation"));
+            return Result.Failure<OrderDetailDto>(validationError);
         }
 
-        Cliente? customer = await _userRepository.GetCustomerByIdAsync(command.CustomerId, cancellationToken);
-        if (customer is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.CustomerNotFound", $"No se encontró un cliente con identificador '{command.CustomerId}'."));
-        }
+            Cliente? customer = await _userRepository.GetCustomerByIdAsync(command.CustomerId, cancellationToken);
+            if (customer is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.CustomerNotFound", $"No se encontró un cliente con identificador '{command.CustomerId}'."));
+            }
 
-        CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
-        if (cart is null)
-        {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.CartNotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
-        }
+            CarritoCompra? cart = await _cartRepository.GetByIdAsync(command.CartId, cancellationToken);
+            if (cart is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.CartNotFound", $"No se encontró un carrito con identificador '{command.CartId}'."));
+            }
 
-        if (cart.ClienteId != command.CustomerId)
-        {
-            return Result.Failure<OrderDetailDto>(
-                Error.Validation("Orders.CartCustomerMismatch", "El carrito indicado no pertenece al cliente informado."));
-        }
+            if (cart.ClienteId != command.CustomerId)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.Validation("Orders.CartCustomerMismatch", "El carrito indicado no pertenece al cliente informado."));
+            }
 
-        if (!cart.Activo)
-        {
-            return Result.Failure<OrderDetailDto>(
-                Error.Conflict("Orders.CartInactive", "No es posible crear un pedido a partir de un carrito inactivo."));
-        }
+            if (!cart.Activo)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.Conflict("Orders.CartInactive", "No es posible crear un pedido a partir de un carrito inactivo."));
+            }
 
-        if (!cart.TieneItems())
-        {
-            return Result.Failure<OrderDetailDto>(
-                Error.Validation("Orders.EmptyCart", "No es posible crear un pedido a partir de un carrito vacío."));
-        }
+            if (!cart.TieneItems())
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.Validation("Orders.EmptyCart", "No es posible crear un pedido a partir de un carrito vacío."));
+            }
 
-        Pedido order = new(cart);
+            Pedido order = new(cart);
 
-        await _orderRepository.AddAsync(order, cancellationToken);
+            await _orderRepository.AddAsync(order, cancellationToken);
 
-        cart.VaciarCarrito();
-        await _cartRepository.UpdateAsync(cart, cancellationToken);
+            cart.VaciarCarrito();
+            await _cartRepository.UpdateAsync(cart, cancellationToken);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditOrderEventAsync(
+                order,
+                "order.created",
+                $"Se creó un pedido a partir del carrito '{cart.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["customerId"] = order.ClienteId.ToString(),
+                    ["cartId"] = cart.Id.ToString(),
+                    ["itemsCount"] = order.CantidadDetalles.ToString(),
+                    ["totalAmount"] = order.Total.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["currency"] = order.Total.Currency
+                },
+                cancellationToken);
 
-        return Result.Success(order.ToOrderDetailDto());
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     /// <summary>
@@ -185,19 +219,33 @@ public sealed class OrderApplicationService
                 Error.Validation("Orders.InvalidId", "El identificador del pedido es obligatorio."));
         }
 
-        Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
-        if (order is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
-        }
+            Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
+            if (order is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
+            }
 
-        order.Confirmar();
+            order.Confirmar();
 
-        await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _orderRepository.UpdateAsync(order, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditOrderEventAsync(
+                order,
+                "order.confirmed",
+                $"Se confirmó el pedido '{order.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["status"] = order.Estado.ToString(),
+                    ["totalAmount"] = order.Total.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["currency"] = order.Total.Currency
+                },
+                cancellationToken);
 
-        return Result.Success(order.ToOrderDetailDto());
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     /// <summary>
@@ -220,35 +268,51 @@ public sealed class OrderApplicationService
             return Result.Failure<OrderDetailDto>(validationError);
         }
 
-        Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
-        if (order is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
-        }
+            Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
+            if (order is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
+            }
 
-        if (!string.Equals(order.Total.Currency, command.Currency?.Trim(), StringComparison.OrdinalIgnoreCase))
-        {
-            return Result.Failure<OrderDetailDto>(
-                Error.Validation(
-                    "Orders.PaymentCurrencyMismatch",
-                    $"La moneda del pago '{command.Currency}' no coincide con la moneda del pedido '{order.Total.Currency}'."));
-        }
+            if (!string.Equals(order.Total.Currency, command.Currency?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.Validation(
+                        "Orders.PaymentCurrencyMismatch",
+                        $"La moneda del pago '{command.Currency}' no coincide con la moneda del pedido '{order.Total.Currency}'."));
+            }
 
-        if (command.Amount != order.Total.Amount)
-        {
-            return Result.Failure<OrderDetailDto>(
-                Error.Validation(
-                    "Orders.PaymentAmountMismatch",
-                    $"El valor pagado '{command.Amount:N2}' no coincide con el total del pedido '{order.Total.Amount:N2}'."));
-        }
+            if (command.Amount != order.Total.Amount)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.Validation(
+                        "Orders.PaymentAmountMismatch",
+                        $"El valor pagado '{command.Amount:N2}' no coincide con el total del pedido '{order.Total.Amount:N2}'."));
+            }
 
-        order.RegistrarPago();
+            order.RegistrarPago();
 
-        await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _orderRepository.UpdateAsync(order, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditOrderEventAsync(
+                order,
+                "order.payment.registered",
+                $"Se registró el pago del pedido '{order.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["paymentReference"] = command.PaymentReference.Trim(),
+                    ["paymentMethod"] = command.PaymentMethod.Trim(),
+                    ["amount"] = command.Amount.ToString(CultureInfo.InvariantCulture),
+                    ["currency"] = command.Currency.Trim().ToUpperInvariant(),
+                    ["status"] = order.Estado.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(order.ToOrderDetailDto());
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     /// <summary>
@@ -271,19 +335,31 @@ public sealed class OrderApplicationService
                 Error.Validation("Orders.InvalidId", "El identificador del pedido es obligatorio."));
         }
 
-        Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
-        if (order is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
-        }
+            Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
+            if (order is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
+            }
 
-        order.MarcarEnProceso();
+            order.MarcarEnProceso();
 
-        await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _orderRepository.UpdateAsync(order, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditOrderEventAsync(
+                order,
+                "order.processing.started",
+                $"El pedido '{order.Id}' pasó a estado en proceso.",
+                new Dictionary<string, string>
+                {
+                    ["status"] = order.Estado.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(order.ToOrderDetailDto());
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     /// <summary>
@@ -318,19 +394,34 @@ public sealed class OrderApplicationService
                 Error.Validation("Orders.InvalidTrackingNumber", "El número de guía o seguimiento es obligatorio para despachar el pedido."));
         }
 
-        Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
-        if (order is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
-        }
+            Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
+            if (order is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
+            }
 
-        order.MarcarEnviado();
+            order.MarcarEnviado();
 
-        await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _orderRepository.UpdateAsync(order, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditOrderEventAsync(
+                order,
+                "order.shipped",
+                $"Se despachó el pedido '{order.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["carrierName"] = command.CarrierName.Trim(),
+                    ["trackingNumber"] = command.TrackingNumber.Trim(),
+                    ["status"] = order.Estado.ToString(),
+                    ["hasShippingAddress"] = order.TieneDireccionEnvio().ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(order.ToOrderDetailDto());
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     /// <summary>
@@ -353,19 +444,31 @@ public sealed class OrderApplicationService
                 Error.Validation("Orders.InvalidId", "El identificador del pedido es obligatorio."));
         }
 
-        Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
-        if (order is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
-        }
+            Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
+            if (order is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
+            }
 
-        order.MarcarEntregado();
+            order.MarcarEntregado();
 
-        await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _orderRepository.UpdateAsync(order, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditOrderEventAsync(
+                order,
+                "order.delivered",
+                $"Se entregó el pedido '{order.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["status"] = order.Estado.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(order.ToOrderDetailDto());
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     /// <summary>
@@ -382,27 +485,38 @@ public sealed class OrderApplicationService
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        ValidationResult validationResult = await new CancelOrderCommandValidator()
-            .ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        Error? validationError = await ValidateAsync(command, _cancelOrderCommandValidator, cancellationToken);
+        if (validationError is not null)
         {
-            return Result.Failure<OrderDetailDto>(BuildValidationError(validationResult, "Orders.Validation"));
+            return Result.Failure<OrderDetailDto>(validationError);
         }
 
-        Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
-        if (order is null)
+        return await ExecuteAsync(async () =>
         {
-            return Result.Failure<OrderDetailDto>(
-                Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
-        }
+            Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
+            if (order is null)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
+            }
 
-        order.Cancelar(command.Reason);
+            order.Cancelar(command.Reason);
 
-        await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _orderRepository.UpdateAsync(order, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await AuditOrderEventAsync(
+                order,
+                "order.cancelled",
+                $"Se canceló el pedido '{order.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["reason"] = command.Reason.Trim(),
+                    ["status"] = order.Estado.ToString()
+                },
+                cancellationToken);
 
-        return Result.Success(order.ToOrderDetailDto());
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     #endregion
@@ -497,26 +611,24 @@ public sealed class OrderApplicationService
 
     #region Métodos privados auxiliares
 
-    /// <summary>
-    /// Construye un error de validación de aplicación a partir del resultado de FluentValidation.
-    /// </summary>
-    /// <param name="validationResult">Resultado de validación.</param>
-    /// <param name="errorCode">Código base del error.</param>
-    /// <returns>Error de validación estructurado.</returns>
-    private static Error BuildValidationError(ValidationResult validationResult, string errorCode)
+    private static Task<Error?> ValidateAsync<TCommand>(
+        TCommand command,
+        IValidator<TCommand> validator,
+        CancellationToken cancellationToken)
     {
-        string message = string.Join(
-            " | ",
-            validationResult.Errors
-                .Where(error => !string.IsNullOrWhiteSpace(error.ErrorMessage))
-                .Select(error => error.ErrorMessage.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase));
+        return ApplicationExecution.ValidateAsync(
+            command,
+            validator,
+            "Orders.Validation",
+            "La solicitud del pedido contiene errores de validación.",
+            cancellationToken);
+    }
 
-        return Error.Validation(
-            errorCode,
-            string.IsNullOrWhiteSpace(message)
-                ? "La solicitud del pedido contiene errores de validación."
-                : message);
+    private static Task<Result<TResponse>> ExecuteAsync<TResponse>(
+        Func<Task<Result<TResponse>>> operation,
+        string errorCode)
+    {
+        return ApplicationExecution.ExecuteAsync(operation, errorCode);
     }
 
     /// <summary>
@@ -638,6 +750,33 @@ public sealed class OrderApplicationService
                 ? orders.OrderByDescending(order => order.FechaCreacionUtc)
                 : orders.OrderBy(order => order.FechaCreacionUtc)
         };
+    }
+
+    /// <summary>
+    /// Registra un evento de auditoría asociado a una operación exitosa sobre pedidos.
+    /// </summary>
+    /// <param name="order">Pedido afectado por la operación.</param>
+    /// <param name="action">Acción semántica auditada.</param>
+    /// <param name="detail">Detalle legible del evento.</param>
+    /// <param name="metadata">Metadatos complementarios del evento.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    private Task AuditOrderEventAsync(
+        Pedido order,
+        string action,
+        string detail,
+        IReadOnlyDictionary<string, string>? metadata,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        return _auditTrailService.RegisterAsync(
+            order.Id,
+            nameof(Pedido),
+            "Orders",
+            action,
+            detail,
+            metadata,
+            cancellationToken);
     }
 
     #endregion

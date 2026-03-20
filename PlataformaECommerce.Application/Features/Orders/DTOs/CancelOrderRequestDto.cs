@@ -10,7 +10,7 @@
 ///
 /// Su propósito es servir como contrato de entrada para:
 /// - endpoints HTTP,
-/// - handlers de comandos,
+/// - comandos de aplicación,
 /// - servicios de aplicación,
 /// - procesos administrativos,
 /// - módulos de atención al cliente,

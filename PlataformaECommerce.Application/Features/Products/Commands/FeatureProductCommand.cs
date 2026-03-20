@@ -1,4 +1,3 @@
-using PlataformaECommerce.Application.Abstractions;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 
@@ -7,7 +6,7 @@ namespace PlataformaECommerce.Application.Features.Products.Commands;
 /// <summary>
 /// Representa el comando de aplicación para destacar un producto dentro del catálogo.
 /// </summary>
-public sealed class FeatureProductCommand : ICommand<Result<ProductResponseDto>>
+public sealed class FeatureProductCommand
 {
     /// <summary>
     /// Identificador del producto que será marcado como destacado.

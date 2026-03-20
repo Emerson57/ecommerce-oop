@@ -21,8 +21,8 @@ namespace PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 /// el repositorio es implementado en la capa Infrastructure
 /// y consumido por:
 /// - servicios de aplicación,
-/// - command handlers,
-/// - query handlers.
+/// - consultas de aplicación,
+/// - y componentes especializados de orquestación.
 ///
 /// La interfaz se orienta al agregado <see cref="CarritoCompra"/>,
 /// por lo que las operaciones deben tratar el carrito como una unidad coherente,

@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Orders.Queries;
@@ -14,14 +13,14 @@ namespace PlataformaECommerce.Application.Features.Orders.Queries;
 /// de un pedido específico.
 ///
 /// Su responsabilidad es transportar los datos mínimos necesarios para que
-/// el handler correspondiente recupere la información desde la fuente de datos,
+/// la capa Application recupere la información desde la fuente de datos,
 /// la proyecte adecuadamente y retorne una respuesta desacoplada del dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="OrderDetailDto"/> cuando la ejecución es exitosa.
 ///
 /// Esta consulta no debe contener lógica de negocio ni acceso a infraestructura;
-/// dichas responsabilidades pertenecen al handler y a los componentes
+/// dichas responsabilidades pertenecen al servicio de aplicación y a los componentes
 /// especializados de la capa Application e Infrastructure.
 ///
 /// Además, esta query está diseñada para soportar escenarios como:
@@ -31,7 +30,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Queries;
 /// - integración con módulos logísticos,
 /// - y trazabilidad funcional entre capas.
 /// </remarks>
-public sealed class GetOrderByIdQuery : IQuery<Result<OrderDetailDto>>
+public sealed class GetOrderByIdQuery
 {
     #region Constructores
 
@@ -62,7 +61,7 @@ public sealed class GetOrderByIdQuery : IQuery<Result<OrderDetailDto>>
 
     /// <summary>
     /// Indica si la consulta debe incluir información extendida o complementaria
-    /// cuando la implementación del handler así lo soporte.
+    /// cuando la implementación del servicio de aplicación así lo soporte.
     /// </summary>
     /// <remarks>
     /// Esta propiedad permite evolucionar la consulta sin romper su contrato,
@@ -85,7 +84,7 @@ public sealed class GetOrderByIdQuery : IQuery<Result<OrderDetailDto>>
     /// Identificador opcional del cliente al que se espera que pertenezca el pedido.
     /// </summary>
     /// <remarks>
-    /// Este valor puede utilizarse por el handler para reforzar controles
+    /// Este valor puede utilizarse por el servicio de aplicación para reforzar controles
     /// de seguridad, validaciones de pertenencia o restricciones de acceso
     /// cuando la consulta se origine desde canales de autoservicio.
     /// </remarks>

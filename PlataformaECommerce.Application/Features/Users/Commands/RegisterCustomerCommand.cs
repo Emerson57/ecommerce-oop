@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Users.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Users.Commands;
@@ -12,10 +11,10 @@ namespace PlataformaECommerce.Application.Features.Users.Commands;
 /// correspondiente al caso de uso de registro de un nuevo cliente.
 ///
 /// Su responsabilidad es transportar los datos necesarios desde la capa superior
-/// hacia el handler correspondiente, sin contener lógica de negocio ni reglas
+/// hacia el caso de uso correspondiente, sin contener lógica de negocio ni reglas
 /// de validación complejas, las cuales deben resolverse en:
 /// - validadores de Application,
-/// - handlers,
+/// - servicios de aplicación,
 /// - servicios transversales,
 /// - y entidades del dominio.
 ///
@@ -29,7 +28,7 @@ namespace PlataformaECommerce.Application.Features.Users.Commands;
 /// - procesos de integración,
 /// - flujos administrativos controlados.
 /// </remarks>
-public sealed class RegisterCustomerCommand : ICommand<Result<CustomerDto>>
+public sealed class RegisterCustomerCommand
 {
     #region Información básica del cliente
 
@@ -48,7 +47,7 @@ public sealed class RegisterCustomerCommand : ICommand<Result<CustomerDto>>
     /// </summary>
     /// <remarks>
     /// Este valor debe ser tratado exclusivamente como dato de entrada temporal.
-    /// El handler correspondiente debe transformarlo mediante un servicio de hashing
+    /// El servicio de aplicación correspondiente debe transformarlo mediante un servicio de hashing
     /// antes de construir o persistir la entidad del dominio.
     /// </remarks>
     public string Password { get; init; } = string.Empty;

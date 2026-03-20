@@ -1,17 +1,34 @@
-# Plataforma e-Commerce – Arquitectura OOP + Validador Dinámico Web
-## 1. Descripción General del Proyecto
-Este repositorio integra el desarrollo de dos asignaciones académicas correspondientes a diferentes materias del programa:
-- Asignación No. 2 – Programación Orientada a Objetos
-- Asignación No. 3 – Programming the Internet (Validador de Formularios Dinámico)
+# Plataforma e-Commerce - Estado actual de la solución y material histórico
 
-El proyecto modela una plataforma e-Commerce básica implementada bajo principios de Programación Orientada a Objetos (POO) en C#, y complementa dicha arquitectura con una aplicación web que implementa un validador dinámico del lado del cliente utilizando JavaScript ES6+.
+## Estado actual del proyecto
 
-La integración permite demostrar la relación entre:
-- Modelado de dominio (backend estructural)
-- Validación dinámica del lado del cliente
-- Interacción entre frontend y backend en aplicaciones modernas
+La solución abierta en esta rama representa una plataforma e-commerce en consolidación arquitectónica sobre `.NET 10`, organizada en los proyectos `Web`, `Application`, `Domain`, `Infrastructure` y `Tests`.
+
+### Arquitectura vigente
+
+- `Web` actúa como composición raíz y superficie HTTP basada principalmente en `Razor Pages`, con controladores API complementarios.
+- `Application` expone la frontera pública de casos de uso mediante interfaces `I*ApplicationService` e implementaciones `*ApplicationService`.
+- `Domain` concentra entidades, agregados, value objects, reglas de negocio y eventos de dominio.
+- `Infrastructure` implementa persistencia, seguridad, auditoría y demás adaptadores técnicos requeridos por `Application`.
+
+### Convención arquitectónica activa de Fase 0
+
+- La dirección oficial de dependencias es `Web -> Application -> Domain`.
+- `Infrastructure` implementa contratos de `Application`; no expone comportamiento de negocio directamente a `Web`.
+- La única forma oficial de entrar a un caso de uso es mediante interfaces `I*ApplicationService` e implementaciones `*ApplicationService`.
+- `Commands`, `Queries`, `Validators` y `Mappings` se consideran modelos y mecanismos internos de `Application`, no una arquitectura pública competidora.
+
+### Estado documental del repositorio
+
+El resto de este `README` conserva trazabilidad de etapas académicas anteriores del repositorio. Ese material sigue siendo útil como historial formativo, pero no reemplaza la convención arquitectónica vigente ni describe por sí solo la solución activa.
+
+## 1. Descripción General del Historial del Proyecto
+Este repositorio integra el desarrollo de varias asignaciones académicas correspondientes a diferentes materias del programa.
+La solución evolucionó desde ejercicios iniciales de Programación Orientada a Objetos hasta una base arquitectónica multicapa con backend, capa web, persistencia y pruebas automatizadas.
 
 # PARTE I
+> Nota: las secciones siguientes documentan la evolución académica del repositorio y deben leerse como historial de construcción, no como especificación única de la arquitectura vigente.
+
 ## Asignación No. 2 – Implementación de Clases Básicas (POO)
 ## 2. Objetivo Académico
 Aplicar los principios fundamentales de la Programación Orientada a Objetos mediante:
@@ -605,26 +622,14 @@ Los patrones de diseño fueron integrados respetando la arquitectura por capas d
 La capa Infrastructure contiene las implementaciones técnicas de los patrones, mientras que las entidades del dominio permanecen independientes.
 
 ## 44. Implementación del Patrón Singleton
-El patrón Singleton fue utilizado para gestionar la configuración global del sistema.
+Durante una fase académica anterior se utilizó un enfoque Singleton para modelar configuración global.
 
-La clase ConfiguracionSistema garantiza que solo exista una única instancia durante todo el ciclo de vida de la aplicación, evitando inconsistencias en parámetros globales.
+Sin embargo, la solución vigente ya no utiliza la clase `ConfiguracionSistema` ni estado global mutable dentro de `Infrastructure`.
+La configuración actual se resuelve mediante opciones tipadas, inyección de dependencias y validación al arranque, alineándose mejor con la arquitectura vigente:
 
-### Responsabilidades de ConfiguracionSistema
-- Gestionar nombre del sistema
-- Definir moneda por defecto
-- Configurar porcentaje de impuestos
-- Centralizar parámetros globales
-
-Ejemplo conceptual:
-	var configuracionA = ConfiguracionSistema.Instancia;
-	var configuracionB = ConfiguracionSistema.Instancia;
-
-Ambas referencias apuntan a la misma instancia, garantizando consistencia en toda la aplicación.
-
-Este enfoque es común en sistemas reales para gestionar:
-- configuración de entorno
-- parámetros del sistema
-- conexiones globales
+- `Web -> Application -> Domain`
+- `Infrastructure` como implementación de puertos técnicos
+- configuración registrada desde composición raíz
 
 ## 45. Implementación del Patrón Factory
 El patrón Factory fue implementado mediante la clase FabricaEntidades, cuyo propósito es centralizar la creación de objetos del dominio.
@@ -651,54 +656,28 @@ Este enfoque permite:
 
 ## 46. Implementación del Patrón Observer
 
-El patrón Observer fue implementado para gestionar eventos del sistema mediante un mecanismo de suscripción y notificación.
+El patrón Observer formó parte de una etapa académica previa para explorar mecanismos de notificación desacoplada.
 
-Se diseñó un componente llamado NotificadorEventos que actúa como sujeto observable.
+En la solución vigente ese experimento fue retirado de `Infrastructure` porque no participaba del flujo real consumido por `Application`.
+Actualmente la plataforma concentra sus mecanismos transversales activos en servicios de aplicación, repositorios y adaptadores técnicos realmente registrados en DI, especialmente para:
 
-### Componentes principales
-Interfaces:
-- IObservador
-- ISujeto
+- persistencia SQL Server
+- auditoría sobre MongoDB
+- autenticación y contexto de ejecución
 
-Sujeto observable:
-- NotificadorEventos
+## 47. Nota sobre material histórico de demostración
+Las demostraciones académicas asociadas a patrones exploratorios pertenecen a una etapa anterior del repositorio y no representan la solución activa abierta en esta rama.
 
-Observadores concretos:
-- ObservadorUI
-- ObservadorInventario
-- ObservadorLogs
-
-Cuando ocurre un evento relevante (por ejemplo una actualización de inventario o una promoción aplicada), el sistema notifica automáticamente a todos los observadores registrados.
-
-Ejemplo conceptual:
-
-	notificador.NotificarObservadores(
-		"Inventario actualizado",
-		"El producto Mouse Gamer cambió su stock."
-	);
-
-Cada observador reacciona de forma independiente, lo que permite desacoplar los componentes del sistema.
-
-## 47. Demostración en ConsoleDemo
-El proyecto PlataformaECommerce.ConsoleDemo fue utilizado para demostrar el funcionamiento de los tres patrones.
-
-La consola ejecuta un flujo completo que incluye:
-1. Inicialización del Singleton de configuración
-2. Creación de entidades mediante Factory
-3. Registro de observadores
-4. Generación de eventos mediante Observer
-5. Visualización de resultados en consola
-
-Esto permite evidenciar el comportamiento de los patrones y facilita la captura de evidencia para la entrega académica.
+La implementación vigente se centra en los proyectos actualmente integrados en la solución: `Web`, `Application`, `Domain`, `Infrastructure` y `Tests`.
 
 ## 48. Beneficios Arquitectónicos
 La incorporación de estos patrones aporta múltiples ventajas al sistema:
 
 ### Desacoplamiento
-El patrón Observer permite que distintos componentes reaccionen a eventos sin depender directamente entre sí.
+En la solución vigente, el desacoplamiento se logra principalmente mediante contratos de `Application`, repositorios por interfaz y adaptadores técnicos en `Infrastructure`.
 
 ### Centralización
-El patrón Singleton centraliza la configuración del sistema.
+La configuración se centraliza desde la composición raíz usando opciones tipadas y registro de dependencias.
 
 ### Control de creación de objetos
 El patrón Factory encapsula la lógica de instanciación de entidades del dominio.
@@ -710,9 +689,9 @@ La arquitectura queda preparada para evolucionar hacia:
 - Microservicios
 
 ## 49. Conclusión de la Asignación
-La implementación de los patrones Singleton, Factory y Observer permitió fortalecer la arquitectura del sistema e-Commerce, demostrando cómo los patrones de diseño contribuyen a crear software más modular, mantenible y escalable.
+La exploración académica de los patrones Singleton, Factory y Observer sirvió como base formativa para el proyecto.
 
-La integración de estos patrones dentro de una arquitectura basada en Domain Driven Design y Clean Architecture refuerza las buenas prácticas de ingeniería de software y prepara la plataforma para futuras extensiones, como sistemas de eventos distribuidos, microservicios o integraciones externas.
+Tras la consolidación arquitectónica posterior, la solución vigente conserva únicamente los componentes que siguen aportando valor al flujo real del sistema, priorizando una separación de capas consistente, menor acoplamiento y una composición basada en contratos.
 
 ## 50. Autor
 
@@ -736,7 +715,7 @@ Este enfoque permite mejorar la confiabilidad del software y facilita la detecci
 
 ## 52. Tecnologías Utilizadas (Asignación 8)
 Lenguaje: C#
-Framework: .NET 8
+Framework: .NET 10
 Framework de pruebas: NUnit
 Arquitectura:
 - Domain Driven Design (DDD)
@@ -770,9 +749,6 @@ Domain
      │
      ├── FactoryException
      │   └── EntidadNoSoportadaException
-     │
-     └── ConfigurationException
-         └── ConfiguracionInvalidaException
 
 Este diseño permite:
 - Clasificar errores por contexto de negocio.
@@ -794,35 +770,12 @@ Carrito de compras:
 Usuarios:
 - Validación de datos obligatorios en la creación y actualización de usuarios.
 
-Configuración del sistema:
-- Validación de parámetros globales como moneda, impuestos y proveedor de base de datos.
-
 Este enfoque permite que las reglas de negocio sean protegidas directamente desde el dominio.
 
 ## 55. Implementación del Módulo de Pagos
-Como parte de la asignación se implementó un módulo conceptual de pagos encargado de simular el procesamiento de transacciones dentro del sistema.
+La evolución posterior de la solución priorizó los módulos actualmente presentes en la arquitectura vigente: autenticación, usuarios, productos, carrito, pedidos, auditoría y dashboard administrativo.
 
-La lógica se implementó en el servicio:
-Domain
- └── Services
-     └── ServicioPago.cs
-
-El servicio se encarga de:
-- Validar que el carrito contenga productos.
-- Verificar que el carrito se encuentre activo.
-- Validar el método de pago seleccionado.
-- Simular el procesamiento de la transacción.
-
-Métodos de pago soportados:
-- Tarjeta de crédito
-- Tarjeta de débito
-- PSE
-- Transferencia bancaria
-
-Las excepciones implementadas permiten representar fallos reales como:
-- método de pago no soportado
-- intento de pago con carrito vacío
-- fallos en la transacción
+Por ese motivo, los artefactos conceptuales no integrados al flujo real de la solución abierta fueron retirados o dejaron de documentarse como parte de la implementación vigente.
 
 ## 56. Implementación de Pruebas Unitarias
 Se creó un proyecto independiente de pruebas:
@@ -832,35 +785,40 @@ Se creó un proyecto independiente de pruebas:
 Estructura de pruebas:
 PlataformaECommerce.Tests
 │
+├── Application
+│   ├── Admin
+│   ├── Audit
+│   ├── Cart
+│   ├── Orders
+│   ├── Products
+│   └── Users
+│
 ├── Domain
-│   ├── Productos
-│   │   ├── ProductoTests
-│   │   ├── ProductoDigitalTests
-│   │   └── ProductoFisicoTests
-│   │
+│   ├── Cart
+│   ├── Categories
+│   ├── Common
+│   ├── Orders
+│   ├── Rules
 │   ├── Usuarios
-│   │   ├── UsuarioTests
-│   │   ├── ClienteTests
-│   │   └── AdministradorTests
-│   │
-│   ├── Carrito
-│   │   └── CarritoCompraTests
-│   │
-│   └── Pagos
-│       └── ServicioPagoTests
+│   └── ValueObjects
 │
 ├── Infrastructure
+│   ├── Cart
 │   ├── Factories
-│   │   └── FabricaEntidadesTests
-│   │
-│   └── Settings
-│       └── ConfiguracionSistemaTests
+│   ├── Orders
+│   ├── Security
+│   └── Users
+│
+└── Web
+    ├── Admin
+    ├── Auth
+    └── Controllers
 
 Las pruebas verifican:
 - funcionamiento correcto de las entidades
 - manejo de excepciones
 - validaciones del dominio
-- comportamiento de los patrones de diseño
+- comportamiento de servicios, mapeos, repositorios y entradas web activas
 
 ## 57. Tipos de Pruebas Implementadas
 Las pruebas unitarias cubren diferentes escenarios:
@@ -871,7 +829,7 @@ Validan el comportamiento esperado del sistema en condiciones normales.
 Ejemplos:
 - creación de productos
 - cálculo de total del carrito
-- procesamiento de pagos
+- consulta del dashboard administrativo
 
 ### Pruebas de validación
 
@@ -879,7 +837,7 @@ Verifican que el sistema rechace datos inválidos.
 Ejemplos:
 - creación de productos con datos incorrectos
 - operaciones sobre carritos vacíos
-- configuración inválida del sistema
+- filtros inválidos de auditoría o consultas de aplicación
 
 ### Pruebas de excepciones
 Comprueban que el sistema lance las excepciones correctas cuando ocurre un error.
@@ -887,8 +845,8 @@ Comprueban que el sistema lance las excepciones correctas cuando ocurre un error
 Ejemplos:
 - ProductoNoDisponibleException
 - CarritoVacioException
-- MetodoPagoNoSoportadoException
-- ConfiguracionInvalidaException
+- UsuarioNoValidoException
+- EntidadNoSoportadaException
 
 ## 58. Beneficios del Testing Automatizado
 La incorporación de pruebas unitarias aporta múltiples ventajas al proyecto:
@@ -926,10 +884,9 @@ La implementación del manejo de excepciones personalizadas y pruebas unitarias 
 Los principales logros fueron:
 - Implementación de una jerarquía de excepciones orientada al dominio.
 - Protección de reglas de negocio mediante validaciones robustas.
-- Creación de un módulo conceptual de pagos.
 - Implementación de pruebas automatizadas con NUnit.
 - Mejora de la confiabilidad y mantenibilidad del sistema.
-Este enfoque refleja prácticas utilizadas en proyectos profesionales de desarrollo de software y prepara el sistema para futuras extensiones como integración continua, pruebas de integración y despliegue automatizado.
+Este enfoque refleja prácticas utilizadas en proyectos profesionales de desarrollo de software y hoy se integra con una solución organizada por capas `Web -> Application -> Domain`, con `Infrastructure` como soporte técnico de persistencia, seguridad y auditoría.
 
 ## 62. Autor
 Nombre del estudiante: Emerson Andrey Rodríguez Rincón

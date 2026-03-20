@@ -12,22 +12,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Identity\" />
     <Folder Include="Mongo\Context\" />
     <Folder Include="Mongo\Collections\" />
     <Folder Include="Mongo\Repositories\Common\" />
     <Folder Include="Mongo\Repositories\Orders\" />
+    <Folder Include="Mongo\Repositories\Products\" />
     <Folder Include="Persistence\Migrations\" />
-    <Folder Include="Repositories\Cart\" />
-    <Folder Include="Repositories\Users\" />
-    <Folder Include="Repositories\Orders\" />
     <Folder Include="Seed\" />
-    <Folder Include="Services\Auth\" />
     <Folder Include="Services\Audit\" />
-    <Folder Include="Services\Common\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
       <PrivateAssets>all</PrivateAssets>
@@ -40,6 +41,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.3" />
     <PackageReference Include="MongoDB.Driver" Version="3.7.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />
   </ItemGroup>
 
 </Project>

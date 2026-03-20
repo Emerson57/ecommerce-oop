@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using PlataformaECommerce.Application.Abstractions;
 
 namespace PlataformaECommerce.Application.DependencyInjection;
 
@@ -13,8 +13,7 @@ namespace PlataformaECommerce.Application.DependencyInjection;
 /// correspondiente a la capa de aplicación, permitiendo que la capa
 /// de composición raíz registre de forma consistente:
 /// - servicios de aplicación,
-/// - command handlers,
-/// - query handlers,
+/// - validadores,
 /// - y demás componentes propios del ensamblado Application.
 ///
 /// Su propósito es mantener una única puerta de entrada para el registro
@@ -23,9 +22,7 @@ namespace PlataformaECommerce.Application.DependencyInjection;
 ///
 /// La implementación actual registra automáticamente:
 /// - clases concretas terminadas en <c>ApplicationService</c>,
-/// - implementaciones de <see cref="ICommandHandler{TCommand}"/>,
-/// - implementaciones de <see cref="ICommandHandler{TCommand, TResult}"/>,
-/// - implementaciones de <see cref="IQueryHandler{TQuery, TResult}"/>.
+/// - y validadores de FluentValidation.
 ///
 /// En etapas posteriores, esta misma clase puede evolucionar para incluir:
 /// - validadores,
@@ -56,8 +53,7 @@ public static class ApplicationServiceRegistration
         Assembly applicationAssembly = typeof(ApplicationServiceRegistration).Assembly;
 
         RegisterApplicationServices(services, applicationAssembly);
-        RegisterCommandHandlers(services, applicationAssembly);
-        RegisterQueryHandlers(services, applicationAssembly);
+        RegisterValidators(services, applicationAssembly);
 
         return services;
     }
@@ -83,9 +79,7 @@ public static class ApplicationServiceRegistration
         {
             Type[] serviceInterfaces = implementationType
                 .GetInterfaces()
-                .Where(@interface =>
-                    !IsCommandHandlerInterface(@interface) &&
-                    !IsQueryHandlerInterface(@interface))
+                .Where(@interface => !IsValidatorInterface(@interface))
                 .ToArray();
 
             if (serviceInterfaces.Length == 0)
@@ -102,11 +96,11 @@ public static class ApplicationServiceRegistration
     }
 
     /// <summary>
-    /// Registra automáticamente las implementaciones de manejadores de comandos.
+    /// Registra automáticamente los validadores de FluentValidation definidos en el ensamblado.
     /// </summary>
     /// <param name="services">Colección de servicios.</param>
     /// <param name="assembly">Ensamblado Application a inspeccionar.</param>
-    private static void RegisterCommandHandlers(IServiceCollection services, Assembly assembly)
+    private static void RegisterValidators(IServiceCollection services, Assembly assembly)
     {
         IEnumerable<Type> implementationTypes = assembly
             .GetTypes()
@@ -115,53 +109,27 @@ public static class ApplicationServiceRegistration
 
         foreach (Type implementationType in implementationTypes)
         {
-            Type[] handlerInterfaces = implementationType
+            Type[] validatorInterfaces = implementationType
                 .GetInterfaces()
-                .Where(IsCommandHandlerInterface)
+                .Where(IsValidatorInterface)
                 .ToArray();
 
-            foreach (Type handlerInterface in handlerInterfaces)
+            foreach (Type validatorInterface in validatorInterfaces)
             {
-                services.AddScoped(handlerInterface, implementationType);
+                services.AddScoped(validatorInterface, implementationType);
             }
         }
     }
 
     /// <summary>
-    /// Registra automáticamente las implementaciones de manejadores de consultas.
-    /// </summary>
-    /// <param name="services">Colección de servicios.</param>
-    /// <param name="assembly">Ensamblado Application a inspeccionar.</param>
-    private static void RegisterQueryHandlers(IServiceCollection services, Assembly assembly)
-    {
-        IEnumerable<Type> implementationTypes = assembly
-            .GetTypes()
-            .Where(type =>
-                type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false });
-
-        foreach (Type implementationType in implementationTypes)
-        {
-            Type[] handlerInterfaces = implementationType
-                .GetInterfaces()
-                .Where(IsQueryHandlerInterface)
-                .ToArray();
-
-            foreach (Type handlerInterface in handlerInterfaces)
-            {
-                services.AddScoped(handlerInterface, implementationType);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Determina si una interfaz corresponde a un manejador de comandos.
+    /// Determina si una interfaz corresponde a un validador de FluentValidation.
     /// </summary>
     /// <param name="interfaceType">Interfaz a evaluar.</param>
     /// <returns>
-    /// <see langword="true"/> si la interfaz corresponde a un manejador de comandos;
+    /// <see langword="true"/> si la interfaz corresponde a un validador;
     /// en caso contrario, <see langword="false"/>.
     /// </returns>
-    private static bool IsCommandHandlerInterface(Type interfaceType)
+    private static bool IsValidatorInterface(Type interfaceType)
     {
         if (!interfaceType.IsGenericType)
         {
@@ -170,28 +138,7 @@ public static class ApplicationServiceRegistration
 
         Type genericTypeDefinition = interfaceType.GetGenericTypeDefinition();
 
-        return genericTypeDefinition == typeof(ICommandHandler<>)
-            || genericTypeDefinition == typeof(ICommandHandler<,>);
-    }
-
-    /// <summary>
-    /// Determina si una interfaz corresponde a un manejador de consultas.
-    /// </summary>
-    /// <param name="interfaceType">Interfaz a evaluar.</param>
-    /// <returns>
-    /// <see langword="true"/> si la interfaz corresponde a un manejador de consultas;
-    /// en caso contrario, <see langword="false"/>.
-    /// </returns>
-    private static bool IsQueryHandlerInterface(Type interfaceType)
-    {
-        if (!interfaceType.IsGenericType)
-        {
-            return false;
-        }
-
-        Type genericTypeDefinition = interfaceType.GetGenericTypeDefinition();
-
-        return genericTypeDefinition == typeof(IQueryHandler<,>);
+        return genericTypeDefinition == typeof(IValidator<>);
     }
 
     #endregion

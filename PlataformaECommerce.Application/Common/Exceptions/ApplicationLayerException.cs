@@ -7,7 +7,7 @@ namespace PlataformaECommerce.Application.Common.Exceptions;
 /// </summary>
 /// <remarks>
 /// Esta excepción debe utilizarse para modelar errores controlados que ocurren
-/// durante la ejecución de casos de uso, handlers, servicios de aplicación
+/// durante la ejecución de casos de uso, servicios de aplicación
 /// o validaciones propias de la capa Application.
 ///
 /// Su propósito es establecer una base común para excepciones derivadas como:

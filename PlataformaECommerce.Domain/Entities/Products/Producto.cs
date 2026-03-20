@@ -140,6 +140,21 @@ public abstract class Producto : AggregateRoot
     public Money Precio { get; private set; } = null!;
 
     /// <summary>
+    /// Precio base del producto antes de aplicar promociones.
+    /// </summary>
+    public Money PrecioBase { get; private set; } = null!;
+
+    /// <summary>
+    /// Precio promocional vigente del producto cuando existe una promoción activa.
+    /// </summary>
+    public Money? PrecioPromocionalActual { get; private set; }
+
+    /// <summary>
+    /// Porcentaje de descuento promocional actualmente aplicado al producto.
+    /// </summary>
+    public decimal? DescuentoPromocionalActual { get; private set; }
+
+    /// <summary>
     /// Stock disponible del producto.
     /// </summary>
     public int Stock { get; private set; }
@@ -183,6 +198,11 @@ public abstract class Producto : AggregateRoot
     /// Colección de etiquetas comerciales o funcionales asociadas al producto.
     /// </summary>
     public IReadOnlyCollection<EtiquetaProducto> Etiquetas => _etiquetas.AsReadOnly();
+
+    /// <summary>
+    /// Indica si el producto tiene una promoción activa sobre su precio base.
+    /// </summary>
+    public bool TienePromocion => PrecioPromocionalActual is not null && DescuentoPromocionalActual.HasValue;
 
     #endregion
 
@@ -284,7 +304,46 @@ public abstract class Producto : AggregateRoot
     /// <param name="nuevoPrecio">Nuevo valor unitario del producto.</param>
     public void ActualizarPrecio(Money nuevoPrecio)
     {
-        ActualizarPrecioInterno(nuevoPrecio);
+        ActualizarPrecioInterno(nuevoPrecio, limpiarPromocion: true);
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Aplica una promoción porcentual sobre el precio base del producto.
+    /// </summary>
+    /// <param name="porcentajeDescuento">Porcentaje de descuento a aplicar.</param>
+    public void AplicarPromocion(decimal porcentajeDescuento)
+    {
+        if (porcentajeDescuento <= 0m || porcentajeDescuento >= 100m)
+        {
+            throw new ProductException("El porcentaje de descuento debe ser mayor que cero y menor que cien.");
+        }
+
+        decimal factorDescuento = decimal.Round((100m - porcentajeDescuento) / 100m, 6, MidpointRounding.AwayFromZero);
+        Money nuevoPrecioPromocional = new(decimal.Round(PrecioBase.Amount * factorDescuento, 2, MidpointRounding.AwayFromZero), PrecioBase.Currency);
+
+        if (!nuevoPrecioPromocional.IsPositive() || nuevoPrecioPromocional >= PrecioBase)
+        {
+            throw new ProductException("La promoción debe generar una reducción real y dejar un precio mayor que cero.");
+        }
+
+        PrecioPromocionalActual = nuevoPrecioPromocional;
+        DescuentoPromocionalActual = decimal.Round(porcentajeDescuento, 2, MidpointRounding.AwayFromZero);
+        Precio = nuevoPrecioPromocional;
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Retira la promoción vigente y restaura el precio base del producto.
+    /// </summary>
+    public void QuitarPromocion()
+    {
+        if (!TienePromocion)
+        {
+            return;
+        }
+
+        LimpiarPromocionInterna();
         MarcarActualizacion();
     }
 
@@ -514,7 +573,7 @@ public abstract class Producto : AggregateRoot
         Nombre = ValidarNombre(nombre);
         Descripcion = ValidarDescripcion(descripcion);
         Sku = ValidarSku(sku);
-        ActualizarPrecioInterno(precio);
+        ActualizarPrecioInterno(precio, limpiarPromocion: true);
         Slug = ValidarSlug(slug);
         ImagenPrincipalUrl = ValidarImagenPrincipalUrl(imagenPrincipalUrl);
     }
@@ -523,7 +582,7 @@ public abstract class Producto : AggregateRoot
     /// Actualiza el precio del producto preservando la consistencia monetaria del agregado.
     /// </summary>
     /// <param name="precio">Precio a establecer.</param>
-    private void ActualizarPrecioInterno(Money precio)
+    private void ActualizarPrecioInterno(Money precio, bool limpiarPromocion)
     {
         Money precioValidado = ValidarPrecio(precio);
 
@@ -533,7 +592,23 @@ public abstract class Producto : AggregateRoot
                 $"No es posible cambiar la moneda del producto una vez establecida. Moneda esperada: '{Precio.Currency}', moneda recibida: '{precioValidado.Currency}'.");
         }
 
+        PrecioBase = precioValidado;
         Precio = precioValidado;
+
+        if (limpiarPromocion)
+        {
+            LimpiarPromocionInterna();
+        }
+    }
+
+    /// <summary>
+    /// Limpia el estado promocional interno del producto restaurando el precio vigente al precio base.
+    /// </summary>
+    private void LimpiarPromocionInterna()
+    {
+        PrecioPromocionalActual = null;
+        DescuentoPromocionalActual = null;
+        Precio = PrecioBase;
     }
 
     /// <summary>

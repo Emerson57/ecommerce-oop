@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Globalization;
+using System.Text;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Exceptions;
@@ -312,12 +313,13 @@ public static class FabricaEntidades
             throw new FactoryException("El texto base para generar código de producto es obligatorio.");
         }
 
+        string textoNormalizado = NormalizarTextoParaCodigo(texto);
         StringBuilder builder = new();
         bool ultimoFueSeparador = false;
 
-        foreach (char caracter in texto.Trim())
+        foreach (char caracter in textoNormalizado)
         {
-            if (char.IsLetterOrDigit(caracter))
+            if (EsCaracterPermitidoParaCodigo(caracter))
             {
                 builder.Append(char.ToUpperInvariant(caracter));
                 ultimoFueSeparador = false;
@@ -341,6 +343,33 @@ public static class FabricaEntidades
         }
 
         return codigo;
+    }
+
+    private static string NormalizarTextoParaCodigo(string texto)
+    {
+        string textoDescompuesto = texto.Trim().Normalize(NormalizationForm.FormD);
+        StringBuilder builder = new(textoDescompuesto.Length);
+
+        foreach (char caracter in textoDescompuesto)
+        {
+            UnicodeCategory categoriaUnicode = CharUnicodeInfo.GetUnicodeCategory(caracter);
+
+            if (categoriaUnicode == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            builder.Append(caracter);
+        }
+
+        return builder.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    private static bool EsCaracterPermitidoParaCodigo(char caracter)
+    {
+        return char.IsDigit(caracter)
+            || caracter is >= 'A' and <= 'Z'
+            || caracter is >= 'a' and <= 'z';
     }
 
     #endregion

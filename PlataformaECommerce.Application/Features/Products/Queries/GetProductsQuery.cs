@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Domain.Enums;
 
@@ -15,17 +14,17 @@ namespace PlataformaECommerce.Application.Features.Products.Queries;
 /// o del backoffice administrativo.
 ///
 /// Su responsabilidad es transportar los criterios necesarios para que
-/// el handler correspondiente recupere, filtre y proyecte la información
+/// la capa Application recupere, filtre y proyecte la información
 /// de productos hacia una colección desacoplada del dominio.
 ///
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene una colección de <see cref="ProductDto"/> cuando la ejecución es exitosa.
 ///
 /// Esta consulta no debe contener lógica de negocio ni acceso a infraestructura;
-/// dichas responsabilidades pertenecen al handler y a los componentes
+/// dichas responsabilidades pertenecen al servicio de aplicación y a los componentes
 /// especializados de la capa Application e Infrastructure.
 /// </remarks>
-public sealed class GetProductsQuery : IQuery<Result<IReadOnlyCollection<ProductDto>>>
+public sealed class GetProductsQuery
 {
     #region Constantes
 

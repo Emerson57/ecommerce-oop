@@ -12,7 +12,7 @@ namespace PlataformaECommerce.Application.Features.Cart.Validators;
 /// de un ítem del carrito.
 ///
 /// Su responsabilidad es proteger la capa Application frente a solicitudes
-/// incompletas, inconsistentes o mal formadas, permitiendo que el handler
+/// incompletas, inconsistentes o mal formadas, permitiendo que el servicio de aplicación
 /// reciba un comando previamente saneado desde el punto de vista estructural.
 ///
 /// Las validaciones aquí definidas no reemplazan las reglas del dominio,
@@ -26,7 +26,7 @@ namespace PlataformaECommerce.Application.Features.Cart.Validators;
 /// Este validador verifica únicamente consistencia estructural.
 /// La existencia real del carrito, del ítem, del producto, la disponibilidad
 /// comercial, el inventario y demás reglas de negocio deben resolverse en
-/// el handler, el servicio de aplicación y el dominio.
+/// el servicio de aplicación y el dominio.
 /// </remarks>
 public sealed class UpdateCartItemQuantityCommandValidator : AbstractValidator<UpdateCartItemQuantityCommand>
 {

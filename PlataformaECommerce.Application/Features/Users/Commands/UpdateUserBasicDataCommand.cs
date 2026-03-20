@@ -1,5 +1,4 @@
-﻿using PlataformaECommerce.Application.Abstractions;
-using PlataformaECommerce.Application.Common.Results;
+﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Users.DTOs;
 
 namespace PlataformaECommerce.Application.Features.Users.Commands;
@@ -27,7 +26,7 @@ namespace PlataformaECommerce.Application.Features.Users.Commands;
 /// El resultado esperado de la operación es un <see cref="Result{TValue}"/>
 /// que contiene un <see cref="UserDto"/> cuando la ejecución es exitosa.
 /// </remarks>
-public sealed class UpdateUserBasicDataCommand : ICommand<Result<UserDto>>
+public sealed class UpdateUserBasicDataCommand
 {
     #region Identificación
 
