@@ -154,6 +154,7 @@ public class AdminApplicationServiceDashboardTests
         public Task<Administrador?> GetAdministratorByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(_users.OfType<Administrador>().FirstOrDefault(user => user.Id == id));
         public Task<bool> ExistsByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(_users.Any(user => user.Id == id));
         public Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken = default) => Task.FromResult(_users.Any(user => user.CorreoElectronico.Equals(email)));
+        public Task<bool> ExistsByRoleAsync(RolUsuario rol, CancellationToken cancellationToken = default) => Task.FromResult(_users.Any(user => user.Rol == rol));
         public Task AddAsync(Usuario usuario, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task UpdateAsync(Usuario usuario, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task RemoveAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;

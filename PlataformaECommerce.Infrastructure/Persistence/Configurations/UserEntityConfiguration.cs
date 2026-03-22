@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using PlataformaECommerce.Domain.Entities.Users;
+using PlataformaECommerce.Domain.ValueObjects;
 using PlataformaECommerce.Infrastructure.Persistence.Entities;
 
 namespace PlataformaECommerce.Infrastructure.Persistence.Configurations;
@@ -17,7 +19,20 @@ public sealed class UserEntityConfiguration : IEntityTypeConfiguration<UserEntit
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<UserEntity> builder)
     {
-        builder.ToTable("Users");
+        builder.ToTable("Users", tableBuilder =>
+        {
+            tableBuilder.HasCheckConstraint(
+                "CK_Users_Rol",
+                "[Rol] IN ('Cliente', 'Administrador', 'SuperUsuario')");
+
+            tableBuilder.HasCheckConstraint(
+                "CK_Users_CoreText",
+                $"LEN(LTRIM(RTRIM([Nombre]))) BETWEEN {Usuario.LongitudMinimaNombre} AND {Usuario.LongitudMaximaNombre} AND LEN(LTRIM(RTRIM([CorreoElectronico]))) BETWEEN 3 AND {Email.MaxLength} AND LEN(LTRIM(RTRIM([ContrasenaHash]))) BETWEEN {Usuario.LongitudMinimaHashContrasena} AND {Usuario.LongitudMaximaHashContrasena}");
+
+            tableBuilder.HasCheckConstraint(
+                "CK_Users_Area_ByRole",
+                $"([Rol] = 'Cliente' AND [Area] IS NULL) OR ([Rol] IN ('Administrador', 'SuperUsuario') AND [Area] IS NOT NULL AND LEN(LTRIM(RTRIM([Area]))) BETWEEN {Administrador.LongitudMinimaArea} AND {Administrador.LongitudMaximaArea})");
+        });
 
         builder.HasKey(user => user.Id);
 
@@ -26,15 +41,15 @@ public sealed class UserEntityConfiguration : IEntityTypeConfiguration<UserEntit
 
         builder.Property(user => user.Nombre)
             .IsRequired()
-            .HasMaxLength(100);
+            .HasMaxLength(Usuario.LongitudMaximaNombre);
 
         builder.Property(user => user.CorreoElectronico)
             .IsRequired()
-            .HasMaxLength(320);
+            .HasMaxLength(Email.MaxLength);
 
         builder.Property(user => user.ContrasenaHash)
             .IsRequired()
-            .HasMaxLength(500);
+            .HasMaxLength(Usuario.LongitudMaximaHashContrasena);
 
         builder.Property(user => user.Rol)
             .IsRequired()
@@ -56,7 +71,7 @@ public sealed class UserEntityConfiguration : IEntityTypeConfiguration<UserEntit
             .IsRequired(false);
 
         builder.Property(user => user.Area)
-            .HasMaxLength(60)
+            .HasMaxLength(Administrador.LongitudMaximaArea)
             .IsRequired(false);
 
         builder.Property(user => user.HistorialComprasSerializado)
@@ -70,5 +85,6 @@ public sealed class UserEntityConfiguration : IEntityTypeConfiguration<UserEntit
 
         builder.HasIndex(user => user.Rol);
         builder.HasIndex(user => user.Activo);
+        builder.HasIndex(user => new { user.Rol, user.Activo });
     }
 }

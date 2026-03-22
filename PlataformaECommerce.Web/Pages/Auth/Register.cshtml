@@ -1,4 +1,131 @@
 ﻿@page
+@using PlataformaECommerce.Application.Features.Users
 @model PlataformaECommerce.Web.Pages.Auth.RegisterModel
 @{
+    ViewData["Title"] = "Crear cuenta";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="text-center mb-4">
+                        <h1 class="h3 fw-bold mb-2">Crear cuenta</h1>
+                        <p class="text-muted mb-0">
+                            Registra tu cuenta con correo electrónico y completa los datos requeridos con validación en tiempo real.
+                        </p>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @Model.ErrorMessage
+                        </div>
+                    }
+
+                    <form method="post"
+                          novalidate
+                          data-register-form
+                          data-email-check-url="@Url.Page("/Auth/Register", pageHandler: "EmailAvailability")"
+                          data-name-min-length="@CustomerRegistrationPolicies.MinNameLength"
+                          data-name-max-length="@CustomerRegistrationPolicies.MaxNameLength"
+                          data-password-min-length="@CustomerRegistrationPolicies.MinPasswordLength"
+                          data-password-max-length="@CustomerRegistrationPolicies.MaxPasswordLength"
+                          data-preference-min-length="@CustomerRegistrationPolicies.MinPreferenceLength"
+                          data-preference-max-length="@CustomerRegistrationPolicies.MaxPreferenceLength"
+                          data-preference-max-count="@CustomerRegistrationPolicies.MaxPreferencesCount">
+                        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="Input.Name" class="form-label"></label>
+                                <input asp-for="Input.Name" class="form-control" autocomplete="name" placeholder="Ingresa tu nombre completo" data-register-name />
+                                <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                                <div class="small text-muted mt-2" data-register-name-feedback aria-live="polite">
+                                    Ingresa entre 3 y 100 caracteres.
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Input.Email" class="form-label"></label>
+                                <input asp-for="Input.Email" class="form-control" autocomplete="email" placeholder="usuario@novashop.com" data-register-email />
+                                <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                                <div class="small text-muted mt-2" data-register-email-feedback aria-live="polite">
+                                    Usaremos este correo como identificador principal de acceso.
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Input.Password" class="form-label"></label>
+                                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" placeholder="Crea una contraseña segura" data-register-password />
+                                <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                                <div class="form-text mt-2" aria-live="polite">
+                                    <div class="fw-semibold text-body-secondary mb-2">Requisitos de seguridad</div>
+                                    <ul class="list-unstyled small mb-0" data-register-password-rules>
+                                        <li data-password-rule="length" class="text-muted">Debe tener entre 8 y 100 caracteres.</li>
+                                        <li data-password-rule="uppercase" class="text-muted">Debe incluir al menos una letra mayúscula.</li>
+                                        <li data-password-rule="lowercase" class="text-muted">Debe incluir al menos una letra minúscula.</li>
+                                        <li data-password-rule="digit" class="text-muted">Debe incluir al menos un número.</li>
+                                        <li data-password-rule="special" class="text-muted">Debe incluir al menos un carácter especial.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+                                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Confirma tu contraseña" data-register-confirm-password />
+                                <span asp-validation-for="Input.ConfirmPassword" class="text-danger small"></span>
+                                <div class="small text-muted mt-2" data-register-confirm-feedback aria-live="polite">
+                                    Repite la contraseña para validar coincidencia.
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Input.PreferencesText" class="form-label"></label>
+                                <input asp-for="Input.PreferencesText" class="form-control" placeholder="tecnología, hogar, premium" data-register-preferences />
+                                <span asp-validation-for="Input.PreferencesText" class="text-danger small"></span>
+                                <div class="small text-muted mt-2" data-register-preferences-feedback aria-live="polite">
+                                    Campo opcional. Puedes registrar intereses separados por comas.
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check mb-2">
+                                    <input asp-for="Input.AcceptTermsAndConditions" class="form-check-input" data-register-terms />
+                                    <label asp-for="Input.AcceptTermsAndConditions" class="form-check-label"></label>
+                                </div>
+                                <span asp-validation-for="Input.AcceptTermsAndConditions" class="text-danger small d-block"></span>
+
+                                <div class="form-check mb-2">
+                                    <input asp-for="Input.AcceptPrivacyPolicy" class="form-check-input" data-register-privacy />
+                                    <label asp-for="Input.AcceptPrivacyPolicy" class="form-check-label"></label>
+                                </div>
+                                <span asp-validation-for="Input.AcceptPrivacyPolicy" class="text-danger small d-block"></span>
+
+                                <div class="form-check">
+                                    <input asp-for="Input.AcceptMarketingCommunications" class="form-check-input" />
+                                    <label asp-for="Input.AcceptMarketingCommunications" class="form-check-label"></label>
+                                </div>
+
+                                <div class="small text-muted mt-2" data-register-consent-feedback aria-live="polite">
+                                    Debes aceptar los consentimientos obligatorios para crear la cuenta.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary" data-register-submit>Crear cuenta</button>
+                            <a asp-page="/Auth/Login" class="btn btn-outline-secondary">Ya tengo cuenta</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/auth/register.js" asp-append-version="true"></script>
 }

@@ -8,6 +8,8 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities;
 /// los usuarios del sistema y los datos especializados requeridos para sus variantes
 /// concretas, permitiendo reconstruir agregados de dominio como <c>Cliente</c> y
 /// <c>Administrador</c> sin acoplar el modelo del dominio a Entity Framework Core.
+/// SuperUsuario y Administrador comparten esta misma estructura persistente y se
+/// diferencian exclusivamente por el valor controlado de <see cref="Rol"/>.
 /// </remarks>
 public sealed class UserEntity
 {
@@ -32,7 +34,7 @@ public sealed class UserEntity
     public string ContrasenaHash { get; set; } = string.Empty;
 
     /// <summary>
-    /// Obtiene o establece el rol funcional del usuario dentro del dominio.
+    /// Obtiene o establece el rol funcional del usuario dentro del dominio como texto controlado.
     /// </summary>
     public string Rol { get; set; } = string.Empty;
 
@@ -62,7 +64,7 @@ public sealed class UserEntity
     public DateTime? FechaUltimoAccesoUtc { get; set; }
 
     /// <summary>
-    /// Obtiene o establece el área organizacional asociada al administrador.
+    /// Obtiene o establece el área organizacional asociada a cuentas administrativas.
     /// </summary>
     public string? Area { get; set; }
 

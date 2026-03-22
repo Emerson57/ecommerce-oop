@@ -43,6 +43,25 @@ internal static class ApplicationExecution
         }
     }
 
+    public static async Task<Result> ExecuteAsync(
+        Func<Task<Result>> operation,
+        string errorCode,
+        Func<string, string, Error>? errorFactory = null)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        Func<string, string, Error> resolvedErrorFactory = errorFactory ?? Error.Failure;
+
+        try
+        {
+            return await operation();
+        }
+        catch (DomainException exception)
+        {
+            return Result.Failure(resolvedErrorFactory(errorCode, exception.Message));
+        }
+    }
+
     public static Error BuildValidationError(
         ValidationResult validationResult,
         string errorCode,

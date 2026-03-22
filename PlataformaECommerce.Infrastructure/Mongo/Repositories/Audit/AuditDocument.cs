@@ -23,6 +23,7 @@ public sealed class AuditDocument
     /// <summary>
     /// Obtiene o establece el identificador del agregado auditado.
     /// </summary>
+    [BsonGuidRepresentation(GuidRepresentation.Standard)]
     public Guid AggregateId { get; set; }
 
     /// <summary>

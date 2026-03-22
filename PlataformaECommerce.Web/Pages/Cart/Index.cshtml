@@ -1,4 +1,123 @@
 ﻿@page
 @model PlataformaECommerce.Web.Pages.Cart.IndexModel
 @{
+    ViewData["Title"] = "Carrito";
 }
+
+<div class="container py-5">
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-success mb-4" role="status">
+            @Model.StatusMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger mb-4" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+        <div>
+            <div class="small text-uppercase text-muted fw-semibold">Circuito comercial</div>
+            <h1 class="h3 fw-bold mt-2 mb-1">Mi carrito</h1>
+            <p class="text-muted mb-0">Administra los productos seleccionados antes de continuar al checkout.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-page="/Catalog/Index" class="btn btn-outline-secondary">Seguir comprando</a>
+            <a asp-page="/Checkout/Index" class="btn btn-primary @(Model.Cart.IsReadyForCheckout ? string.Empty : "disabled")" aria-disabled="@(!Model.Cart.IsReadyForCheckout)">Ir al checkout</a>
+        </div>
+    </div>
+
+    @if (!Model.Cart.HasItems)
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 p-lg-5 text-center">
+                <h2 class="h5 fw-bold mb-2">Tu carrito está vacío</h2>
+                <p class="text-muted mb-4">Agrega productos desde el catálogo para iniciar una compra real dentro de tu cuenta.</p>
+                <a asp-page="/Catalog/Index" class="btn btn-primary">Explorar catálogo</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-xl-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <div class="small text-uppercase text-muted fw-semibold">Productos seleccionados</div>
+                        <h2 class="h5 fw-bold mt-2 mb-3">Líneas del carrito</h2>
+
+                        <div class="d-flex flex-column gap-3">
+                            @foreach (var item in Model.Cart.Items)
+                            {
+                                <div class="border rounded-3 p-3 bg-light-subtle">
+                                    <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                        <div>
+                                            <div class="fw-semibold">@item.ProductName</div>
+                                            <div class="text-muted small">SKU: @item.ProductSku</div>
+                                            <div class="text-muted small">Tipo: @item.ItemTypeLabel</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-semibold">@item.Currency @item.Subtotal.ToString("N2")</div>
+                                            <div class="text-muted small">@item.Currency @item.UnitPrice.ToString("N2") c/u</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between align-items-end gap-3 flex-wrap mt-3">
+                                        <form method="post" asp-page-handler="UpdateQuantity" class="d-flex align-items-end gap-2 flex-wrap">
+                                            <input type="hidden" name="cartItemId" value="@item.Id" />
+                                            <input type="hidden" name="productId" value="@item.ProductId" />
+                                            <div>
+                                                <label class="form-label small text-muted mb-1">Cantidad</label>
+                                                <input type="number" name="quantity" value="@item.Quantity" min="0" class="form-control" style="max-width: 120px;" />
+                                            </div>
+                                            <button type="submit" class="btn btn-outline-primary">Actualizar</button>
+                                        </form>
+
+                                        <form method="post" asp-page-handler="RemoveItem">
+                                            <input type="hidden" name="cartItemId" value="@item.Id" />
+                                            <input type="hidden" name="productId" value="@item.ProductId" />
+                                            <button type="submit" class="btn btn-outline-danger">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-4">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <div class="small text-uppercase text-muted fw-semibold">Resumen</div>
+                        <h2 class="h5 fw-bold mt-2 mb-3">Totales del carrito</h2>
+
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Líneas</span>
+                            <span class="fw-semibold">@Model.Cart.ItemsCount</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Unidades</span>
+                            <span class="fw-semibold">@Model.Cart.TotalUnits</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top">
+                            <span class="fw-semibold">Total</span>
+                            <span class="h5 fw-bold mb-0">@Model.Cart.Currency @Model.Cart.TotalAmount.ToString("N2")</span>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <a asp-page="/Checkout/Index" class="btn btn-primary">Continuar al checkout</a>
+                            <form method="post" asp-page-handler="Clear">
+                                <button type="submit" class="btn btn-outline-secondary w-100">Vaciar carrito</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

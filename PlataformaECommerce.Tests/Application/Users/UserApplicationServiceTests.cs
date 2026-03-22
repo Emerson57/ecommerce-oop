@@ -76,6 +76,9 @@ public class UserApplicationServiceTests
         public Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken = default)
             => Task.FromResult(_users.Any(user => user.CorreoElectronico == email));
 
+        public Task<bool> ExistsByRoleAsync(RolUsuario rol, CancellationToken cancellationToken = default)
+            => Task.FromResult(_users.Any(user => user.Rol == rol));
+
         public Task AddAsync(Usuario usuario, CancellationToken cancellationToken = default)
         {
             _users.Add(usuario);

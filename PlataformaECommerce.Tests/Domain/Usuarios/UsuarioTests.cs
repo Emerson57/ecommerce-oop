@@ -38,6 +38,17 @@ public class UsuarioTests
     }
 
     [Test]
+    public void ActualizarDatosBasicos_MismoCorreoMantieneConfirmacion()
+    {
+        Cliente usuario = CrearUsuarioValido();
+        usuario.ConfirmarCorreoElectronico();
+
+        usuario.ActualizarDatosBasicos("Carlos Gómez", new Email("juan@email.com"));
+
+        Assert.That(usuario.CorreoConfirmado, Is.True);
+    }
+
+    [Test]
     public void ConfirmarCorreoElectronico_UsuarioValido_MarcaCorreoComoConfirmado()
     {
         Cliente usuario = CrearUsuarioValido();
@@ -54,6 +65,15 @@ public class UsuarioTests
         usuario.ConfirmarCorreoElectronico();
 
         Assert.That(usuario.EstaHabilitado(), Is.True);
+    }
+
+    [Test]
+    public void Constructor_HashContrasenaDemasiadoLargo_LanzaUsuarioNoValidoException()
+    {
+        string hashDemasiadoLargo = new('h', Usuario.LongitudMaximaHashContrasena + 1);
+
+        Assert.Throws<UsuarioNoValidoException>(() =>
+            new Cliente("Juan Pérez", new Email("juan@email.com"), hashDemasiadoLargo));
     }
 
     private static Cliente CrearUsuarioValido()

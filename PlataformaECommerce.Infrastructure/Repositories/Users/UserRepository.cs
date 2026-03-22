@@ -22,6 +22,7 @@ namespace PlataformaECommerce.Infrastructure.Repositories.Users;
 public sealed class UserRepository : IUserRepository
 {
     private const BindingFlags ReflectionFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+    private static readonly string[] AdministrativeRoles = [RolUsuario.Administrador.ToString(), RolUsuario.SuperUsuario.ToString()];
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ECommerceDbContext _context;
 
@@ -103,7 +104,7 @@ public sealed class UserRepository : IUserRepository
     {
         List<UserEntity> entities = await _context.Users
             .AsNoTracking()
-            .Where(user => user.Rol == RolUsuario.Administrador.ToString())
+            .Where(user => AdministrativeRoles.Contains(user.Rol))
             .OrderBy(user => user.Nombre)
             .ToListAsync(cancellationToken);
 
@@ -135,7 +136,7 @@ public sealed class UserRepository : IUserRepository
 
         UserEntity? entity = await _context.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(user => user.Id == id && user.Rol == RolUsuario.Administrador.ToString(), cancellationToken);
+            .FirstOrDefaultAsync(user => user.Id == id && AdministrativeRoles.Contains(user.Rol), cancellationToken);
 
         return entity is null ? null : (Administrador)MapToDomain(entity);
     }
@@ -154,6 +155,13 @@ public sealed class UserRepository : IUserRepository
         ArgumentNullException.ThrowIfNull(email);
 
         return _context.Users.AnyAsync(user => user.CorreoElectronico == email.Value, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<bool> ExistsByRoleAsync(RolUsuario rol, CancellationToken cancellationToken = default)
+    {
+        string role = rol.ToString();
+        return _context.Users.AnyAsync(user => user.Rol == role, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -212,7 +220,8 @@ public sealed class UserRepository : IUserRepository
         return role switch
         {
             RolUsuario.Cliente => MapToCustomer(entity),
-            RolUsuario.Administrador => MapToAdministrator(entity),
+            RolUsuario.Administrador => MapToAdministrator(entity, role),
+            RolUsuario.SuperUsuario => MapToAdministrator(entity, role),
             _ => throw new InvalidOperationException($"El rol persistido '{entity.Rol}' no está soportado por la infraestructura.")
         };
     }
@@ -225,9 +234,14 @@ public sealed class UserRepository : IUserRepository
         return customer;
     }
 
-    private static Administrador MapToAdministrator(UserEntity entity)
+    private static Administrador MapToAdministrator(UserEntity entity, RolUsuario role)
     {
-        Administrador admin = new(entity.Nombre, new Email(entity.CorreoElectronico), entity.ContrasenaHash, entity.Area ?? "Operaciones");
+        if (string.IsNullOrWhiteSpace(entity.Area))
+        {
+            throw new InvalidOperationException($"La cuenta administrativa '{entity.CorreoElectronico}' no tiene un área persistida válida.");
+        }
+
+        Administrador admin = new(entity.Nombre, new Email(entity.CorreoElectronico), entity.ContrasenaHash, entity.Area, role);
         ApplyBasePersistenceState(admin, entity);
         return admin;
     }

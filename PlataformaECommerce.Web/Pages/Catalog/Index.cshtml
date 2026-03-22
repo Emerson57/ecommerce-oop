@@ -1,4 +1,91 @@
 ﻿@page
 @model PlataformaECommerce.Web.Pages.Catalog.IndexModel
 @{
+    ViewData["Title"] = "Catálogo";
 }
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+        <div>
+            <div class="small text-uppercase text-muted fw-semibold">Catálogo público</div>
+            <h1 class="h3 fw-bold mt-2 mb-1">Explora productos disponibles</h1>
+            <p class="text-muted mb-0">Selecciona productos reales del catálogo y agrégalos a tu carrito para iniciar el checkout.</p>
+        </div>
+        <div>
+            <a asp-page="/Cart/Index" class="btn btn-outline-secondary">Ver carrito</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label asp-for="SearchTerm" class="form-label">Buscar productos</label>
+                    <input asp-for="SearchTerm" class="form-control" placeholder="Nombre, descripción o SKU" />
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-primary">Buscar</button>
+                </div>
+                <div class="col-md-auto">
+                    <a asp-page="./Index" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger mb-4" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    @if (Model.Products.Count == 0)
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 p-lg-5 text-center">
+                <h2 class="h5 fw-bold mb-2">No hay productos para mostrar</h2>
+                <p class="text-muted mb-0">Ajusta tu búsqueda o vuelve más tarde cuando existan productos activos con stock.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var product in Model.Products)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="small text-uppercase text-muted fw-semibold">@product.ProductTypeLabel</div>
+                            <h2 class="h5 fw-bold mt-2 mb-2">@product.Name</h2>
+                            <p class="text-muted small flex-grow-1">@product.Description</p>
+
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="fw-bold">@product.Currency @product.Price.ToString("N2")</div>
+                                <div class="small text-muted">Stock: @product.Stock</div>
+                            </div>
+
+                            <div class="d-flex gap-2 flex-wrap mt-auto">
+                                <a asp-page="./Details" asp-route-id="@product.Id" class="btn btn-outline-dark">Ver detalle</a>
+                                @if (Model.CanPurchaseAsCustomer)
+                                {
+                                    <form method="post" asp-page="/Cart/Index" asp-page-handler="AddItem" class="d-inline-flex gap-2">
+                                        <input type="hidden" name="productId" value="@product.Id" />
+                                        <input type="hidden" name="quantity" value="1" />
+                                        <input type="hidden" name="returnUrl" value="@Url.Page("/Catalog/Index", new { searchTerm = Model.SearchTerm })" />
+                                        <button type="submit" class="btn btn-primary">Agregar al carrito</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <a asp-page="/Auth/Login" class="btn btn-primary">Ingresar para comprar</a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

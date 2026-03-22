@@ -12,7 +12,10 @@ namespace PlataformaECommerce.Domain.ValueObjects;
 /// </remarks>
 public sealed class Email : IEquatable<Email>
 {
-    private const int MaxLength = 320;
+    /// <summary>
+    /// Longitud máxima permitida para un correo electrónico persistido por el sistema.
+    /// </summary>
+    public const int MaxLength = 320;
 
     private static readonly Regex EmailRegex =
         new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$",

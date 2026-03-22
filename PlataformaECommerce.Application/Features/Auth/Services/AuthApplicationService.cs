@@ -7,8 +7,10 @@ using PlataformaECommerce.Application.Features.Auth.Queries;
 using PlataformaECommerce.Application.Features.Auth.Validators;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
+using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Domain.Entities.Users;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Domain.ValueObjects;
 
@@ -35,6 +37,8 @@ namespace PlataformaECommerce.Application.Features.Auth.Services;
 /// </remarks>
 public sealed class AuthApplicationService : IAuthApplicationService
 {
+    private static readonly TimeSpan PasswordResetTokenLifetime = TimeSpan.FromMinutes(30);
+
     #region Campos privados
 
     /// <summary>
@@ -59,6 +63,11 @@ public sealed class AuthApplicationService : IAuthApplicationService
     private readonly IUnitOfWork _unitOfWork;
 
     private readonly IValidator<LoginCommand> _loginCommandValidator;
+    private readonly IValidator<RequestPasswordResetCommand> _requestPasswordResetCommandValidator;
+    private readonly IValidator<ChangePasswordCommand> _changePasswordCommandValidator;
+    private readonly IValidator<ResetPasswordCommand> _resetPasswordCommandValidator;
+    private readonly IPasswordResetTokenService _passwordResetTokenService;
+    private readonly IAuditTrailService _auditTrailService;
 
     #endregion
 
@@ -76,13 +85,23 @@ public sealed class AuthApplicationService : IAuthApplicationService
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
         IUnitOfWork unitOfWork,
-        IValidator<LoginCommand> loginCommandValidator)
+        IValidator<LoginCommand> loginCommandValidator,
+        IValidator<RequestPasswordResetCommand> requestPasswordResetCommandValidator,
+        IValidator<ChangePasswordCommand> changePasswordCommandValidator,
+        IValidator<ResetPasswordCommand> resetPasswordCommandValidator,
+        IPasswordResetTokenService passwordResetTokenService,
+        IAuditTrailService auditTrailService)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _loginCommandValidator = loginCommandValidator ?? throw new ArgumentNullException(nameof(loginCommandValidator));
+        _requestPasswordResetCommandValidator = requestPasswordResetCommandValidator ?? throw new ArgumentNullException(nameof(requestPasswordResetCommandValidator));
+        _changePasswordCommandValidator = changePasswordCommandValidator ?? throw new ArgumentNullException(nameof(changePasswordCommandValidator));
+        _resetPasswordCommandValidator = resetPasswordCommandValidator ?? throw new ArgumentNullException(nameof(resetPasswordCommandValidator));
+        _passwordResetTokenService = passwordResetTokenService ?? throw new ArgumentNullException(nameof(passwordResetTokenService));
+        _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
     }
 
     #endregion
@@ -133,6 +152,12 @@ public sealed class AuthApplicationService : IAuthApplicationService
                     Error.Unauthorized("Auth.InvalidCredentials", "Las credenciales suministradas no son válidas."));
             }
 
+            if (!user.CorreoConfirmado)
+            {
+                return Result.Failure<AuthResponseDto>(
+                    Error.Unauthorized("Auth.EmailNotConfirmed", "La cuenta del usuario requiere confirmación de correo para iniciar sesión."));
+            }
+
             user.RegistrarAcceso();
             await _userRepository.UpdateAsync(user, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -158,6 +183,155 @@ public sealed class AuthApplicationService : IAuthApplicationService
 
             return Result.Success(response);
         }, "Auth.Domain");
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<PasswordResetRequestResultDto>> RequestPasswordResetAsync(
+        RequestPasswordResetCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        Error? validationError = await ValidateAsync(command, _requestPasswordResetCommandValidator, cancellationToken);
+        if (validationError is not null)
+        {
+            return Result.Failure<PasswordResetRequestResultDto>(validationError);
+        }
+
+        return await ExecuteAsync(async () =>
+        {
+            Usuario? user = await FindUserByEmailAsync(command.Email.Trim(), cancellationToken);
+            if (user is null || !user.EstaHabilitado())
+            {
+                return Result.Success(new PasswordResetRequestResultDto());
+            }
+
+            string token = _passwordResetTokenService.GenerateToken(user, PasswordResetTokenLifetime);
+            DateTime expiresAtUtc = DateTime.UtcNow.Add(PasswordResetTokenLifetime);
+
+            await _auditTrailService.RegisterAsync(
+                user.Id,
+                nameof(Usuario),
+                "Auth",
+                "auth.password-reset-requested",
+                $"Se generó un token temporal de recuperación para el usuario '{user.CorreoElectronico.Value}'.",
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Role"] = user.Rol.ToString(),
+                    ["Source"] = command.Source?.Trim() ?? "Auth.PasswordReset",
+                    ["HasExternalReference"] = (!string.IsNullOrWhiteSpace(command.ExternalReference)).ToString()
+                },
+                cancellationToken);
+
+            return Result.Success(new PasswordResetRequestResultDto
+            {
+                UserId = user.Id,
+                ResetToken = token,
+                ExpiresAtUtc = expiresAtUtc
+            });
+        }, "Auth.Domain");
+    }
+
+    /// <inheritdoc />
+    public async Task<Result> ChangePasswordAsync(
+        ChangePasswordCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        Error? validationError = await ValidateAsync(command, _changePasswordCommandValidator, cancellationToken);
+        if (validationError is not null)
+        {
+            return Result.Failure(validationError);
+        }
+
+        return await ExecuteAsync(async () =>
+        {
+            Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+            if (user is null || !user.EstaHabilitado())
+            {
+                return Result.Failure(Error.Unauthorized("Auth.InvalidCurrentPassword", "La contraseña actual no es válida o la cuenta no está habilitada."));
+            }
+
+            bool currentPasswordIsValid = _passwordHasher.VerifyPassword(command.CurrentPassword, user.ContrasenaHash);
+            if (!currentPasswordIsValid)
+            {
+                return Result.Failure(Error.Unauthorized("Auth.InvalidCurrentPassword", "La contraseña actual no es válida o la cuenta no está habilitada."));
+            }
+
+            string newPasswordHash = _passwordHasher.HashPassword(command.NewPassword);
+            user.CambiarContrasenaHash(newPasswordHash);
+
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await _auditTrailService.RegisterAsync(
+                user.Id,
+                nameof(Usuario),
+                "Auth",
+                "auth.password-changed",
+                $"El usuario '{user.CorreoElectronico.Value}' actualizó su contraseña desde una sesión autenticada.",
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Role"] = user.Rol.ToString(),
+                    ["Source"] = command.Source?.Trim() ?? "Auth.ChangePassword",
+                    ["HasExternalReference"] = (!string.IsNullOrWhiteSpace(command.ExternalReference)).ToString()
+                },
+                cancellationToken);
+
+            return Result.Success();
+        }, "Auth.Domain", Error.Failure);
+    }
+
+    /// <inheritdoc />
+    public async Task<Result> ResetPasswordAsync(
+        ResetPasswordCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        Error? validationError = await ValidateAsync(command, _resetPasswordCommandValidator, cancellationToken);
+        if (validationError is not null)
+        {
+            return Result.Failure(validationError);
+        }
+
+        return await ExecuteAsync(async () =>
+        {
+            Usuario? user = await _userRepository.GetByIdAsync(command.UserId, cancellationToken);
+            if (user is null || !user.EstaHabilitado())
+            {
+                return Result.Failure(Error.Unauthorized("Auth.InvalidPasswordResetToken", "El enlace de recuperación no es válido o ya expiró."));
+            }
+
+            PasswordResetTokenValidationDto? tokenData = _passwordResetTokenService.ValidateToken(command.Token);
+            if (!IsPasswordResetTokenValid(user, tokenData))
+            {
+                return Result.Failure(Error.Unauthorized("Auth.InvalidPasswordResetToken", "El enlace de recuperación no es válido o ya expiró."));
+            }
+
+            string newPasswordHash = _passwordHasher.HashPassword(command.NewPassword);
+            user.CambiarContrasenaHash(newPasswordHash);
+
+            await _userRepository.UpdateAsync(user, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await _auditTrailService.RegisterAsync(
+                user.Id,
+                nameof(Usuario),
+                "Auth",
+                "auth.password-reset-completed",
+                $"Se restableció la contraseña de la cuenta '{user.CorreoElectronico.Value}'.",
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Role"] = user.Rol.ToString(),
+                    ["Source"] = command.Source?.Trim() ?? "Auth.PasswordReset",
+                    ["HasExternalReference"] = (!string.IsNullOrWhiteSpace(command.ExternalReference)).ToString()
+                },
+                cancellationToken);
+
+            return Result.Success();
+        }, "Auth.Domain", Error.Failure);
     }
 
     /// <summary>
@@ -238,6 +412,31 @@ public sealed class AuthApplicationService : IAuthApplicationService
         return ApplicationExecution.ExecuteAsync(operation, errorCode);
     }
 
+    private static Task<Result> ExecuteAsync(
+        Func<Task<Result>> operation,
+        string errorCode,
+        Func<string, string, Error>? errorFactory = null)
+    {
+        return ApplicationExecution.ExecuteAsync(operation, errorCode, errorFactory);
+    }
+
+    private static bool IsPasswordResetTokenValid(Usuario user, PasswordResetTokenValidationDto? tokenData)
+    {
+        if (tokenData is null)
+        {
+            return false;
+        }
+
+        return tokenData.UserId == user.Id
+            && string.Equals(tokenData.Email, user.CorreoElectronico.Value, StringComparison.OrdinalIgnoreCase)
+            && tokenData.UserVersionTicks == ResolveUserVersionTicks(user);
+    }
+
+    private static long ResolveUserVersionTicks(Usuario user)
+    {
+        return (user.FechaActualizacionUtc ?? user.FechaCreacionUtc).Ticks;
+    }
+
     /// <summary>
     /// Proyecta una entidad <see cref="Usuario"/> hacia un <see cref="CurrentUserDto"/>.
     /// </summary>
@@ -248,6 +447,8 @@ public sealed class AuthApplicationService : IAuthApplicationService
         ArgumentNullException.ThrowIfNull(user);
 
         string role = user.Rol.ToString();
+        IReadOnlyCollection<string> roles = user.Rol.ObtenerRolesEfectivos();
+        Administrador? administrativeUser = user as Administrador;
 
         return new CurrentUserDto
         {
@@ -262,8 +463,10 @@ public sealed class AuthApplicationService : IAuthApplicationService
             IsEmailConfirmed = user.CorreoConfirmado,
             IsTwoFactorEnabled = false,
             Role = role,
-            Roles = new[] { role },
+            Roles = roles,
             Permissions = Array.Empty<string>(),
+            Area = administrativeUser?.Area,
+            IsSuperUser = administrativeUser?.EsSuperUsuario == true,
             CreatedAtUtc = user.FechaCreacionUtc,
             LastLoginAtUtc = user.FechaUltimoAccesoUtc
         };

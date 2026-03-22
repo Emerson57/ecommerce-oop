@@ -20,12 +20,12 @@ public sealed class Administrador : Usuario
     /// <summary>
     /// Longitud mínima permitida para el área del administrador.
     /// </summary>
-    private const int LongitudMinimaArea = 3;
+    public const int LongitudMinimaArea = 3;
 
     /// <summary>
     /// Longitud máxima permitida para el área del administrador.
     /// </summary>
-    private const int LongitudMaximaArea = 60;
+    public const int LongitudMaximaArea = 60;
 
     #endregion
 
@@ -49,11 +49,12 @@ public sealed class Administrador : Usuario
         string nombre,
         Email correoElectronico,
         string contrasenaHash,
-        string area = "Operaciones")
+        string area = "Operaciones",
+        RolUsuario rol = RolUsuario.Administrador)
         : base(nombre, correoElectronico, contrasenaHash)
     {
         Area = ValidarArea(area);
-        Rol = RolUsuario.Administrador;
+        Rol = ValidarRol(rol);
     }
 
     #endregion
@@ -64,6 +65,11 @@ public sealed class Administrador : Usuario
     /// Área o dependencia organizacional a la que pertenece el administrador.
     /// </summary>
     public string Area { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Indica si el administrador actual posee privilegios de super usuario.
+    /// </summary>
+    public bool EsSuperUsuario => Rol == RolUsuario.SuperUsuario;
 
     #endregion
 
@@ -108,6 +114,18 @@ public sealed class Administrador : Usuario
         }
 
         return areaNormalizada;
+    }
+
+    /// <summary>
+    /// Valida que el rol asignado corresponda a una cuenta administrativa soportada.
+    /// </summary>
+    /// <param name="rol">Rol administrativo a validar.</param>
+    /// <returns>Rol administrativo válido.</returns>
+    private static RolUsuario ValidarRol(RolUsuario rol)
+    {
+        return rol is RolUsuario.Administrador or RolUsuario.SuperUsuario
+            ? rol
+            : throw new UsuarioNoValidoException("El rol asignado al administrador no es válido.");
     }
 
     #endregion

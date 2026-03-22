@@ -22,15 +22,227 @@ namespace PlataformaECommerce.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.ProductEntity", b =>
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CartEntity", b =>
                 {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("Activo")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("FechaActualizacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Activo");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("ClienteId", "Activo");
+
+                    b.ToTable("Carts", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CartItemEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CartId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("FechaActualizacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImagenPrincipalUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("NombreProducto")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ProductoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SkuProducto")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("TipoProducto")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CartId");
+
+                    b.HasIndex("ProductoId");
+
+                    b.HasIndex("CartId", "ProductoId");
+
+                    b.ToTable("CartItems", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ClienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DireccionCalle")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("DireccionCiudad")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("DireccionCodigoPostal")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("DireccionDepartamento")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("DireccionPais")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("FechaActualizacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaCancelacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaConfirmacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaEntregaUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaEnvioUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaPagoUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ObservacionCancelacion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("Estado");
+
+                    b.HasIndex("FechaCreacionUtc");
+
+                    b.HasIndex("ClienteId", "Estado");
+
+                    b.ToTable("Orders", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderItemEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaCreacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImagenPrincipalUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("NombreProducto")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ProductoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SkuProducto")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("TipoProducto")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PedidoId");
+
+                    b.HasIndex("ProductoId");
+
+                    b.HasIndex("PedidoId", "ProductoId");
+
+                    b.ToTable("OrderItems", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.ProductEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
 
                     b.Property<decimal?>("AltoCm")
                         .HasPrecision(18, 2)
@@ -40,24 +252,47 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<Guid?>("CategoriaId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
-                    b.Property<DateTime>("FechaActualizacion")
+                    b.Property<decimal?>("DescuentoPromocionalActual")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("Destacado")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("EtiquetasSerializadas")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime?>("FechaActualizacionUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime>("FechaCreacion")
+                    b.Property<DateTime>("FechaCreacionUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("FormatoArchivo")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("ImagenPrincipalUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<decimal?>("LargoCm")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Moneda")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
@@ -65,15 +300,42 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasColumnType("nvarchar(150)");
 
                     b.Property<decimal?>("PesoKg")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<decimal>("Precio")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("PrecioBase")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PrecioPromocionalActual")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool?>("RequiereEnvio")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("RequiereLicencia")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
                     b.Property<int>("Stock")
                         .HasColumnType("int");
+
+                    b.Property<Guid?>("SubcategoriaId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal?>("TamanoMB")
                         .HasPrecision(18, 2)
@@ -88,11 +350,119 @@ namespace PlataformaECommerce.Infrastructure.Migrations
 
                     b.HasIndex("Activo");
 
+                    b.HasIndex("CategoriaId");
+
                     b.HasIndex("Nombre");
+
+                    b.HasIndex("Sku")
+                        .IsUnique();
 
                     b.HasIndex("TipoProducto");
 
                     b.ToTable("Products", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.UserEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Area")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("ContrasenaHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("CorreoConfirmado")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CorreoElectronico")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<DateTime?>("FechaActualizacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("FechaUltimoAccesoUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("HistorialComprasSerializado")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PreferenciasSerializadas")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Activo");
+
+                    b.HasIndex("CorreoElectronico")
+                        .IsUnique();
+
+                    b.HasIndex("Rol");
+
+                    b.HasIndex("Rol", "Activo");
+
+                    b.ToTable("Users", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Users_Area_ByRole", "([Rol] = 'Cliente' AND [Area] IS NULL) OR ([Rol] IN ('Administrador', 'SuperUsuario') AND [Area] IS NOT NULL AND LEN(LTRIM(RTRIM([Area]))) BETWEEN 3 AND 60)");
+
+                            t.HasCheckConstraint("CK_Users_CoreText", "LEN(LTRIM(RTRIM([Nombre]))) BETWEEN 3 AND 100 AND LEN(LTRIM(RTRIM([CorreoElectronico]))) BETWEEN 3 AND 320 AND LEN(LTRIM(RTRIM([ContrasenaHash]))) BETWEEN 20 AND 500");
+
+                            t.HasCheckConstraint("CK_Users_Rol", "[Rol] IN ('Cliente', 'Administrador', 'SuperUsuario')");
+                        });
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CartItemEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CartEntity", "Cart")
+                        .WithMany("Items")
+                        .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cart");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderItemEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderEntity", "Pedido")
+                        .WithMany("Detalles")
+                        .HasForeignKey("PedidoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Pedido");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CartEntity", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderEntity", b =>
+                {
+                    b.Navigation("Detalles");
                 });
 #pragma warning restore 612, 618
         }

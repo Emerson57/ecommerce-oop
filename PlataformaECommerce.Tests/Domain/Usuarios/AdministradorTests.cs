@@ -1,4 +1,5 @@
 using PlataformaECommerce.Domain.Entities.Users;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Domain.ValueObjects;
 
@@ -29,6 +30,31 @@ public class AdministradorTests
         administrador.ActualizarArea("Tecnología");
 
         Assert.That(administrador.Area, Is.EqualTo("Tecnología"));
+    }
+
+    [Test]
+    public void Constructor_RolSuperUsuario_AsignaPrivilegiosElevados()
+    {
+        Administrador administrador = new(
+            "Super Usuario",
+            new Email("root@plataforma.com"),
+            "hash-de-prueba-seguro-12345",
+            "Seguridad",
+            RolUsuario.SuperUsuario);
+
+        Assert.That(administrador.Rol, Is.EqualTo(RolUsuario.SuperUsuario));
+        Assert.That(administrador.EsSuperUsuario, Is.True);
+    }
+
+    [Test]
+    public void Constructor_RolNoAdministrativo_LanzaUsuarioNoValidoException()
+    {
+        Assert.Throws<UsuarioNoValidoException>(() => new Administrador(
+            "Admin Inválido",
+            new Email("invalido@plataforma.com"),
+            "hash-de-prueba-seguro-12345",
+            "Operaciones",
+            RolUsuario.Cliente));
     }
 
     private static Administrador CrearAdministrador(string area)

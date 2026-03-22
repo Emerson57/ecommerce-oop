@@ -145,7 +145,9 @@ public static class InfrastructureServiceRegistration
 
         byte[] signingKeyBytes = Encoding.UTF8.GetBytes(jwtSettings.SigningKey);
 
+        services.AddDataProtection();
         services.TryAddSingleton<IPasswordHasher, IdentityPasswordHasher>();
+        services.TryAddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();
         services.TryAddSingleton<ITokenService, JwtTokenService>();
         services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.TryAddScoped<IExecutionContextAccessor, ExecutionContextAccessor>();

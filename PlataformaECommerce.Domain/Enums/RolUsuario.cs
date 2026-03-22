@@ -37,8 +37,19 @@ public enum RolUsuario
     /// - Gestión de productos.
     /// - Gestión de inventario.
     /// - Administración de pedidos.
-    /// - Gestión de usuarios.
-    /// - Supervisión del funcionamiento general del sistema.
+    /// - Supervisión operativa del funcionamiento general del sistema.
     /// </remarks>
-    Administrador = 2
+    Administrador = 2,
+
+    /// <summary>
+    /// Representa al administrador con privilegios máximos dentro del backoffice.
+    /// </summary>
+    /// <remarks>
+    /// El super usuario conserva las capacidades del administrador y agrega atribuciones
+    /// sensibles asociadas al gobierno del backoffice, como:
+    /// - Alta de nuevas cuentas administrativas.
+    /// - Gestión futura del módulo de usuarios.
+    /// - Custodia inicial de la configuración segura del sistema.
+    /// </remarks>
+    SuperUsuario = 3
 }

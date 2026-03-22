@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
 
 namespace PlataformaECommerce.Infrastructure.Services.Common;
@@ -51,7 +52,8 @@ public sealed class CurrentUserService : ICurrentUserService
         ?? GetClaimValue(JwtRegisteredClaimNames.Email);
 
     /// <inheritdoc />
-    public string? Role => GetClaimValue(ClaimTypes.Role)
+    public string? Role => GetClaimValue(SecurityClaimTypes.PrimaryRole)
+        ?? GetClaimValue(ClaimTypes.Role)
         ?? GetClaimValue("role");
 
     /// <inheritdoc />
@@ -94,6 +96,9 @@ public sealed class CurrentUserService : ICurrentUserService
             .Claims
             .Where(claim => string.Equals(claim.Type, claimType.Trim(), StringComparison.OrdinalIgnoreCase))
             .Select(claim => claim.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray()
             ?? Array.Empty<string>();
     }

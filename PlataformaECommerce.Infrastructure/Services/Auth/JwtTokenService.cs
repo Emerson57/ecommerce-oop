@@ -3,8 +3,10 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Domain.Entities.Users;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Infrastructure.Configurations;
 
 namespace PlataformaECommerce.Infrastructure.Services.Auth;
@@ -117,9 +119,10 @@ public sealed class JwtTokenService : ITokenService
         string userId = usuario.Id.ToString();
         string email = usuario.CorreoElectronico.Value;
         string role = usuario.Rol.ToString();
+        IReadOnlyCollection<string> roles = usuario.Rol.ObtenerRolesEfectivos();
 
-        return new List<Claim>
-        {
+        List<Claim> claims =
+        [
             new(JwtRegisteredClaimNames.Sub, userId),
             new(JwtRegisteredClaimNames.Email, email),
             new(JwtRegisteredClaimNames.UniqueName, email),
@@ -127,9 +130,22 @@ public sealed class JwtTokenService : ITokenService
             new(ClaimTypes.NameIdentifier, userId),
             new(ClaimTypes.Name, usuario.Nombre),
             new(ClaimTypes.Email, email),
-            new(ClaimTypes.Role, role),
+            new(SecurityClaimTypes.PrimaryRole, role),
+            new(SecurityClaimTypes.IsSuperUser, usuario.Rol == RolUsuario.SuperUsuario ? bool.TrueString : bool.FalseString),
             new(TokenTypeClaim, tokenType)
-        };
+        ];
+
+        foreach (string effectiveRole in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, effectiveRole));
+        }
+
+        if (usuario is Administrador admin)
+        {
+            claims.Add(new Claim(SecurityClaimTypes.AdminArea, admin.Area));
+        }
+
+        return claims;
     }
 
     private JwtSecurityToken ReadValidatedToken(string token, string expectedTokenType)

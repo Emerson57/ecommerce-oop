@@ -4,6 +4,8 @@ using Microsoft.OpenApi;
 using PlataformaECommerce.Application.DependencyInjection;
 using PlataformaECommerce.Infrastructure.DependencyInjection;
 using PlataformaECommerce.Web.Authorization;
+using PlataformaECommerce.Web.Configuration;
+using PlataformaECommerce.Web.Initialization;
 using PlataformaECommerce.Web.Middlewares;
 using PlataformaECommerce.Web.OpenApi;
 
@@ -13,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Admin", AuthorizationPolicies.AdminOnly);
+    options.Conventions.AuthorizeFolder("/Admin/Users", AuthorizationPolicies.SuperUserOnly);
 });
 
 builder.Services.AddControllers()
@@ -63,28 +66,48 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services
+    .AddOptions<BootstrapSuperUserOptions>()
+    .Bind(builder.Configuration.GetSection(BootstrapSuperUserOptions.SectionName))
+    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Name), "El bootstrap del super usuario requiere un nombre válido.")
+    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Email), "El bootstrap del super usuario requiere un correo electrónico válido.")
+    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Password), "El bootstrap del super usuario requiere una contraseña válida.")
+    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Area), "El bootstrap del super usuario requiere un área válida.")
+    .ValidateOnStart();
 
-builder.Services.AddAuthentication()
-    .AddCookie(AuthorizationPolicies.AdminCookieScheme, options =>
-    {
-        options.Cookie.Name = "PlataformaECommerce.Admin";
-        options.LoginPath = "/Auth/Login";
-        options.AccessDeniedPath = "/Auth/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
-    });
+builder.Services
+    .AddOptions<AdminUsersBackofficeOptions>()
+    .Bind(builder.Configuration.GetSection(AdminUsersBackofficeOptions.SectionName));
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(AuthorizationPolicies.AdminOnly, policy =>
+builder.Services.AddScoped<AdminCookieSecurityService>();
+builder.Services.AddScoped<AdminCookieAuthenticationEvents>();
+builder.Services.AddScoped<CustomerCookieSecurityService>();
+builder.Services.AddScoped<CustomerCookieAuthenticationEvents>();
+builder.Services.AddScoped<SuperUserBootstrapService>();
+
+builder.Services.AddAuthentication(options =>
     {
-        policy.AuthenticationSchemes.Add(AuthorizationPolicies.AdminCookieScheme);
-        policy.RequireAuthenticatedUser();
-        policy.RequireRole("Administrador");
-    });
-});
+        options.DefaultScheme = AuthorizationPolicies.AppCookieScheme;
+        options.DefaultAuthenticateScheme = AuthorizationPolicies.AppCookieScheme;
+        options.DefaultChallengeScheme = AuthorizationPolicies.AppCookieScheme;
+        options.DefaultSignOutScheme = AuthorizationPolicies.AppCookieScheme;
+    })
+    .AddPolicyScheme(AuthorizationPolicies.AppCookieScheme, "Application cookie selector", options =>
+    {
+        options.ForwardDefaultSelector = AuthorizationPolicies.ResolveApplicationCookieScheme;
+    })
+    .AddCookie(AuthorizationPolicies.AdminCookieScheme, AuthorizationPolicies.ConfigureAdminCookie)
+    .AddCookie(AuthorizationPolicies.CustomerCookieScheme, AuthorizationPolicies.ConfigureCustomerCookie);
+
+builder.Services.AddAuthorization(AuthorizationPolicies.ConfigureBackofficePolicies);
 
 var app = builder.Build();
+
+await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
+{
+    SuperUserBootstrapService bootstrapService = scope.ServiceProvider.GetRequiredService<SuperUserBootstrapService>();
+    await bootstrapService.BootstrapAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -1,4 +1,6 @@
 ﻿using FluentValidation;
+using PlataformaECommerce.Application.Common.Security;
+using PlataformaECommerce.Application.Features.Users;
 using PlataformaECommerce.Application.Features.Users.Commands;
 
 namespace PlataformaECommerce.Application.Features.Users.Validators;
@@ -30,61 +32,6 @@ public sealed class RegisterCustomerCommandValidator : AbstractValidator<Registe
 {
     #region Constantes de validación
 
-    /// <summary>
-    /// Longitud mínima permitida para el nombre del cliente.
-    /// </summary>
-    private const int MinNameLength = 3;
-
-    /// <summary>
-    /// Longitud máxima permitida para el nombre del cliente.
-    /// </summary>
-    private const int MaxNameLength = 100;
-
-    /// <summary>
-    /// Longitud máxima permitida para el correo electrónico.
-    /// </summary>
-    private const int MaxEmailLength = 256;
-
-    /// <summary>
-    /// Longitud mínima permitida para la contraseña.
-    /// </summary>
-    private const int MinPasswordLength = 8;
-
-    /// <summary>
-    /// Longitud máxima permitida para la contraseña.
-    /// </summary>
-    private const int MaxPasswordLength = 100;
-
-    /// <summary>
-    /// Longitud mínima permitida para una preferencia.
-    /// </summary>
-    private const int MinPreferenceLength = 2;
-
-    /// <summary>
-    /// Longitud máxima permitida para una preferencia.
-    /// </summary>
-    private const int MaxPreferenceLength = 50;
-
-    /// <summary>
-    /// Cantidad máxima de preferencias permitidas en el registro.
-    /// </summary>
-    private const int MaxPreferencesCount = 20;
-
-    /// <summary>
-    /// Longitud máxima permitida para la dirección IP.
-    /// </summary>
-    private const int MaxIpAddressLength = 64;
-
-    /// <summary>
-    /// Longitud máxima permitida para el canal de origen.
-    /// </summary>
-    private const int MaxSourceLength = 50;
-
-    /// <summary>
-    /// Longitud máxima permitida para la referencia externa.
-    /// </summary>
-    private const int MaxExternalReferenceLength = 100;
-
     #endregion
 
     #region Constructor
@@ -114,16 +61,16 @@ public sealed class RegisterCustomerCommandValidator : AbstractValidator<Registe
         RuleFor(x => x.Name)
             .NotEmpty()
                 .WithMessage("El nombre del cliente es obligatorio.")
-            .MinimumLength(MinNameLength)
-                .WithMessage($"El nombre del cliente debe tener al menos {MinNameLength} caracteres.")
-            .MaximumLength(MaxNameLength)
-                .WithMessage($"El nombre del cliente no puede superar los {MaxNameLength} caracteres.");
+            .MinimumLength(CustomerRegistrationPolicies.MinNameLength)
+                .WithMessage($"El nombre del cliente debe tener al menos {CustomerRegistrationPolicies.MinNameLength} caracteres.")
+            .MaximumLength(CustomerRegistrationPolicies.MaxNameLength)
+                .WithMessage($"El nombre del cliente no puede superar los {CustomerRegistrationPolicies.MaxNameLength} caracteres.");
 
         RuleFor(x => x.Email)
             .NotEmpty()
                 .WithMessage("El correo electrónico del cliente es obligatorio.")
-            .MaximumLength(MaxEmailLength)
-                .WithMessage($"El correo electrónico del cliente no puede superar los {MaxEmailLength} caracteres.")
+            .MaximumLength(CustomerRegistrationPolicies.MaxEmailLength)
+                .WithMessage($"El correo electrónico del cliente no puede superar los {CustomerRegistrationPolicies.MaxEmailLength} caracteres.")
             .EmailAddress()
                 .WithMessage("El correo electrónico del cliente no tiene un formato válido.");
     }
@@ -136,17 +83,17 @@ public sealed class RegisterCustomerCommandValidator : AbstractValidator<Registe
         RuleFor(x => x.Password)
             .NotEmpty()
                 .WithMessage("La contraseña es obligatoria.")
-            .MinimumLength(MinPasswordLength)
-                .WithMessage($"La contraseña debe tener al menos {MinPasswordLength} caracteres.")
-            .MaximumLength(MaxPasswordLength)
-                .WithMessage($"La contraseña no puede superar los {MaxPasswordLength} caracteres.")
-            .Matches(@"[A-Z]")
+            .MinimumLength(CustomerRegistrationPolicies.MinPasswordLength)
+                .WithMessage($"La contraseña debe tener al menos {CustomerRegistrationPolicies.MinPasswordLength} caracteres.")
+            .MaximumLength(CustomerRegistrationPolicies.MaxPasswordLength)
+                .WithMessage($"La contraseña no puede superar los {CustomerRegistrationPolicies.MaxPasswordLength} caracteres.")
+            .Must(PasswordPolicyRules.HasUppercase)
                 .WithMessage("La contraseña debe contener al menos una letra mayúscula.")
-            .Matches(@"[a-z]")
+            .Must(PasswordPolicyRules.HasLowercase)
                 .WithMessage("La contraseña debe contener al menos una letra minúscula.")
-            .Matches(@"\d")
+            .Must(PasswordPolicyRules.HasDigit)
                 .WithMessage("La contraseña debe contener al menos un número.")
-            .Matches(@"[^a-zA-Z0-9]")
+            .Must(PasswordPolicyRules.HasSpecialCharacter)
                 .WithMessage("La contraseña debe contener al menos un carácter especial.");
 
         RuleFor(x => x.ConfirmPassword)
@@ -164,16 +111,16 @@ public sealed class RegisterCustomerCommandValidator : AbstractValidator<Registe
         RuleFor(x => x.Preferences)
             .Must(preferences => preferences is not null)
                 .WithMessage("La colección de preferencias no puede ser nula.")
-            .Must(preferences => preferences.Count <= MaxPreferencesCount)
-                .WithMessage($"No es posible registrar más de {MaxPreferencesCount} preferencias iniciales.");
+            .Must(preferences => preferences.Count <= CustomerRegistrationPolicies.MaxPreferencesCount)
+                .WithMessage($"No es posible registrar más de {CustomerRegistrationPolicies.MaxPreferencesCount} preferencias iniciales.");
 
         RuleForEach(x => x.Preferences)
             .NotEmpty()
                 .WithMessage("Las preferencias del cliente no pueden estar vacías.")
-            .MinimumLength(MinPreferenceLength)
-                .WithMessage($"Cada preferencia debe tener al menos {MinPreferenceLength} caracteres.")
-            .MaximumLength(MaxPreferenceLength)
-                .WithMessage($"Cada preferencia no puede superar los {MaxPreferenceLength} caracteres.");
+            .MinimumLength(CustomerRegistrationPolicies.MinPreferenceLength)
+                .WithMessage($"Cada preferencia debe tener al menos {CustomerRegistrationPolicies.MinPreferenceLength} caracteres.")
+            .MaximumLength(CustomerRegistrationPolicies.MaxPreferenceLength)
+                .WithMessage($"Cada preferencia no puede superar los {CustomerRegistrationPolicies.MaxPreferenceLength} caracteres.");
     }
 
     /// <summary>
@@ -196,19 +143,19 @@ public sealed class RegisterCustomerCommandValidator : AbstractValidator<Registe
     private void ConfigureContextRules()
     {
         RuleFor(x => x.IpAddress)
-            .MaximumLength(MaxIpAddressLength)
-                .WithMessage($"La dirección IP no puede superar los {MaxIpAddressLength} caracteres.")
+            .MaximumLength(CustomerRegistrationPolicies.MaxIpAddressLength)
+                .WithMessage($"La dirección IP no puede superar los {CustomerRegistrationPolicies.MaxIpAddressLength} caracteres.")
             .Must(BeAValidIpAddress)
                 .When(x => !string.IsNullOrWhiteSpace(x.IpAddress))
                 .WithMessage("La dirección IP informada no es válida.");
 
         RuleFor(x => x.Source)
-            .MaximumLength(MaxSourceLength)
-                .WithMessage($"El canal de origen no puede superar los {MaxSourceLength} caracteres.");
+            .MaximumLength(CustomerRegistrationPolicies.MaxSourceLength)
+                .WithMessage($"El canal de origen no puede superar los {CustomerRegistrationPolicies.MaxSourceLength} caracteres.");
 
         RuleFor(x => x.ExternalReference)
-            .MaximumLength(MaxExternalReferenceLength)
-                .WithMessage($"La referencia externa no puede superar los {MaxExternalReferenceLength} caracteres.");
+            .MaximumLength(CustomerRegistrationPolicies.MaxExternalReferenceLength)
+                .WithMessage($"La referencia externa no puede superar los {CustomerRegistrationPolicies.MaxExternalReferenceLength} caracteres.");
     }
 
     #endregion

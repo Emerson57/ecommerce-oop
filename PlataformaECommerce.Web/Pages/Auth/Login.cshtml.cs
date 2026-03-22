@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Authorization;
 
 namespace PlataformaECommerce.Web.Pages.Auth
@@ -51,14 +53,20 @@ namespace PlataformaECommerce.Web.Pages.Auth
         public string? ErrorMessage { get; private set; }
 
         /// <summary>
-        /// Inicializa la página de autenticación administrativa.
+        /// Obtiene o establece el mensaje funcional mostrado tras un restablecimiento exitoso.
+        /// </summary>
+        [TempData]
+        public string? StatusMessage { get; set; }
+
+        /// <summary>
+        /// Inicializa la página de autenticación.
         /// </summary>
         public void OnGet()
         {
         }
 
         /// <summary>
-        /// Procesa la autenticación administrativa y emite una cookie de sesión para el backoffice.
+        /// Procesa la autenticación y emite una cookie de sesión acorde al tipo de cuenta autenticada.
         /// </summary>
         /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
         /// <returns>Resultado de navegación correspondiente al flujo de autenticación.</returns>
@@ -79,22 +87,32 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 },
                 cancellationToken);
 
-            if (result.IsFailure || !IsAdministrator(result.Value.User))
+            if (result.IsFailure)
             {
-                ErrorMessage = "Las credenciales administrativas suministradas no son válidas o el usuario no está habilitado.";
+                ErrorMessage = "Las credenciales suministradas no son válidas o la cuenta no está habilitada.";
                 return Page();
             }
 
-            ClaimsPrincipal principal = BuildPrincipal(result.Value.User);
+            if (!TryBuildAuthenticatedSession(result.Value.User, out ClaimsPrincipal? principal, out string authenticationScheme, out string redirectPage))
+            {
+                ErrorMessage = "La cuenta autenticada no cumple los requisitos de seguridad y acceso requeridos para esta sección.";
+                return Page();
+            }
+
+            DateTimeOffset issuedAtUtc = DateTimeOffset.UtcNow;
             AuthenticationProperties authenticationProperties = new()
             {
                 IsPersistent = Input.RememberMe,
                 AllowRefresh = true,
-                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(Input.RememberMe ? 24 : 8)
+                IssuedUtc = issuedAtUtc,
+                ExpiresUtc = issuedAtUtc.AddHours(Input.RememberMe ? 24 : 8)
             };
 
+            await HttpContext.SignOutAsync(AuthorizationPolicies.AdminCookieScheme);
+            await HttpContext.SignOutAsync(AuthorizationPolicies.CustomerCookieScheme);
+
             await HttpContext.SignInAsync(
-                AuthorizationPolicies.AdminCookieScheme,
+                authenticationScheme,
                 principal,
                 authenticationProperties);
 
@@ -103,53 +121,187 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 return LocalRedirect(ReturnUrl);
             }
 
-            return RedirectToPage("/Admin/Index");
+            return RedirectToPage(redirectPage);
         }
 
-        private static bool IsAdministrator(CurrentUserDto user)
+        private static bool TryBuildAuthenticatedSession(
+            CurrentUserDto user,
+            out ClaimsPrincipal? principal,
+            out string authenticationScheme,
+            out string redirectPage)
         {
             ArgumentNullException.ThrowIfNull(user);
 
-            return string.Equals(user.Role, "Administrador", StringComparison.Ordinal)
-                || user.Roles.Contains("Administrador", StringComparer.Ordinal);
-        }
-
-        private static ClaimsPrincipal BuildPrincipal(CurrentUserDto user)
-        {
-            ArgumentNullException.ThrowIfNull(user);
-
-            string primaryRole = string.IsNullOrWhiteSpace(user.Role)
-                ? "Administrador"
-                : user.Role;
-
-            Claim[] claims =
+            if (TryBuildAdministrativePrincipal(user, out principal))
             {
+                authenticationScheme = AuthorizationPolicies.AdminCookieScheme;
+                redirectPage = "/Admin/Index";
+                return true;
+            }
+
+            if (TryBuildCustomerPrincipal(user, out principal))
+            {
+                authenticationScheme = AuthorizationPolicies.CustomerCookieScheme;
+                redirectPage = "/Index";
+                return true;
+            }
+
+            authenticationScheme = string.Empty;
+            redirectPage = string.Empty;
+            principal = null;
+            return false;
+        }
+
+        private static bool TryBuildAdministrativePrincipal(CurrentUserDto user, out ClaimsPrincipal? principal)
+        {
+            ArgumentNullException.ThrowIfNull(user);
+
+            principal = null;
+
+            if (!TryResolvePrimaryAdministrativeRole(user, out RolUsuario primaryRole))
+            {
+                return false;
+            }
+
+            List<string> roles = user.Roles
+                .Where(RolUsuarioExtensions.EsValorDeRolAdministrativo)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            foreach (string effectiveRole in primaryRole.ObtenerRolesEfectivos())
+            {
+                if (!roles.Contains(effectiveRole, StringComparer.Ordinal))
+                {
+                    roles.Add(effectiveRole);
+                }
+            }
+
+            List<Claim> claims =
+            [
                 new(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new(ClaimTypes.Name, user.DisplayName),
                 new(ClaimTypes.Email, user.Email),
-                new(ClaimTypes.Role, primaryRole),
-                new("area", user.Permissions.FirstOrDefault() ?? "Operaciones"),
-                new("user_type", "admin")
-            };
+                new(SecurityClaimTypes.PrimaryRole, primaryRole.ToString()),
+                new(SecurityClaimTypes.AdminArea, user.Area ?? "Operaciones"),
+                new(SecurityClaimTypes.IsSuperUser, user.IsSuperUser.ToString())
+            ];
+
+            foreach (string role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
 
             ClaimsIdentity identity = new(claims, AuthorizationPolicies.AdminCookieScheme);
-            return new ClaimsPrincipal(identity);
+            principal = new ClaimsPrincipal(identity);
+            return true;
+        }
+
+        private static bool TryBuildCustomerPrincipal(CurrentUserDto user, out ClaimsPrincipal? principal)
+        {
+            ArgumentNullException.ThrowIfNull(user);
+
+            principal = null;
+
+            if (!TryResolveCustomerRole(user, out RolUsuario primaryRole))
+            {
+                return false;
+            }
+
+            List<Claim> claims =
+            [
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new(ClaimTypes.Name, user.DisplayName),
+                new(ClaimTypes.Email, user.Email),
+                new(SecurityClaimTypes.PrimaryRole, primaryRole.ToString()),
+                new(SecurityClaimTypes.IsSuperUser, bool.FalseString),
+                new(ClaimTypes.Role, primaryRole.ToString())
+            ];
+
+            ClaimsIdentity identity = new(claims, AuthorizationPolicies.CustomerCookieScheme);
+            principal = new ClaimsPrincipal(identity);
+            return true;
+        }
+
+        private static bool TryResolvePrimaryAdministrativeRole(CurrentUserDto user, out RolUsuario primaryRole)
+        {
+            if (user.IsSuperUser)
+            {
+                primaryRole = RolUsuario.SuperUsuario;
+                return string.Equals(user.Role, RolUsuario.SuperUsuario.ToString(), StringComparison.Ordinal)
+                    || user.Roles.Any(role => string.Equals(role, RolUsuario.SuperUsuario.ToString(), StringComparison.Ordinal));
+            }
+
+            if (Enum.TryParse(user.Role, ignoreCase: true, out RolUsuario parsedRole)
+                && parsedRole.EsAdministrativo())
+            {
+                if (parsedRole == RolUsuario.SuperUsuario)
+                {
+                    primaryRole = default;
+                    return false;
+                }
+
+                primaryRole = parsedRole;
+                return true;
+            }
+
+            if (AuthorizationPolicies.IsAdministrativeUser(user.Roles))
+            {
+                if (user.Roles.Any(role => string.Equals(role, RolUsuario.SuperUsuario.ToString(), StringComparison.Ordinal)))
+                {
+                    primaryRole = default;
+                    return false;
+                }
+
+                primaryRole = RolUsuario.Administrador;
+                return true;
+            }
+
+            primaryRole = default;
+            return false;
+        }
+
+        private static bool TryResolveCustomerRole(CurrentUserDto user, out RolUsuario primaryRole)
+        {
+            ArgumentNullException.ThrowIfNull(user);
+
+            if (user.IsSuperUser)
+            {
+                primaryRole = default;
+                return false;
+            }
+
+            if (Enum.TryParse(user.Role, ignoreCase: true, out RolUsuario parsedRole)
+                && parsedRole == RolUsuario.Cliente)
+            {
+                primaryRole = parsedRole;
+                return user.Roles.Count == 0 || user.Roles.All(role => string.Equals(role, RolUsuario.Cliente.ToString(), StringComparison.Ordinal));
+            }
+
+            bool hasOnlyCustomerRoles = user.Roles.Count > 0 && user.Roles.All(role => string.Equals(role, RolUsuario.Cliente.ToString(), StringComparison.Ordinal));
+            if (hasOnlyCustomerRoles)
+            {
+                primaryRole = RolUsuario.Cliente;
+                return true;
+            }
+
+            primaryRole = default;
+            return false;
         }
 
         /// <summary>
-        /// Representa el modelo de entrada del formulario de autenticación administrativa.
+        /// Representa el modelo de entrada del formulario de autenticación.
         /// </summary>
         public sealed class InputModel
         {
             /// <summary>
-            /// Obtiene o establece el correo electrónico del administrador.
+            /// Obtiene o establece el correo electrónico del usuario.
             /// </summary>
             [Required(ErrorMessage = "El correo electrónico es obligatorio.")]
             [EmailAddress(ErrorMessage = "El correo electrónico no tiene un formato válido.")]
             public string Email { get; set; } = string.Empty;
 
             /// <summary>
-            /// Obtiene o establece la contraseña del administrador.
+            /// Obtiene o establece la contraseña del usuario.
             /// </summary>
             [Required(ErrorMessage = "La contraseña es obligatoria.")]
             [DataType(DataType.Password)]

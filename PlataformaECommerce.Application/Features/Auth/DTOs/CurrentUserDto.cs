@@ -102,6 +102,16 @@ public sealed class CurrentUserDto
     /// </summary>
     public IReadOnlyCollection<string> Permissions { get; init; } = Array.Empty<string>();
 
+    /// <summary>
+    /// Área organizacional asociada a la cuenta administrativa, cuando aplique.
+    /// </summary>
+    public string? Area { get; init; }
+
+    /// <summary>
+    /// Indica si la cuenta autenticada posee privilegios de super usuario.
+    /// </summary>
+    public bool IsSuperUser { get; init; }
+
     #endregion
 
     #region Metadatos de auditoría
@@ -150,7 +160,7 @@ public sealed class CurrentUserDto
     /// <returns>Cadena representativa del DTO.</returns>
     public override string ToString()
     {
-        return $"CurrentUserDto | Id: {Id} | UserName: {UserName} | Email: {Email} | Role: {Role} | IsActive: {IsActive}";
+        return $"CurrentUserDto | Id: {Id} | UserName: {UserName} | Email: {Email} | Role: {Role} | IsSuperUser: {IsSuperUser} | IsActive: {IsActive}";
     }
 
     #endregion

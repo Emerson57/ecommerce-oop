@@ -28,17 +28,22 @@ public abstract class Usuario : AggregateRoot
     /// <summary>
     /// Longitud mínima permitida para el nombre del usuario.
     /// </summary>
-    private const int LongitudMinimaNombre = 3;
+    public const int LongitudMinimaNombre = 3;
 
     /// <summary>
     /// Longitud máxima permitida para el nombre del usuario.
     /// </summary>
-    private const int LongitudMaximaNombre = 100;
+    public const int LongitudMaximaNombre = 100;
 
     /// <summary>
     /// Longitud mínima razonable para un hash de contraseña.
     /// </summary>
-    private const int LongitudMinimaHashContrasena = 20;
+    public const int LongitudMinimaHashContrasena = 20;
+
+    /// <summary>
+    /// Longitud máxima soportada para el hash de contraseña persistido.
+    /// </summary>
+    public const int LongitudMaximaHashContrasena = 500;
 
     #endregion
 
@@ -127,11 +132,16 @@ public abstract class Usuario : AggregateRoot
     /// <param name="correoElectronico">Nuevo correo electrónico del usuario.</param>
     public virtual void ActualizarDatosBasicos(string nombre, Email correoElectronico)
     {
+        ArgumentNullException.ThrowIfNull(correoElectronico);
+
+        string currentEmail = CorreoElectronico.Value;
         Nombre = ValidarNombre(nombre);
         CorreoElectronico = ValidarCorreoElectronico(correoElectronico);
 
-        // Cuando se cambia el correo se debe volver a confirmar
-        CorreoConfirmado = false;
+        if (!string.Equals(currentEmail, CorreoElectronico.Value, StringComparison.OrdinalIgnoreCase))
+        {
+            CorreoConfirmado = false;
+        }
 
         MarcarActualizacion();
     }
@@ -266,6 +276,11 @@ public abstract class Usuario : AggregateRoot
         if (hashNormalizado.Length < LongitudMinimaHashContrasena)
         {
             throw new UsuarioNoValidoException("El hash de la contraseña del usuario no cumple la longitud mínima esperada.");
+        }
+
+        if (hashNormalizado.Length > LongitudMaximaHashContrasena)
+        {
+            throw new UsuarioNoValidoException("El hash de la contraseña del usuario supera la longitud máxima soportada.");
         }
 
         return hashNormalizado;

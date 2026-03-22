@@ -160,6 +160,19 @@ public interface IUserRepository
         Email email,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Verifica si existe al menos un usuario con el rol indicado.
+    /// </summary>
+    /// <param name="rol">Rol a validar.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>
+    /// <see langword="true"/> si existe un usuario con el rol especificado;
+    /// en caso contrario, <see langword="false"/>.
+    /// </returns>
+    Task<bool> ExistsByRoleAsync(
+        RolUsuario rol,
+        CancellationToken cancellationToken = default);
+
     #endregion
 
     #region Persistencia

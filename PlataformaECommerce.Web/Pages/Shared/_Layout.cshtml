@@ -16,7 +16,9 @@
 </head>
 <body>
     @{
-        bool isAdminAuthenticated = User.Identity?.IsAuthenticated == true && User.IsInRole("Administrador");
+        bool isAuthenticated = User.Identity?.IsAuthenticated == true;
+        bool isAdminAuthenticated = isAuthenticated && (User.IsInRole("Administrador") || User.IsInRole("SuperUsuario"));
+        bool isCustomerAuthenticated = isAuthenticated && User.IsInRole("Cliente");
     }
 
     <div class="site-wrapper">
@@ -29,26 +31,32 @@
                             <span class="logo-text">NovaShop</span>
                         </a>
 
-                        <form class="header-search" role="search">
-                            <input type="text" placeholder="Buscar productos, marcas y categorías..." />
+                        <form class="header-search" role="search" method="get" asp-page="/Catalog/Index">
+                            <input type="text" name="SearchTerm" placeholder="Buscar productos, marcas y categorías..." />
                             <button type="submit">Buscar</button>
                         </form>
 
                         <div class="header-actions">
-                            @if (isAdminAuthenticated)
+                            @if (isAuthenticated)
                             {
-                                <a asp-area="" asp-page="/Admin/Index" class="header-action">Backoffice</a>
+                                @if (isAdminAuthenticated)
+                                {
+                                    <a asp-area="" asp-page="/Admin/Index" class="header-action">Panel</a>
+                                }
+                                else if (isCustomerAuthenticated)
+                                {
+                                    <a asp-area="" asp-page="/Account/Index" class="header-action">Mi cuenta</a>
+                                }
                                 <form method="post" asp-page="/Auth/Logout" class="d-inline">
-                                    <button type="submit" class="header-action btn btn-link p-0 border-0 text-decoration-none">Cerrar sesión admin</button>
+                                    <button type="submit" class="header-action btn btn-link p-0 border-0 text-decoration-none">Cerrar sesión</button>
                                 </form>
                             }
                             else
                             {
-                                <a asp-area="" asp-page="/Auth/Login" class="header-action">Acceso admin</a>
+                                <a asp-area="" asp-page="/Auth/Login" class="header-action">Ingresar</a>
+                                <a asp-area="" asp-page="/Auth/Register" class="header-action">Crear cuenta</a>
                             }
-
-                            <a href="#" class="header-action disabled-link" aria-disabled="true">Crear cuenta</a>
-                            <a href="#" class="header-action cart-action disabled-link" aria-disabled="true">Carrito</a>
+                            <a asp-area="" asp-page="/Cart/Index" class="header-action cart-action">Carrito</a>
 
                             <button type="button" id="themeToggle" class="theme-toggle-btn" title="Cambiar tema">
                                 <span id="themeToggleText">🌞 Claro</span>
@@ -66,14 +74,21 @@
                 <div class="container">
                     <nav class="category-nav" id="categoryNav">
                         <a asp-area="" asp-page="/Index">Inicio</a>
-                        <a href="#">Nuevos ingresos</a>
+                        <a asp-area="" asp-page="/Catalog/Index">Catálogo</a>
                         <a href="#">Ofertas</a>
                         <a href="#">Tecnología</a>
                         <a href="#">Hogar</a>
                         <a href="#">Moda</a>
                         <a href="#">Deportes</a>
-                        <a href="#" class="disabled-link" aria-disabled="true">Mi cuenta</a>
-                        <a href="#" class="disabled-link" aria-disabled="true">Carrito</a>
+                        @if (isCustomerAuthenticated)
+                        {
+                            <a asp-area="" asp-page="/Account/Index">Mi cuenta</a>
+                        }
+                        else
+                        {
+                            <a asp-area="" asp-page="/Auth/Login">Mi cuenta</a>
+                        }
+                        <a asp-area="" asp-page="/Cart/Index">Carrito</a>
                     </nav>
                 </div>
             </div>
@@ -104,17 +119,24 @@
 
                     <div>
                         <h5>Mi cuenta</h5>
-                        @if (isAdminAuthenticated)
+                        @if (isAuthenticated)
                         {
-                            <a asp-area="" asp-page="/Admin/Index">Backoffice</a>
+                            @if (isAdminAuthenticated)
+                            {
+                                <a asp-area="" asp-page="/Admin/Index">Panel</a>
+                            }
+                            else if (isCustomerAuthenticated)
+                            {
+                                <a asp-area="" asp-page="/Account/Index">Mi cuenta</a>
+                            }
+                            <span class="text-muted">Sesión activa</span>
                         }
                         else
                         {
-                            <a asp-area="" asp-page="/Auth/Login">Acceso admin</a>
+                            <a asp-area="" asp-page="/Auth/Login">Ingresar</a>
+                            <a asp-area="" asp-page="/Auth/Register">Crear cuenta</a>
                         }
-
-                        <a href="#" class="disabled-link" aria-disabled="true">Crear cuenta</a>
-                        <a href="#" class="disabled-link" aria-disabled="true">Carrito</a>
+                        <a asp-area="" asp-page="/Cart/Index">Carrito</a>
                     </div>
 
                     <div>
@@ -125,7 +147,7 @@
                         <a href="#">Contacto</a>
                         @if (isAdminAuthenticated)
                         {
-                            <a asp-area="" asp-page="/Admin/Index">Backoffice</a>
+                            <a asp-area="" asp-page="/Admin/Index">Panel</a>
                         }
                     </div>
                 </div>

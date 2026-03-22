@@ -48,6 +48,38 @@
     pointer-events: none;
 }
 
+.admin-nav-group {
+    margin-bottom: 0.5rem;
+}
+
+.admin-subnav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.15rem 0 0.25rem 1rem;
+}
+
+.admin-subnav-link {
+    display: block;
+    padding: 0.55rem 0.85rem;
+    border-radius: 0.75rem;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-subnav-link:hover {
+    background-color: rgba(148, 163, 184, 0.12);
+    color: #ffffff;
+}
+
+.admin-subnav-link.active {
+    background-color: rgba(59, 130, 246, 0.18);
+    color: #ffffff;
+    font-weight: 600;
+}
+
 .admin-content {
     min-height: 100vh;
 }
@@ -75,4 +107,77 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #64748b;
+}
+
+.admin-feedback-alert {
+    border-radius: 1rem;
+    border: 0;
+    box-shadow: 0 0.5rem 1.25rem rgba(15, 23, 42, 0.05);
+}
+
+.admin-action-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: min(100%, 18rem);
+    text-align: left;
+}
+
+.admin-empty-state {
+    padding: 1rem;
+    border-radius: 0.9rem;
+    background: #f8fafc;
+}
+
+.admin-form-section {
+    padding: 1.25rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #f8fafc;
+}
+
+.admin-readonly-pill {
+    padding: 0.9rem 1rem;
+    border-radius: 0.9rem;
+    background: #0f172a;
+    color: #f8fafc;
+    font-size: 0.95rem;
+}
+
+.admin-switch-card {
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #ffffff;
+}
+
+.admin-rule-list {
+    padding-left: 1.15rem;
+    margin: 0;
+    color: #475569;
+}
+
+.admin-rule-list li + li {
+    margin-top: 0.65rem;
+}
+
+.admin-definition-list dt {
+    color: #475569;
+    font-weight: 600;
+}
+
+.admin-definition-list dd {
+    color: #0f172a;
+}
+
+.admin-inline-validation:empty {
+    display: none;
+}
+
+@media (min-width: 992px) {
+    .admin-action-panel {
+        text-align: right;
+        align-items: stretch;
+    }
 }

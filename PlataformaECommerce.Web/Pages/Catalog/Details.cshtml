@@ -1,4 +1,113 @@
-﻿@page
+﻿@page "{id:guid}"
 @model PlataformaECommerce.Web.Pages.Catalog.DetailsModel
 @{
+    ViewData["Title"] = "Detalle del producto";
+}
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+        <div>
+            <div class="small text-uppercase text-muted fw-semibold">Detalle del producto</div>
+            <h1 class="h3 fw-bold mt-2 mb-1">@Model.Product.Name</h1>
+            <p class="text-muted mb-0">Revisa la ficha del producto y agrégalo al carrito para continuar con el checkout.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-page="./Index" class="btn btn-outline-secondary">Volver al catálogo</a>
+            <a asp-page="/Cart/Index" class="btn btn-outline-dark">Ver carrito</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-xl-7">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4 p-lg-5">
+                        <div class="small text-uppercase text-muted fw-semibold">@Model.Product.ProductTypeLabel</div>
+                        <h2 class="h4 fw-bold mt-2 mb-3">@Model.Product.Name</h2>
+                        <p class="text-muted">@Model.Product.Description</p>
+
+                        <dl class="row mb-0 mt-4">
+                            <dt class="col-sm-4 text-muted">SKU</dt>
+                            <dd class="col-sm-8">@Model.Product.Sku</dd>
+
+                            <dt class="col-sm-4 text-muted">Categoría</dt>
+                            <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Product.CategoryName) ? "Sin categoría informada" : Model.Product.CategoryName)</dd>
+
+                            <dt class="col-sm-4 text-muted">Stock disponible</dt>
+                            <dd class="col-sm-8">@Model.Product.Stock</dd>
+                        </dl>
+
+                        @if (Model.Product.Tags.Count > 0)
+                        {
+                            <div class="mt-4">
+                                <div class="small text-uppercase text-muted fw-semibold mb-2">Etiquetas</div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (string tag in Model.Product.Tags)
+                                    {
+                                        <span class="badge rounded-pill text-bg-secondary">@tag</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-5">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body p-4 p-lg-5">
+                        <div class="small text-uppercase text-muted fw-semibold">Resumen comercial</div>
+                        <div class="display-6 fw-bold mt-2">@Model.Product.Currency @Model.Product.Price.ToString("N2")</div>
+                        <div class="text-muted small mt-2">@(Model.Product.HasPromotion ? "Este producto tiene condiciones promocionales activas." : "Precio vigente sin promoción activa.")</div>
+
+                        <div class="border rounded-3 p-3 bg-light-subtle mt-4">
+                            <div class="small text-muted">Disponibilidad</div>
+                            <div class="fw-semibold mt-1">@(Model.Product.IsAvailable ? "Disponible para compra" : "No disponible")</div>
+                        </div>
+
+                        @if (Model.CanPurchaseAsCustomer && Model.Product.IsAvailable)
+                        {
+                            <form method="post" asp-page="/Cart/Index" asp-page-handler="AddItem" class="mt-4">
+                                <div class="mb-3">
+                                    <label asp-for="Input.Quantity" class="form-label"></label>
+                                    <input asp-for="Input.Quantity" class="form-control" min="1" />
+                                    <span asp-validation-for="Input.Quantity" class="text-danger small"></span>
+                                </div>
+                                <input type="hidden" name="productId" value="@Model.Product.Id" />
+                                <input type="hidden" name="returnUrl" value="@Url.Page("/Catalog/Details", new { id = Model.Product.Id, quantity = Model.Input.Quantity })" />
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">Agregar al carrito</button>
+                                    <a asp-page="/Checkout/Index" class="btn btn-outline-secondary">Ir al checkout</a>
+                                </div>
+                            </form>
+                        }
+                        else if (!Model.CanPurchaseAsCustomer)
+                        {
+                            <div class="d-grid gap-2 mt-4">
+                                <a asp-page="/Auth/Login" class="btn btn-primary">Ingresar para comprar</a>
+                                <a asp-page="/Auth/Register" class="btn btn-outline-secondary">Crear cuenta</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning mt-4 mb-0" role="alert">
+                                Este producto no está disponible para agregarse al carrito en este momento.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
 }

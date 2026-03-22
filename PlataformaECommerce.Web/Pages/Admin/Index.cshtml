@@ -35,6 +35,7 @@
                             <div class="fw-semibold mt-2">@Model.Role</div>
                             <div class="text-muted small">@Model.Email</div>
                             <div class="text-muted small">Área: @Model.Area</div>
+                            <div class="text-muted small">Privilegio elevado: @(Model.IsSuperUser ? "Sí" : "No")</div>
                             <div class="text-muted small">Autenticado: @(Model.IsAuthenticated ? "Sí" : "No")</div>
                         </div>
                     </div>
@@ -146,6 +147,14 @@
                 <div class="d-grid gap-2">
                     <a asp-page="/Admin/Audit/Index" class="btn btn-outline-dark btn-sm">Abrir auditoría administrativa</a>
                     <a asp-page="/Admin/Products/Index" class="btn btn-outline-primary btn-sm">Abrir catálogo administrativo</a>
+                    @if (Model.IsSuperUser)
+                    {
+                        <a asp-page="/Admin/Users/Index" class="btn btn-outline-success btn-sm">Abrir backoffice de usuarios</a>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-outline-success btn-sm" disabled>Backoffice de usuarios · Requiere super usuario</button>
+                    }
                     <a asp-page="/Index" class="btn btn-outline-secondary btn-sm">Ir al storefront</a>
                     <form method="post" asp-page="/Auth/Logout">
                         <button type="submit" class="btn btn-outline-danger btn-sm w-100">Cerrar sesión administrativa</button>

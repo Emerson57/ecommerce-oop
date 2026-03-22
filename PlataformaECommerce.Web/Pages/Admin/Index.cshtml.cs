@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Features.Admin.DTOs;
 using PlataformaECommerce.Application.Features.Admin.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Admin;
@@ -52,6 +53,11 @@ public sealed class IndexModel : PageModel
     public string Role { get; private set; } = "Administrador";
 
     /// <summary>
+    /// Obtiene un valor que indica si la cuenta actual posee privilegios de super usuario.
+    /// </summary>
+    public bool IsSuperUser { get; private set; }
+
+    /// <summary>
     /// Obtiene un valor que indica si la solicitud actual proviene de un usuario autenticado.
     /// </summary>
     public bool IsAuthenticated { get; private set; }
@@ -74,8 +80,11 @@ public sealed class IndexModel : PageModel
         IsAuthenticated = User.Identity?.IsAuthenticated == true;
         DisplayName = User.Identity?.Name ?? "Administrador";
         Email = User.FindFirstValue(ClaimTypes.Email);
-        Area = User.FindFirst("area")?.Value ?? "Operaciones";
-        Role = User.FindFirstValue(ClaimTypes.Role) ?? "Administrador";
+        Area = User.FindFirst(SecurityClaimTypes.AdminArea)?.Value ?? "Operaciones";
+        Role = User.FindFirstValue(SecurityClaimTypes.PrimaryRole)
+            ?? User.FindFirstValue(ClaimTypes.Role)
+            ?? "Administrador";
+        IsSuperUser = bool.TryParse(User.FindFirstValue(SecurityClaimTypes.IsSuperUser), out bool isSuperUser) && isSuperUser;
 
         GetAdminDashboardQuery query = new()
         {

@@ -26,22 +26,24 @@ namespace PlataformaECommerce.Web.Middlewares
             }
             catch (ArgumentOutOfRangeException ex)
             {
-                await ManejarExcepcionAsync(context, ex, HttpStatusCode.BadRequest, ex.Message);
+                _logger.LogWarning(ex, "Se produjo una excepción controlada de validación de rango.");
+                await ManejarExcepcionAsync(context, HttpStatusCode.BadRequest, "La solicitud no pudo procesarse correctamente.");
             }
             catch (ArgumentException ex)
             {
-                await ManejarExcepcionAsync(context, ex, HttpStatusCode.BadRequest, ex.Message);
+                _logger.LogWarning(ex, "Se produjo una excepción controlada de argumentos.");
+                await ManejarExcepcionAsync(context, HttpStatusCode.BadRequest, "La solicitud no pudo procesarse correctamente.");
             }
             catch (InvalidOperationException ex)
             {
-                await ManejarExcepcionAsync(context, ex, HttpStatusCode.BadRequest, ex.Message);
+                _logger.LogWarning(ex, "Se produjo una excepción controlada de operación.");
+                await ManejarExcepcionAsync(context, HttpStatusCode.BadRequest, "La solicitud no pudo procesarse correctamente.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Se produjo una excepción no controlada.");
                 await ManejarExcepcionAsync(
                     context,
-                    ex,
                     HttpStatusCode.InternalServerError,
                     "Ocurrió un error interno en el servidor.");
             }
@@ -50,7 +52,6 @@ namespace PlataformaECommerce.Web.Middlewares
         /// Construye y devuelve una respuesta JSON estructurada para la excepción recibida.
         private static async Task ManejarExcepcionAsync(
             HttpContext context,
-            Exception exception,
             HttpStatusCode statusCode,
             string mensaje)
         {
@@ -60,8 +61,8 @@ namespace PlataformaECommerce.Web.Middlewares
             var respuesta = new
             {
                 mensaje,
-                detalleTecnico = exception.GetType().Name,
-                codigo = (int)statusCode
+                codigo = (int)statusCode,
+                traceId = context.TraceIdentifier
             };
 
             var json = JsonSerializer.Serialize(respuesta);

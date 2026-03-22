@@ -142,6 +142,9 @@ public class CartApplicationServiceTests
         public Task<bool> ExistsByEmailAsync(Email email, CancellationToken cancellationToken = default)
             => Task.FromResult(email == _customer.CorreoElectronico);
 
+        public Task<bool> ExistsByRoleAsync(RolUsuario rol, CancellationToken cancellationToken = default)
+            => Task.FromResult(rol == RolUsuario.Cliente);
+
         public Task AddAsync(Usuario usuario, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task UpdateAsync(Usuario usuario, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task RemoveAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;

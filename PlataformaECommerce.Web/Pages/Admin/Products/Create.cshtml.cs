@@ -224,7 +224,13 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             /// <summary>
             /// Obtiene o establece el precio unitario del producto.
             /// </summary>
-            [Range(typeof(decimal), "0.01", "79228162514264337593543950335", ErrorMessage = "El precio debe ser mayor que cero.")]
+            [Range(
+                typeof(decimal),
+                "0.01",
+                "79228162514264337593543950335",
+                ParseLimitsInInvariantCulture = true,
+                ConvertValueInInvariantCulture = true,
+                ErrorMessage = "El precio debe ser mayor que cero.")]
             public decimal Price { get; set; }
 
             /// <summary>

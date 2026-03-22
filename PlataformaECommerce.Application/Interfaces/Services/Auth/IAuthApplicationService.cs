@@ -35,6 +35,39 @@ public interface IAuthApplicationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Inicia el flujo de recuperación de contraseña para una cuenta del sistema.
+    /// </summary>
+    /// <param name="command">Solicitud de recuperación de contraseña.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>
+    /// Un resultado aceptado de forma genérica, con previsualización del token únicamente cuando
+    /// la capa superior opere en un entorno controlado y el usuario sea elegible para el flujo.
+    /// </returns>
+    Task<Result<PasswordResetRequestResultDto>> RequestPasswordResetAsync(
+        RequestPasswordResetCommand command,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cambia la contraseña de un usuario autenticado mediante validación de su credencial actual.
+    /// </summary>
+    /// <param name="command">Solicitud autenticada de cambio de contraseña.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Un resultado del flujo de cambio de contraseña.</returns>
+    Task<Result> ChangePasswordAsync(
+        ChangePasswordCommand command,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Restablece la contraseña de un usuario a partir de un token temporal válido.
+    /// </summary>
+    /// <param name="command">Solicitud de restablecimiento.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Un resultado del flujo de restablecimiento.</returns>
+    Task<Result> ResetPasswordAsync(
+        ResetPasswordCommand command,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Obtiene la información del usuario autenticado actual.
     /// </summary>
     /// <param name="query">Consulta del usuario actual.</param>

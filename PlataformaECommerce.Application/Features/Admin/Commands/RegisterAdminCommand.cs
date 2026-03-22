@@ -1,5 +1,6 @@
 ﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Admin.DTOs;
+using PlataformaECommerce.Domain.Enums;
 
 namespace PlataformaECommerce.Application.Features.Admin.Commands;
 
@@ -71,6 +72,17 @@ public sealed class RegisterAdminCommand
     public string Area { get; init; } = string.Empty;
 
     /// <summary>
+    /// Rol administrativo objetivo para la nueva cuenta.
+    /// </summary>
+    /// <remarks>
+    /// En el flujo regular del backoffice este valor debe permanecer explícitamente
+    /// en <see cref="RolUsuario.Administrador"/>.
+    /// Solo el bootstrap controlado del sistema puede utilizar
+    /// <see cref="RolUsuario.SuperUsuario"/> para aprovisionar la cuenta raíz.
+    /// </remarks>
+    public RolUsuario Role { get; init; } = RolUsuario.Administrador;
+
+    /// <summary>
     /// Indica si la cuenta del administrador debe crearse inicialmente activa.
     /// </summary>
     public bool IsActive { get; init; } = true;
@@ -84,6 +96,11 @@ public sealed class RegisterAdminCommand
     /// donde el alta es realizada por personal autorizado.
     /// </remarks>
     public bool IsEmailConfirmed { get; init; }
+
+    /// <summary>
+    /// Indica si la solicitud corresponde al bootstrap controlado del primer super usuario.
+    /// </summary>
+    public bool IsBootstrap { get; init; }
 
     #endregion
 
@@ -142,7 +159,7 @@ public sealed class RegisterAdminCommand
     /// <returns>Cadena representativa del comando.</returns>
     public override string ToString()
     {
-        return $"RegisterAdminCommand | Name: {Name} | Email: {Email} | Area: {Area} | IsActive: {IsActive} | IsEmailConfirmed: {IsEmailConfirmed} | RequestedByUserId: {RequestedByUserId}";
+        return $"RegisterAdminCommand | Name: {Name} | Email: {Email} | Role: {Role} | Area: {Area} | IsActive: {IsActive} | IsEmailConfirmed: {IsEmailConfirmed} | IsBootstrap: {IsBootstrap} | RequestedByUserId: {RequestedByUserId}";
     }
 
     #endregion

@@ -1,5 +1,8 @@
 ﻿using FluentValidation;
+using PlataformaECommerce.Application.Common.Security;
+using PlataformaECommerce.Application.Features.Admin;
 using PlataformaECommerce.Application.Features.Admin.Commands;
+using PlataformaECommerce.Domain.Enums;
 
 namespace PlataformaECommerce.Application.Features.Admin.Validators;
 
@@ -28,65 +31,6 @@ namespace PlataformaECommerce.Application.Features.Admin.Validators;
 /// </remarks>
 public sealed class RegisterAdminCommandValidator : AbstractValidator<RegisterAdminCommand>
 {
-    #region Constantes de validación
-
-    /// <summary>
-    /// Longitud mínima permitida para el nombre del administrador.
-    /// </summary>
-    private const int MinNameLength = 3;
-
-    /// <summary>
-    /// Longitud máxima permitida para el nombre del administrador.
-    /// </summary>
-    private const int MaxNameLength = 100;
-
-    /// <summary>
-    /// Longitud máxima permitida para el correo electrónico.
-    /// </summary>
-    private const int MaxEmailLength = 256;
-
-    /// <summary>
-    /// Longitud mínima permitida para la contraseña.
-    /// </summary>
-    private const int MinPasswordLength = 8;
-
-    /// <summary>
-    /// Longitud máxima permitida para la contraseña.
-    /// </summary>
-    private const int MaxPasswordLength = 100;
-
-    /// <summary>
-    /// Longitud mínima permitida para el área organizacional.
-    /// </summary>
-    private const int MinAreaLength = 3;
-
-    /// <summary>
-    /// Longitud máxima permitida para el área organizacional.
-    /// </summary>
-    private const int MaxAreaLength = 60;
-
-    /// <summary>
-    /// Longitud máxima permitida para la dirección IP.
-    /// </summary>
-    private const int MaxIpAddressLength = 64;
-
-    /// <summary>
-    /// Longitud máxima permitida para el canal de origen.
-    /// </summary>
-    private const int MaxSourceLength = 50;
-
-    /// <summary>
-    /// Longitud máxima permitida para la referencia externa.
-    /// </summary>
-    private const int MaxExternalReferenceLength = 100;
-
-    /// <summary>
-    /// Longitud máxima permitida para el motivo funcional del registro.
-    /// </summary>
-    private const int MaxReasonLength = 300;
-
-    #endregion
-
     #region Constructor
 
     /// <summary>
@@ -113,16 +57,16 @@ public sealed class RegisterAdminCommandValidator : AbstractValidator<RegisterAd
         RuleFor(x => x.Name)
             .NotEmpty()
                 .WithMessage("El nombre del administrador es obligatorio.")
-            .MinimumLength(MinNameLength)
-                .WithMessage($"El nombre del administrador debe tener al menos {MinNameLength} caracteres.")
-            .MaximumLength(MaxNameLength)
-                .WithMessage($"El nombre del administrador no puede superar los {MaxNameLength} caracteres.");
+            .MinimumLength(AdminRegistrationPolicies.MinNameLength)
+                .WithMessage($"El nombre del administrador debe tener al menos {AdminRegistrationPolicies.MinNameLength} caracteres.")
+            .MaximumLength(AdminRegistrationPolicies.MaxNameLength)
+                .WithMessage($"El nombre del administrador no puede superar los {AdminRegistrationPolicies.MaxNameLength} caracteres.");
 
         RuleFor(x => x.Email)
             .NotEmpty()
                 .WithMessage("El correo electrónico del administrador es obligatorio.")
-            .MaximumLength(MaxEmailLength)
-                .WithMessage($"El correo electrónico del administrador no puede superar los {MaxEmailLength} caracteres.")
+            .MaximumLength(AdminRegistrationPolicies.MaxEmailLength)
+                .WithMessage($"El correo electrónico del administrador no puede superar los {AdminRegistrationPolicies.MaxEmailLength} caracteres.")
             .EmailAddress()
                 .WithMessage("El correo electrónico del administrador no tiene un formato válido.");
     }
@@ -135,17 +79,17 @@ public sealed class RegisterAdminCommandValidator : AbstractValidator<RegisterAd
         RuleFor(x => x.Password)
             .NotEmpty()
                 .WithMessage("La contraseña es obligatoria.")
-            .MinimumLength(MinPasswordLength)
-                .WithMessage($"La contraseña debe tener al menos {MinPasswordLength} caracteres.")
-            .MaximumLength(MaxPasswordLength)
-                .WithMessage($"La contraseña no puede superar los {MaxPasswordLength} caracteres.")
-            .Matches(@"[A-Z]")
+            .MinimumLength(AdminRegistrationPolicies.MinPasswordLength)
+                .WithMessage($"La contraseña debe tener al menos {AdminRegistrationPolicies.MinPasswordLength} caracteres.")
+            .MaximumLength(AdminRegistrationPolicies.MaxPasswordLength)
+                .WithMessage($"La contraseña no puede superar los {AdminRegistrationPolicies.MaxPasswordLength} caracteres.")
+            .Must(PasswordPolicyRules.HasUppercase)
                 .WithMessage("La contraseña debe contener al menos una letra mayúscula.")
-            .Matches(@"[a-z]")
+            .Must(PasswordPolicyRules.HasLowercase)
                 .WithMessage("La contraseña debe contener al menos una letra minúscula.")
-            .Matches(@"\d")
+            .Must(PasswordPolicyRules.HasDigit)
                 .WithMessage("La contraseña debe contener al menos un número.")
-            .Matches(@"[^a-zA-Z0-9]")
+            .Must(PasswordPolicyRules.HasSpecialCharacter)
                 .WithMessage("La contraseña debe contener al menos un carácter especial.");
 
         RuleFor(x => x.ConfirmPassword)
@@ -163,14 +107,34 @@ public sealed class RegisterAdminCommandValidator : AbstractValidator<RegisterAd
         RuleFor(x => x.Area)
             .NotEmpty()
                 .WithMessage("El área del administrador es obligatoria.")
-            .MinimumLength(MinAreaLength)
-                .WithMessage($"El área del administrador debe tener al menos {MinAreaLength} caracteres.")
-            .MaximumLength(MaxAreaLength)
-                .WithMessage($"El área del administrador no puede superar los {MaxAreaLength} caracteres.");
+            .MinimumLength(AdminRegistrationPolicies.MinAreaLength)
+                .WithMessage($"El área del administrador debe tener al menos {AdminRegistrationPolicies.MinAreaLength} caracteres.")
+            .MaximumLength(AdminRegistrationPolicies.MaxAreaLength)
+                .WithMessage($"El área del administrador no puede superar los {AdminRegistrationPolicies.MaxAreaLength} caracteres.");
+
+        RuleFor(x => x.Role)
+            .Equal(RolUsuario.Administrador)
+                .When(x => !x.IsBootstrap)
+                .WithMessage("La creación administrativa desde el backoffice solo puede generar cuentas con rol Administrador.");
 
         RuleFor(x => x.RequestedByUserId)
             .Must(id => !id.HasValue || id.Value != Guid.Empty)
                 .WithMessage("El identificador del usuario solicitante no puede ser un valor vacío.");
+
+        RuleFor(x => x.Role)
+            .Equal(RolUsuario.SuperUsuario)
+                .When(x => x.IsBootstrap)
+                .WithMessage("El bootstrap inicial solo puede crear una cuenta con rol SuperUsuario.");
+
+        RuleFor(x => x.IsActive)
+            .Equal(true)
+                .When(x => x.IsBootstrap)
+                .WithMessage("El bootstrap inicial debe crear una cuenta administrativa activa.");
+
+        RuleFor(x => x.IsEmailConfirmed)
+            .Equal(true)
+                .When(x => x.IsBootstrap)
+                .WithMessage("El bootstrap inicial debe crear una cuenta administrativa con correo confirmado.");
     }
 
     /// <summary>
@@ -179,23 +143,23 @@ public sealed class RegisterAdminCommandValidator : AbstractValidator<RegisterAd
     private void ConfigureContextRules()
     {
         RuleFor(x => x.IpAddress)
-            .MaximumLength(MaxIpAddressLength)
-                .WithMessage($"La dirección IP no puede superar los {MaxIpAddressLength} caracteres.")
+            .MaximumLength(AdminRegistrationPolicies.MaxIpAddressLength)
+                .WithMessage($"La dirección IP no puede superar los {AdminRegistrationPolicies.MaxIpAddressLength} caracteres.")
             .Must(BeAValidIpAddress)
                 .When(x => !string.IsNullOrWhiteSpace(x.IpAddress))
                 .WithMessage("La dirección IP informada no es válida.");
 
         RuleFor(x => x.Source)
-            .MaximumLength(MaxSourceLength)
-                .WithMessage($"El canal de origen no puede superar los {MaxSourceLength} caracteres.");
+            .MaximumLength(AdminRegistrationPolicies.MaxSourceLength)
+                .WithMessage($"El canal de origen no puede superar los {AdminRegistrationPolicies.MaxSourceLength} caracteres.");
 
         RuleFor(x => x.ExternalReference)
-            .MaximumLength(MaxExternalReferenceLength)
-                .WithMessage($"La referencia externa no puede superar los {MaxExternalReferenceLength} caracteres.");
+            .MaximumLength(AdminRegistrationPolicies.MaxExternalReferenceLength)
+                .WithMessage($"La referencia externa no puede superar los {AdminRegistrationPolicies.MaxExternalReferenceLength} caracteres.");
 
         RuleFor(x => x.Reason)
-            .MaximumLength(MaxReasonLength)
-                .WithMessage($"El motivo funcional no puede superar los {MaxReasonLength} caracteres.");
+            .MaximumLength(AdminRegistrationPolicies.MaxReasonLength)
+                .WithMessage($"El motivo funcional no puede superar los {AdminRegistrationPolicies.MaxReasonLength} caracteres.");
     }
 
     #endregion

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Admin.Commands;
 using PlataformaECommerce.Application.Features.Admin.DTOs;
@@ -22,7 +23,7 @@ public class AdminDashboardPageModelTests
             new Claim(ClaimTypes.Name, "Admin Demo"),
             new Claim(ClaimTypes.Email, "admin@plataforma.com"),
             new Claim(ClaimTypes.Role, "Administrador"),
-            new Claim("area", "Operaciones")
+            new Claim(SecurityClaimTypes.AdminArea, "Operaciones")
         ], "AdminCookie"));
 
         pageModel.PageContext = new PageContext
@@ -49,6 +50,11 @@ public class AdminDashboardPageModelTests
             throw new NotSupportedException();
         }
 
+        public Task<Result<AdminRegistrationDefinitionDto>> GetAdminRegistrationDefinitionAsync(GetAdminRegistrationDefinitionQuery query, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
         public Task<Result<AdminDashboardDto>> GetDashboardAsync(GetAdminDashboardQuery query, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Result.Success(new AdminDashboardDto
@@ -69,6 +75,16 @@ public class AdminDashboardPageModelTests
                 AuditEventsLast24Hours = 7,
                 RecentActivities = Array.Empty<AdminDashboardRecentActivityDto>()
             }));
+        }
+
+        public Task<Result<AdminUsersBackofficeDto>> GetUsersAsync(GetAdminUsersQuery query, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<Result<AdminBackofficeUserDto>> ResetUserPasswordAsync(ResetUserPasswordCommand command, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }

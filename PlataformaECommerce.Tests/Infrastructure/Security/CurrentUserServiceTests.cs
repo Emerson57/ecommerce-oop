@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using PlataformaECommerce.Application.Common.Security;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Infrastructure.Services.Common;
 
 namespace PlataformaECommerce.Tests.Infrastructure.Security;
@@ -36,5 +38,24 @@ public class CurrentUserServiceTests
         CurrentUserService service = new(accessor);
 
         Assert.That(service.Email, Is.EqualTo("cliente@plataforma.com"));
+    }
+
+    [Test]
+    public void Role_SuperUsuarioConRolPrimario_RetornaSuperUsuario()
+    {
+        DefaultHttpContext httpContext = new();
+        httpContext.User = new ClaimsPrincipal(
+            new ClaimsIdentity(
+                [
+                    new Claim(SecurityClaimTypes.PrimaryRole, RolUsuario.SuperUsuario.ToString()),
+                    new Claim(ClaimTypes.Role, RolUsuario.SuperUsuario.ToString()),
+                    new Claim(ClaimTypes.Role, RolUsuario.Administrador.ToString())
+                ],
+                authenticationType: "Bearer"));
+
+        HttpContextAccessor accessor = new() { HttpContext = httpContext };
+        CurrentUserService service = new(accessor);
+
+        Assert.That(service.Role, Is.EqualTo(RolUsuario.SuperUsuario.ToString()));
     }
 }

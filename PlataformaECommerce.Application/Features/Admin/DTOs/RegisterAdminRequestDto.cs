@@ -1,7 +1,7 @@
 ﻿namespace PlataformaECommerce.Application.Features.Admin.DTOs;
 
 /// <summary>
-/// Representa la solicitud de registro de un administrador dentro de la capa de aplicación.
+/// Representa la solicitud del formulario de creación de administrador desde el backoffice.
 /// </summary>
 /// <remarks>
 /// Este DTO se utiliza para transportar la información necesaria para registrar
@@ -9,16 +9,14 @@
 /// respecto de las entidades del dominio.
 ///
 /// Su propósito es servir como contrato de entrada para:
+/// - Razor Pages del backoffice,
 /// - endpoints HTTP administrativos,
 /// - comandos de aplicación,
-/// - servicios de aplicación,
-/// - flujos de aprovisionamiento interno,
-/// - procesos de onboarding organizacional.
+/// - servicios de aplicación.
 ///
-/// La estructura contiene únicamente datos de transporte y no debe incluir
-/// lógica de negocio ni reglas de validación complejas, las cuales deben
-/// resolverse en la capa Application mediante validadores especializados
-/// y, posteriormente, reforzarse en el dominio.
+/// La estructura contiene únicamente los datos capturados por la UI para crear
+/// una cuenta cuyo rol final siempre será <c>Administrador</c>.
+/// La UI no utiliza este contrato para crear <c>SuperUsuario</c>.
 /// </remarks>
 public sealed class RegisterAdminRequestDto
 {
