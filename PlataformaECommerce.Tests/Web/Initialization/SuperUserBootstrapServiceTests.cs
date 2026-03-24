@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Admin.Commands;
@@ -94,6 +95,58 @@ public class SuperUserBootstrapServiceTests
     }
 
     [Test]
+    public void BootstrapAsync_ProduccionSinHabilitacionExplicita_LanzaInvalidOperationException()
+    {
+        FakeUserRepository userRepository = new();
+        FakeAdminApplicationService adminApplicationService = new();
+        SuperUserBootstrapService service = CreateService(
+            CreateEnabledOptions(),
+            userRepository,
+            adminApplicationService,
+            environmentName: Environments.Production);
+
+        AsyncTestDelegate action = async () => await service.BootstrapAsync(CancellationToken.None);
+
+        Assert.That(action, Throws.InvalidOperationException.With.Message.Contains("AllowInProduction"));
+    }
+
+    [Test]
+    public void BootstrapAsync_ProduccionConBootstrapAunHabilitadoTrasPrimerUso_LanzaInvalidOperationException()
+    {
+        FakeUserRepository userRepository = new() { SuperUsersExist = true };
+        FakeAdminApplicationService adminApplicationService = new();
+        SuperUserBootstrapService service = CreateService(
+            CreateEnabledOptions(),
+            userRepository,
+            adminApplicationService,
+            environmentName: Environments.Production);
+
+        AsyncTestDelegate action = async () => await service.BootstrapAsync(CancellationToken.None);
+
+        Assert.That(action, Throws.InvalidOperationException.With.Message.Contains("debe permanecer deshabilitada en producción"));
+    }
+
+    [Test]
+    public async Task BootstrapAsync_ProduccionConHabilitacionExplicitaYPrimerUso_RegistraSuperUsuarioBootstrap()
+    {
+        FakeUserRepository userRepository = new();
+        FakeAdminApplicationService adminApplicationService = new();
+        BootstrapSuperUserOptions options = CreateEnabledOptions();
+        options.AllowInProduction = true;
+
+        SuperUserBootstrapService service = CreateService(
+            options,
+            userRepository,
+            adminApplicationService,
+            environmentName: Environments.Production);
+
+        await service.BootstrapAsync(CancellationToken.None);
+
+        Assert.That(adminApplicationService.RegisterCalls, Is.EqualTo(1));
+        Assert.That(adminApplicationService.LastCommand?.IsBootstrap, Is.True);
+    }
+
+    [Test]
     public void BootstrapAsync_RegistroAdministrativoFallido_LanzaInvalidOperationException()
     {
         FakeUserRepository userRepository = new();
@@ -114,12 +167,14 @@ public class SuperUserBootstrapServiceTests
     private static SuperUserBootstrapService CreateService(
         BootstrapSuperUserOptions options,
         FakeUserRepository userRepository,
-        FakeAdminApplicationService adminApplicationService)
+        FakeAdminApplicationService adminApplicationService,
+        string environmentName = "Development")
     {
         return new SuperUserBootstrapService(
             Options.Create(options),
             userRepository,
             adminApplicationService,
+            new FakeHostEnvironment(environmentName),
             NullLogger<SuperUserBootstrapService>.Instance);
     }
 
@@ -133,6 +188,21 @@ public class SuperUserBootstrapServiceTests
             Password = "Password#2026",
             Area = " Plataforma "
         };
+    }
+
+    private sealed class FakeHostEnvironment : IHostEnvironment
+    {
+        public FakeHostEnvironment(string environmentName)
+        {
+            EnvironmentName = environmentName;
+            ApplicationName = "PlataformaECommerce.Web";
+            ContentRootPath = AppContext.BaseDirectory;
+        }
+
+        public string EnvironmentName { get; set; }
+        public string ApplicationName { get; set; }
+        public string ContentRootPath { get; set; }
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
     }
 
     private sealed class FakeAdminApplicationService : IAdminApplicationService

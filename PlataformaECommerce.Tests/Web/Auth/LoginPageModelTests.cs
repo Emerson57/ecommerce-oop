@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
@@ -111,7 +112,7 @@ public class LoginPageModelTests
 
     private static LoginModel CreatePageModel(FakeAuthApplicationService authApplicationService, FakeAuthenticationService authenticationService)
     {
-        LoginModel pageModel = new(authApplicationService);
+        LoginModel pageModel = new(authApplicationService, NullLogger<LoginModel>.Instance);
 
         ServiceCollection services = new();
         services.AddSingleton<IAuthenticationService>(authenticationService);

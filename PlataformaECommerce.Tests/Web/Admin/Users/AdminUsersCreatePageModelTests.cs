@@ -52,7 +52,7 @@ public class AdminUsersCreatePageModelTests
 
         Assert.That(result, Is.TypeOf<RedirectToPageResult>());
         Assert.That(service.LastRegisterCommand?.Email, Is.EqualTo("admin.nuevo@plataforma.com"));
-        Assert.That(pageModel.StatusMessage, Is.EqualTo("El administrador 'Admin Nuevo' fue creado correctamente."));
+        Assert.That(pageModel.StatusMessage, Is.EqualTo("El administrador 'Admin Nuevo' fue creado correctamente con el correo 'admin.nuevo@plataforma.com'."));
     }
 
     [Test]

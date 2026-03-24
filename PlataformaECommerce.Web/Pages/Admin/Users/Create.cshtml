@@ -46,7 +46,12 @@
                     <h2 class="h5 fw-bold mb-2">Datos del nuevo administrador</h2>
                     <p class="text-muted mb-4">Complete la información mínima requerida para habilitar una nueva cuenta operativa del backoffice.</p>
 
-                    <form method="post" id="admin-create-form" novalidate>
+                    <form method="post"
+                          id="admin-create-form"
+                          novalidate
+                          data-admin-create-form
+                          data-password-min-length="@AdminRegistrationPolicies.MinPasswordLength"
+                          data-password-max-length="@AdminRegistrationPolicies.MaxPasswordLength">
                         <div asp-validation-summary="ModelOnly" class="alert alert-danger admin-inline-validation mb-4" role="alert" aria-live="assertive"></div>
 
                         <fieldset class="admin-form-section mb-4">
@@ -68,15 +73,28 @@
 
                                 <div class="col-md-6">
                                     <label asp-for="Input.Password" class="form-label"></label>
-                                    <input asp-for="Input.Password" type="password" class="form-control" autocomplete="new-password" required minlength="@AdminRegistrationPolicies.MinPasswordLength" maxlength="@AdminRegistrationPolicies.MaxPasswordLength" aria-describedby="password-help" />
+                                    <input asp-for="Input.Password" type="password" class="form-control" autocomplete="new-password" required minlength="@AdminRegistrationPolicies.MinPasswordLength" maxlength="@AdminRegistrationPolicies.MaxPasswordLength" aria-describedby="password-help" data-admin-create-password />
                                     <div id="password-help" class="form-text">Use una contraseña temporal robusta. La política completa se valida nuevamente en servidor.</div>
                                     <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                                    <div class="form-text mt-2" aria-live="polite">
+                                        <div class="fw-semibold text-body-secondary mb-2">Requisitos de seguridad</div>
+                                        <ul class="list-unstyled small mb-0" data-admin-create-password-rules>
+                                            <li data-password-rule="length" class="text-muted">Debe tener entre 8 y 100 caracteres.</li>
+                                            <li data-password-rule="uppercase" class="text-muted">Debe incluir al menos una letra mayúscula.</li>
+                                            <li data-password-rule="lowercase" class="text-muted">Debe incluir al menos una letra minúscula.</li>
+                                            <li data-password-rule="digit" class="text-muted">Debe incluir al menos un número.</li>
+                                            <li data-password-rule="special" class="text-muted">Debe incluir al menos un carácter especial.</li>
+                                        </ul>
+                                    </div>
                                 </div>
 
                                 <div class="col-md-6">
                                     <label asp-for="Input.ConfirmPassword" class="form-label"></label>
-                                    <input asp-for="Input.ConfirmPassword" type="password" class="form-control" autocomplete="new-password" required minlength="@AdminRegistrationPolicies.MinPasswordLength" maxlength="@AdminRegistrationPolicies.MaxPasswordLength" />
+                                    <input asp-for="Input.ConfirmPassword" type="password" class="form-control" autocomplete="new-password" required minlength="@AdminRegistrationPolicies.MinPasswordLength" maxlength="@AdminRegistrationPolicies.MaxPasswordLength" data-admin-create-confirm-password />
                                     <span asp-validation-for="Input.ConfirmPassword" class="text-danger small"></span>
+                                    <div class="small text-muted mt-2" data-admin-create-confirm-feedback aria-live="polite">
+                                        Repite la contraseña para validar coincidencia.
+                                    </div>
                                 </div>
                             </div>
                         </fieldset>
@@ -132,7 +150,7 @@
                         </fieldset>
 
                         <div class="d-flex flex-wrap gap-2 mt-4">
-                            <button type="submit" class="btn btn-dark" id="submit-admin-create">Guardar administrador</button>
+                            <button type="submit" class="btn btn-dark" id="submit-admin-create" data-admin-create-submit>Guardar administrador</button>
                             <a asp-page="./Index" class="btn btn-outline-secondary">Cancelar</a>
                         </div>
                     </form>
@@ -187,19 +205,5 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script>
-        (() => {
-            const form = document.getElementById('admin-create-form');
-            const submitButton = document.getElementById('submit-admin-create');
-
-            if (!form || !submitButton) {
-                return;
-            }
-
-            form.addEventListener('submit', () => {
-                submitButton.setAttribute('disabled', 'disabled');
-                submitButton.textContent = 'Creando...';
-            });
-        })();
-    </script>
+    <script src="~/js/admin/users/create.js" asp-append-version="true"></script>
 }

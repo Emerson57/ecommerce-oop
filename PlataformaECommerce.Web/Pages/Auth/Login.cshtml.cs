@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Logging;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
@@ -14,25 +15,27 @@ using PlataformaECommerce.Web.Authorization;
 namespace PlataformaECommerce.Web.Pages.Auth
 {
     /// <summary>
-    /// Proporciona el flujo de autenticación administrativa interactiva para Razor Pages.
+    /// Proporciona el flujo interactivo de inicio de sesión por correo electrónico para Razor Pages.
     /// </summary>
     /// <remarks>
-    /// Esta página valida credenciales administrativas y emite una cookie autenticada
-    /// destinada al backoffice, permitiendo acceso controlado a funcionalidades
-    /// protegidas como la auditoría administrativa.
+    /// Esta página captura credenciales de acceso basadas en correo electrónico y delega la autenticación
+    /// a <c>Application</c>, emitiendo posteriormente la cookie apropiada según el tipo de cuenta autenticada.
     /// </remarks>
     [AllowAnonymous]
     public sealed class LoginModel : PageModel
     {
         private readonly IAuthApplicationService _authApplicationService;
+        private readonly ILogger<LoginModel> _logger;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="LoginModel"/>.
         /// </summary>
         /// <param name="authApplicationService">Servicio de aplicación de autenticación.</param>
-        public LoginModel(IAuthApplicationService authApplicationService)
+        /// <param name="logger">Registrador estructurado del flujo de autenticación web.</param>
+        public LoginModel(IAuthApplicationService authApplicationService, ILogger<LoginModel> logger)
         {
             _authApplicationService = authApplicationService ?? throw new ArgumentNullException(nameof(authApplicationService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -78,35 +81,37 @@ namespace PlataformaECommerce.Web.Pages.Auth
             }
 
             var result = await _authApplicationService.LoginAsync(
-                new LoginCommand
-                {
-                    Email = Input.Email,
-                    Password = Input.Password,
-                    RememberMe = Input.RememberMe,
-                    ExternalReference = "Web.Auth.Login"
-                },
+                CreateLoginCommand(),
                 cancellationToken);
 
             if (result.IsFailure)
             {
-                ErrorMessage = "Las credenciales suministradas no son válidas o la cuenta no está habilitada.";
+                _logger.LogWarning(
+                    "Se rechazó un intento de autenticación por correo. Email: {Email}. RemoteIp: {RemoteIp}. ErrorCode: {ErrorCode}",
+                    Input.Email,
+                    HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    result.Error.Code);
+
+                ErrorMessage = "El correo electrónico o la contraseña no son válidos, o la cuenta no está habilitada.";
                 return Page();
             }
 
             if (!TryBuildAuthenticatedSession(result.Value.User, out ClaimsPrincipal? principal, out string authenticationScheme, out string redirectPage))
             {
+                _logger.LogWarning(
+                    "Se rechazó la emisión de sesión autenticada por inconsistencia de identidad. UserId: {UserId}. Email: {Email}. Role: {Role}. IsSuperUser: {IsSuperUser}",
+                    result.Value.User.Id,
+                    result.Value.User.Email,
+                    result.Value.User.Role,
+                    result.Value.User.IsSuperUser);
+
                 ErrorMessage = "La cuenta autenticada no cumple los requisitos de seguridad y acceso requeridos para esta sección.";
                 return Page();
             }
 
-            DateTimeOffset issuedAtUtc = DateTimeOffset.UtcNow;
-            AuthenticationProperties authenticationProperties = new()
-            {
-                IsPersistent = Input.RememberMe,
-                AllowRefresh = true,
-                IssuedUtc = issuedAtUtc,
-                ExpiresUtc = issuedAtUtc.AddHours(Input.RememberMe ? 24 : 8)
-            };
+            LogAuthenticationSuccess(result.Value.User, authenticationScheme, redirectPage);
+
+            AuthenticationProperties authenticationProperties = CreateAuthenticationProperties();
 
             await HttpContext.SignOutAsync(AuthorizationPolicies.AdminCookieScheme);
             await HttpContext.SignOutAsync(AuthorizationPolicies.CustomerCookieScheme);
@@ -122,6 +127,57 @@ namespace PlataformaECommerce.Web.Pages.Auth
             }
 
             return RedirectToPage(redirectPage);
+        }
+
+        private void LogAuthenticationSuccess(CurrentUserDto user, string authenticationScheme, string redirectPage)
+        {
+            ArgumentNullException.ThrowIfNull(user);
+
+            if (string.Equals(authenticationScheme, AuthorizationPolicies.AdminCookieScheme, StringComparison.Ordinal))
+            {
+                _logger.LogInformation(
+                    "Se concedió acceso privilegiado al backoffice. UserId: {UserId}. Email: {Email}. Role: {Role}. IsSuperUser: {IsSuperUser}. RemoteIp: {RemoteIp}. RedirectPage: {RedirectPage}",
+                    user.Id,
+                    user.Email,
+                    user.Role,
+                    user.IsSuperUser,
+                    HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    redirectPage);
+
+                return;
+            }
+
+            _logger.LogInformation(
+                "Se concedió acceso autenticado al sitio público. UserId: {UserId}. Email: {Email}. Role: {Role}. RemoteIp: {RemoteIp}. RedirectPage: {RedirectPage}",
+                user.Id,
+                user.Email,
+                user.Role,
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                redirectPage);
+        }
+
+        private LoginCommand CreateLoginCommand()
+        {
+            return new LoginCommand
+            {
+                Email = Input.Email,
+                Password = Input.Password,
+                RememberMe = Input.RememberMe,
+                ExternalReference = "Web.Auth.Login"
+            };
+        }
+
+        private AuthenticationProperties CreateAuthenticationProperties()
+        {
+            DateTimeOffset issuedAtUtc = DateTimeOffset.UtcNow;
+
+            return new AuthenticationProperties
+            {
+                IsPersistent = Input.RememberMe,
+                AllowRefresh = true,
+                IssuedUtc = issuedAtUtc,
+                ExpiresUtc = issuedAtUtc.AddHours(Input.RememberMe ? 24 : 8)
+            };
         }
 
         private static bool TryBuildAuthenticatedSession(

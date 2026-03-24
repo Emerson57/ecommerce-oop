@@ -56,6 +56,29 @@ public class RegisterPageModelTests
     }
 
     [Test]
+    public async Task OnPostAsync_ConsentimientosObligatoriosNoAceptados_NoInvocaRegistro()
+    {
+        FakeUserApplicationService service = new();
+        RegisterModel pageModel = CreatePageModel(service);
+        pageModel.Input = new RegisterModel.InputModel
+        {
+            Name = "Cliente Demo",
+            Email = "cliente@plataforma.com",
+            Password = "Password#2026",
+            ConfirmPassword = "Password#2026",
+            AcceptTermsAndConditions = false,
+            AcceptPrivacyPolicy = false
+        };
+
+        IActionResult result = await pageModel.OnPostAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(service.RegisterCalls, Is.EqualTo(0));
+        Assert.That(pageModel.ModelState[$"{nameof(RegisterModel.Input)}.{nameof(RegisterModel.InputModel.AcceptTermsAndConditions)}"]?.Errors, Has.Count.EqualTo(1));
+        Assert.That(pageModel.ModelState[$"{nameof(RegisterModel.Input)}.{nameof(RegisterModel.InputModel.AcceptPrivacyPolicy)}"]?.Errors, Has.Count.EqualTo(1));
+    }
+
+    [Test]
     public async Task OnPostAsync_AplicacionRetornaError_PublicaMensajeFuncional()
     {
         FakeUserApplicationService service = new()

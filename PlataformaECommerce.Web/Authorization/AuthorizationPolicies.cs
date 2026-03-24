@@ -199,6 +199,7 @@ public static class AuthorizationPolicies
         ArgumentNullException.ThrowIfNull(options);
 
         options.Cookie.Name = AdminCookieName;
+        options.Cookie.IsEssential = true;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
@@ -218,6 +219,7 @@ public static class AuthorizationPolicies
         ArgumentNullException.ThrowIfNull(options);
 
         options.Cookie.Name = CustomerCookieName;
+        options.Cookie.IsEssential = true;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;

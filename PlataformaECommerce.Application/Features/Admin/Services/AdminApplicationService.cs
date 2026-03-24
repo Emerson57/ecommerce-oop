@@ -118,39 +118,12 @@ public sealed class AdminApplicationService : IAdminApplicationService
                     Error.Conflict("Admin.EmailAlreadyExists", $"Ya existe un usuario registrado con el correo '{command.Email}'."));
             }
 
-            string passwordHash = _passwordHasher.HashPassword(command.Password);
+            Administrador admin = CreateAdministrator(command, email);
 
-            RolUsuario targetRole = command.IsBootstrap
-                ? RolUsuario.SuperUsuario
-                : RolUsuario.Administrador;
-
-            Administrador admin = new(
-                command.Name,
-                email,
-                passwordHash,
-                command.Area,
-                targetRole);
-
-            if (!command.IsActive)
+            Error? registrationError = await PersistAndAuditAdminRegistrationAsync(admin, command, cancellationToken).ConfigureAwait(false);
+            if (registrationError is not null)
             {
-                admin.Desactivar();
-            }
-
-            if (command.IsEmailConfirmed)
-            {
-                admin.ConfirmarCorreoElectronico();
-            }
-
-            try
-            {
-                await _userRepository.AddAsync(admin, cancellationToken).ConfigureAwait(false);
-                await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                await AuditAdminEventAsync(admin, command, cancellationToken).ConfigureAwait(false);
-            }
-            catch (InvalidOperationException)
-            {
-                return Result.Failure<AdminDto>(
-                    Error.Failure("Admin.Persistence", "No fue posible completar el alta administrativa."));
+                return Result.Failure<AdminDto>(registrationError);
             }
 
             return Result.Success(admin.ToAdminDto());
@@ -442,6 +415,70 @@ public sealed class AdminApplicationService : IAdminApplicationService
     private static Email CreateEmail(string value)
     {
         return new Email(value);
+    }
+
+    private Administrador CreateAdministrator(RegisterAdminCommand command, Email email)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        ArgumentNullException.ThrowIfNull(email);
+
+        string passwordHash = _passwordHasher.HashPassword(command.Password);
+        RolUsuario targetRole = ResolveTargetAdministrativeRole(command);
+
+        Administrador admin = new(
+            command.Name,
+            email,
+            passwordHash,
+            command.Area,
+            targetRole);
+
+        if (!command.IsActive)
+        {
+            admin.Desactivar();
+        }
+
+        if (command.IsEmailConfirmed)
+        {
+            admin.ConfirmarCorreoElectronico();
+        }
+
+        return admin;
+    }
+
+    private async Task<Error?> PersistAndAuditAdminRegistrationAsync(
+        Administrador admin,
+        RegisterAdminCommand command,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(admin);
+        ArgumentNullException.ThrowIfNull(command);
+
+        try
+        {
+            await _unitOfWork.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            await _userRepository.AddAsync(admin, cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            await AuditAdminEventAsync(admin, command, cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken).ConfigureAwait(false);
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+            return Error.Failure(
+                "Admin.Persistence",
+                "No fue posible completar el alta administrativa con persistencia y auditoría obligatoria.");
+        }
+    }
+
+    private static RolUsuario ResolveTargetAdministrativeRole(RegisterAdminCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        return command.IsBootstrap
+            ? RolUsuario.SuperUsuario
+            : RolUsuario.Administrador;
     }
 
     private static AdminBackofficeUserDto MapToBackofficeUser(Usuario user)

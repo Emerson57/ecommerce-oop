@@ -1,9 +1,11 @@
-﻿using System.Text;
+﻿using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
@@ -40,6 +42,8 @@ namespace PlataformaECommerce.Infrastructure.DependencyInjection;
 /// </remarks>
 public static class InfrastructureServiceRegistration
 {
+    private const int DevelopmentJwtSigningKeyLengthInBytes = 48;
+
     /// <summary>
     /// Registra los servicios de infraestructura requeridos por la solución,
     /// incluyendo persistencia SQL Server, auditoría MongoDB y adaptadores
@@ -47,18 +51,21 @@ public static class InfrastructureServiceRegistration
     /// </summary>
     /// <param name="services">Colección de servicios de la aplicación.</param>
     /// <param name="configuration">Configuración raíz del entorno.</param>
+    /// <param name="hostEnvironment">Entorno de ejecución actual.</param>
     /// <returns>La colección de servicios para encadenar registro.</returns>
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
 
-        RegisterOptions(services, configuration);
+        RegisterOptions(services, configuration, hostEnvironment);
         RegisterPersistence(services, configuration);
         RegisterMongo(services);
-        RegisterSecurity(services, configuration);
+        RegisterSecurity(services, configuration, hostEnvironment);
 
         return services;
     }
@@ -68,7 +75,11 @@ public static class InfrastructureServiceRegistration
     /// </summary>
     /// <param name="services">Colección de servicios.</param>
     /// <param name="configuration">Configuración raíz del entorno.</param>
-    private static void RegisterOptions(IServiceCollection services, IConfiguration configuration)
+    /// <param name="hostEnvironment">Entorno de ejecución actual.</param>
+    private static void RegisterOptions(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
     {
         services
             .AddOptions<MongoDbSettings>()
@@ -79,7 +90,7 @@ public static class InfrastructureServiceRegistration
         services
             .AddOptions<JwtSettings>()
             .Bind(configuration.GetSection(JwtSettings.SectionName))
-            .ValidateDataAnnotations()
+            .Validate(settings => HasValidJwtSettings(settings, hostEnvironment), BuildJwtValidationMessage(hostEnvironment))
             .ValidateOnStart();
     }
 
@@ -131,19 +142,28 @@ public static class InfrastructureServiceRegistration
     /// </summary>
     /// <param name="services">Colección de servicios.</param>
     /// <param name="configuration">Configuración raíz del entorno.</param>
-    private static void RegisterSecurity(IServiceCollection services, IConfiguration configuration)
+    /// <param name="hostEnvironment">Entorno de ejecución actual.</param>
+    private static void RegisterSecurity(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
     {
         JwtSettings jwtSettings = configuration
             .GetSection(JwtSettings.SectionName)
             .Get<JwtSettings>()
             ?? throw new InvalidOperationException("No se encontró la configuración JWT requerida por la solución.");
 
-        if (string.IsNullOrWhiteSpace(jwtSettings.SigningKey) || jwtSettings.SigningKey.Length < 32)
-        {
-            throw new InvalidOperationException("La configuración JWT requiere una clave de firma de al menos 32 caracteres.");
-        }
+        string signingKey = ResolveJwtSigningKey(jwtSettings, hostEnvironment);
 
-        byte[] signingKeyBytes = Encoding.UTF8.GetBytes(jwtSettings.SigningKey);
+        services.PostConfigure<JwtSettings>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.SigningKey) || options.SigningKey.Length < 32)
+            {
+                options.SigningKey = signingKey;
+            }
+        });
+
+        byte[] signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
 
         services.AddDataProtection();
         services.TryAddSingleton<IPasswordHasher, IdentityPasswordHasher>();
@@ -155,8 +175,8 @@ public static class InfrastructureServiceRegistration
         services.TryAddSingleton<Microsoft.AspNetCore.Http.IHttpContextAccessor, Microsoft.AspNetCore.Http.HttpContextAccessor>();
 
         services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+            .AddAuthentication()
+            .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
             {
                 options.RequireHttpsMetadata = jwtSettings.RequireHttpsMetadata;
                 options.SaveToken = true;
@@ -173,5 +193,53 @@ public static class InfrastructureServiceRegistration
                     ClockSkew = TimeSpan.FromMinutes(1)
                 };
             });
+    }
+
+    private static bool HasValidJwtSettings(JwtSettings settings, IHostEnvironment hostEnvironment)
+    {
+        if (settings is null)
+        {
+            return false;
+        }
+
+        bool hasValidCoreSettings =
+            !string.IsNullOrWhiteSpace(settings.Issuer)
+            && !string.IsNullOrWhiteSpace(settings.Audience)
+            && settings.AccessTokenExpirationMinutes is >= 1 and <= 1440
+            && settings.RefreshTokenExpirationDays is >= 1 and <= 90;
+
+        if (!hasValidCoreSettings)
+        {
+            return false;
+        }
+
+        return hostEnvironment.IsDevelopment()
+            || (!string.IsNullOrWhiteSpace(settings.SigningKey) && settings.SigningKey.Length >= 32);
+    }
+
+    private static string BuildJwtValidationMessage(IHostEnvironment hostEnvironment)
+    {
+        return hostEnvironment.IsDevelopment()
+            ? "La configuración JWT requiere emisor, audiencia y expiraciones válidas. En Development la clave de firma puede omitirse porque se genera temporalmente en memoria."
+            : "La configuración JWT requiere emisor, audiencia, expiraciones válidas y una clave de firma de al menos 32 caracteres.";
+    }
+
+    private static string ResolveJwtSigningKey(JwtSettings jwtSettings, IHostEnvironment hostEnvironment)
+    {
+        ArgumentNullException.ThrowIfNull(jwtSettings);
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
+
+        if (!string.IsNullOrWhiteSpace(jwtSettings.SigningKey) && jwtSettings.SigningKey.Length >= 32)
+        {
+            return jwtSettings.SigningKey;
+        }
+
+        if (hostEnvironment.IsDevelopment())
+        {
+            return Convert.ToBase64String(RandomNumberGenerator.GetBytes(DevelopmentJwtSigningKeyLengthInBytes));
+        }
+
+        throw new InvalidOperationException(
+            "La configuración JWT requiere una clave de firma de al menos 32 caracteres. Configure 'Jwt:SigningKey' mediante variables de entorno, User Secrets o un proveedor seguro equivalente.");
     }
 }

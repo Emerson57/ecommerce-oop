@@ -1,7 +1,7 @@
 ﻿@page
 @model PlataformaECommerce.Web.Pages.Auth.LoginModel
 @{
-    ViewData["Title"] = "Ingresar";
+    ViewData["Title"] = "Ingresar con correo electrónico";
 }
 
 <div class="container py-5">
@@ -10,9 +10,9 @@
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4 p-lg-5">
                     <div class="text-center mb-4">
-                        <h1 class="h3 fw-bold mb-2">Ingresar</h1>
+                        <h1 class="h3 fw-bold mb-2">Ingresar con correo electrónico</h1>
                         <p class="text-muted mb-0">
-                            Inicie sesión con su cuenta para acceder de forma segura a las funcionalidades disponibles del sistema.
+                            Inicie sesión con el correo electrónico registrado y su contraseña para acceder de forma segura a las funcionalidades disponibles del sistema.
                         </p>
                     </div>
 
@@ -37,7 +37,8 @@
 
                         <div class="mb-3">
                             <label asp-for="Input.Email" class="form-label">Correo electrónico</label>
-                            <input asp-for="Input.Email" class="form-control" autocomplete="username" placeholder="usuario@novashop.com" />
+                            <input asp-for="Input.Email" class="form-control" autocomplete="email" placeholder="usuario@novashop.com" />
+                            <div class="form-text">Usaremos tu correo electrónico como identificador principal de acceso.</div>
                             <span asp-validation-for="Input.Email" class="text-danger small"></span>
                         </div>
 
@@ -53,12 +54,12 @@
                         </div>
 
                         <div class="text-end mb-4">
-                            <a asp-page="/Auth/ForgotPassword" class="small text-decoration-none">Recuperar contraseña</a>
+                            <a asp-page="/Auth/ForgotPassword" class="small text-decoration-none">Recuperar acceso por correo</a>
                         </div>
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Ingresar</button>
-                            <a asp-page="/Auth/Register" class="btn btn-outline-primary">Crear cuenta</a>
+                            <a asp-page="/Auth/Register" class="btn btn-outline-primary">Crear cuenta con correo electrónico</a>
                             <a asp-page="/Index" class="btn btn-outline-secondary">Volver al inicio</a>
                         </div>
                     </form>

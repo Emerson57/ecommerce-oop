@@ -116,26 +116,15 @@ public sealed class RegisterModel : PageModel
     /// <returns>Resultado de navegación correspondiente al registro.</returns>
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
+        ValidateRequiredConsents();
+
         if (!ModelState.IsValid)
         {
             return Page();
         }
 
         var result = await _userApplicationService.RegisterCustomerAsync(
-            new RegisterCustomerCommand
-            {
-                Name = Input.Name,
-                Email = Input.Email,
-                Password = Input.Password,
-                ConfirmPassword = Input.ConfirmPassword,
-                Preferences = ParsePreferences(Input.PreferencesText),
-                AcceptTermsAndConditions = Input.AcceptTermsAndConditions,
-                AcceptPrivacyPolicy = Input.AcceptPrivacyPolicy,
-                AcceptMarketingCommunications = Input.AcceptMarketingCommunications,
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-                Source = RegisterSource,
-                ExternalReference = RegisterSource
-            },
+            CreateRegisterCustomerCommand(),
             cancellationToken);
 
         if (result.IsFailure)
@@ -144,8 +133,43 @@ public sealed class RegisterModel : PageModel
             return Page();
         }
 
-        StatusMessage = "La cuenta fue creada correctamente. Conserva tu correo y contraseña para continuar cuando tu acceso se encuentre habilitado.";
+        StatusMessage = "La cuenta fue creada correctamente. Conserva tu correo electrónico y contraseña para continuar cuando tu acceso se encuentre habilitado.";
         return RedirectToPage("/Auth/Login");
+    }
+
+    private RegisterCustomerCommand CreateRegisterCustomerCommand()
+    {
+        return new RegisterCustomerCommand
+        {
+            Name = Input.Name,
+            Email = Input.Email,
+            Password = Input.Password,
+            ConfirmPassword = Input.ConfirmPassword,
+            Preferences = ParsePreferences(Input.PreferencesText),
+            AcceptTermsAndConditions = Input.AcceptTermsAndConditions,
+            AcceptPrivacyPolicy = Input.AcceptPrivacyPolicy,
+            AcceptMarketingCommunications = Input.AcceptMarketingCommunications,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Source = RegisterSource,
+            ExternalReference = RegisterSource
+        };
+    }
+
+    private void ValidateRequiredConsents()
+    {
+        if (!Input.AcceptTermsAndConditions)
+        {
+            ModelState.AddModelError(
+                $"{nameof(Input)}.{nameof(InputModel.AcceptTermsAndConditions)}",
+                "Debes aceptar los términos y condiciones.");
+        }
+
+        if (!Input.AcceptPrivacyPolicy)
+        {
+            ModelState.AddModelError(
+                $"{nameof(Input)}.{nameof(InputModel.AcceptPrivacyPolicy)}",
+                "Debes aceptar la política de tratamiento de datos personales.");
+        }
     }
 
     private static IReadOnlyCollection<string> ParsePreferences(string? preferencesText)
@@ -211,14 +235,12 @@ public sealed class RegisterModel : PageModel
         /// Indica si el cliente acepta términos y condiciones.
         /// </summary>
         [Display(Name = "Acepto los términos y condiciones")]
-        [Range(typeof(bool), "true", "true", ErrorMessage = "Debes aceptar los términos y condiciones.")]
         public bool AcceptTermsAndConditions { get; set; }
 
         /// <summary>
         /// Indica si el cliente acepta la política de tratamiento de datos.
         /// </summary>
         [Display(Name = "Acepto la política de tratamiento de datos")]
-        [Range(typeof(bool), "true", "true", ErrorMessage = "Debes aceptar la política de tratamiento de datos personales.")]
         public bool AcceptPrivacyPolicy { get; set; }
 
         /// <summary>

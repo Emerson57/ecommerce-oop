@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Features.Admin.Commands;
 using PlataformaECommerce.Application.Features.Admin.DTOs;
@@ -22,6 +23,7 @@ public sealed class SuperUserBootstrapService
     private readonly BootstrapSuperUserOptions _options;
     private readonly IUserRepository _userRepository;
     private readonly IAdminApplicationService _adminApplicationService;
+    private readonly IHostEnvironment _hostEnvironment;
     private readonly ILogger<SuperUserBootstrapService> _logger;
 
     /// <summary>
@@ -30,11 +32,13 @@ public sealed class SuperUserBootstrapService
     /// <param name="options">Opciones de bootstrap del super usuario.</param>
     /// <param name="userRepository">Repositorio de usuarios del sistema.</param>
     /// <param name="adminApplicationService">Servicio de aplicación administrativo.</param>
+    /// <param name="hostEnvironment">Entorno de ejecución actual.</param>
     /// <param name="logger">Registrador estructurado del proceso de bootstrap.</param>
     public SuperUserBootstrapService(
         IOptions<BootstrapSuperUserOptions> options,
         IUserRepository userRepository,
         IAdminApplicationService adminApplicationService,
+        IHostEnvironment hostEnvironment,
         ILogger<SuperUserBootstrapService> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -42,6 +46,7 @@ public sealed class SuperUserBootstrapService
         _options = options.Value;
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _adminApplicationService = adminApplicationService ?? throw new ArgumentNullException(nameof(adminApplicationService));
+        _hostEnvironment = hostEnvironment ?? throw new ArgumentNullException(nameof(hostEnvironment));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -59,11 +64,19 @@ public sealed class SuperUserBootstrapService
 
         ValidateOptions(_options);
 
-        if (await SuperUserExistsAsync(cancellationToken).ConfigureAwait(false))
+        bool superUserExists = await SuperUserExistsAsync(cancellationToken).ConfigureAwait(false);
+
+        EnsureBootstrapAllowedForCurrentEnvironment(superUserExists);
+
+        if (superUserExists)
         {
             _logger.LogInformation("El bootstrap del super usuario fue omitido porque ya existe una cuenta con rol SuperUsuario.");
             return;
         }
+
+        _logger.LogWarning(
+            "Se iniciará el bootstrap del super usuario inicial en el entorno '{EnvironmentName}'. Verifique que las credenciales provengan de configuración segura.",
+            _hostEnvironment.EnvironmentName);
 
         RegisterAdminCommand command = BuildCommand(_options);
         var result = await _adminApplicationService.RegisterAdminAsync(command, cancellationToken);
@@ -77,6 +90,38 @@ public sealed class SuperUserBootstrapService
             "Se creó el super usuario inicial '{Email}' mediante bootstrap. Deshabilite {SectionName} para evitar nuevas ejecuciones.",
             command.Email,
             BootstrapSuperUserOptions.SectionName);
+    }
+
+    private void EnsureBootstrapAllowedForCurrentEnvironment(bool superUserExists)
+    {
+        if (!_hostEnvironment.IsProduction())
+        {
+            return;
+        }
+
+        if (superUserExists)
+        {
+            _logger.LogCritical(
+                "Se detectó bootstrap del super usuario habilitado en producción después del aprovisionamiento inicial. Deshabilite la sección {SectionName} antes de iniciar nuevamente la aplicación.",
+                BootstrapSuperUserOptions.SectionName);
+
+            throw new InvalidOperationException(
+                $"La configuración '{BootstrapSuperUserOptions.SectionName}' debe permanecer deshabilitada en producción después del bootstrap inicial.");
+        }
+
+        if (_options.AllowInProduction)
+        {
+            _logger.LogCritical(
+                "El bootstrap del super usuario se ejecutará en producción mediante habilitación explícita. Esta configuración debe retirarse inmediatamente después del aprovisionamiento inicial.");
+            return;
+        }
+
+        _logger.LogCritical(
+            "Se bloqueó un intento de bootstrap del super usuario en producción sin habilitación explícita. Configure {SectionName}:AllowInProduction solo para el aprovisionamiento inicial y elimínelo después de usarlo.",
+            BootstrapSuperUserOptions.SectionName);
+
+        throw new InvalidOperationException(
+            $"El bootstrap del super usuario en producción requiere habilitación explícita mediante '{BootstrapSuperUserOptions.SectionName}:AllowInProduction'.");
     }
 
     private Task<bool> SuperUserExistsAsync(CancellationToken cancellationToken)

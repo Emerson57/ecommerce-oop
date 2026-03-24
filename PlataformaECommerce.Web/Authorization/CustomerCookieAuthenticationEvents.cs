@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
 
 namespace PlataformaECommerce.Web.Authorization;
 
@@ -33,5 +34,40 @@ public sealed class CustomerCookieAuthenticationEvents : CookieAuthenticationEve
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync(AuthorizationPolicies.CustomerCookieScheme).ConfigureAwait(false);
         }
+    }
+
+    /// <inheritdoc />
+    public override Task RedirectToLogin(RedirectContext<CookieAuthenticationOptions> context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (IsApiRequest(context.HttpContext.Request))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        return base.RedirectToLogin(context);
+    }
+
+    /// <inheritdoc />
+    public override Task RedirectToAccessDenied(RedirectContext<CookieAuthenticationOptions> context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (IsApiRequest(context.HttpContext.Request))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        return base.RedirectToAccessDenied(context);
+    }
+
+    private static bool IsApiRequest(HttpRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return request.Path.StartsWithSegments("/api");
     }
 }

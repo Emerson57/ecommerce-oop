@@ -93,7 +93,23 @@ public sealed class CreateModel : PageModel
             return await LoadDefinitionAndRenderPageAsync(cancellationToken, applyDefaultValues: false);
         }
 
-        var result = await _adminApplicationService.RegisterAdminAsync(new RegisterAdminCommand
+        var result = await _adminApplicationService.RegisterAdminAsync(
+            CreateRegisterAdminCommand(),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = result.Error.Message;
+            return await LoadDefinitionAndRenderPageAsync(cancellationToken, applyDefaultValues: false);
+        }
+
+        StatusMessage = $"El administrador '{result.Value.Name}' fue creado correctamente con el correo '{result.Value.Email}'.";
+        return RedirectToPage("./Index");
+    }
+
+    private RegisterAdminCommand CreateRegisterAdminCommand()
+    {
+        return new RegisterAdminCommand
         {
             Name = Input.Name,
             Email = Input.Email,
@@ -106,16 +122,7 @@ public sealed class CreateModel : PageModel
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             Source = "AdminPortal",
             Reason = string.IsNullOrWhiteSpace(Input.Reason) ? null : Input.Reason.Trim()
-        }, cancellationToken);
-
-        if (result.IsFailure)
-        {
-            ErrorMessage = result.Error.Message;
-            return await LoadDefinitionAndRenderPageAsync(cancellationToken, applyDefaultValues: false);
-        }
-
-        StatusMessage = $"El administrador '{result.Value.Name}' fue creado correctamente.";
-        return RedirectToPage("./Index");
+        };
     }
 
     private async Task<IActionResult> LoadDefinitionAndRenderPageAsync(

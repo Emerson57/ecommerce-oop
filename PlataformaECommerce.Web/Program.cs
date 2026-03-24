@@ -65,7 +65,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddApplicationServices();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 builder.Services
     .AddOptions<BootstrapSuperUserOptions>()
     .Bind(builder.Configuration.GetSection(BootstrapSuperUserOptions.SectionName))

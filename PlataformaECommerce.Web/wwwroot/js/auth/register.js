@@ -331,12 +331,9 @@
             evaluatePasswordRules() &&
             evaluatePasswordConfirmation() &&
             evaluatePreferences() &&
-            evaluateConsents() &&
-            emailState.isValid &&
-            emailState.isAvailable &&
-            !emailState.isChecking;
+            evaluateConsents();
 
-        submitButton.disabled = !isFormValid;
+        submitButton.setAttribute("aria-disabled", (!isFormValid).toString());
     }
 
     async function revalidateEmailAndSubmitState() {
@@ -391,12 +388,14 @@
     });
 
     form.addEventListener("submit", function (event) {
-        updateSubmitState();
+        triggerClientValidation(nameInput);
+        triggerClientValidation(emailInput);
+        triggerClientValidation(passwordInput);
+        triggerClientValidation(confirmPasswordInput);
+        triggerClientValidation(termsInput);
+        triggerClientValidation(privacyInput);
 
-        if (submitButton.disabled) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
+        updateSubmitState();
     });
 
     updateSubmitState();

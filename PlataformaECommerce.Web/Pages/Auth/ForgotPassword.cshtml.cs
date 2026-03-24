@@ -8,7 +8,7 @@ using PlataformaECommerce.Application.Interfaces.Services.Auth;
 namespace PlataformaECommerce.Web.Pages.Auth;
 
 /// <summary>
-/// Gestiona la solicitud interactiva de recuperación de contraseña para el acceso administrativo.
+/// Gestiona la solicitud interactiva de recuperación de contraseña basada en correo electrónico.
 /// </summary>
 [AllowAnonymous]
 public sealed class ForgotPasswordModel : PageModel
@@ -106,7 +106,7 @@ public sealed class ForgotPasswordModel : PageModel
     public sealed class InputModel
     {
         /// <summary>
-        /// Correo electrónico de la cuenta administrativa.
+        /// Correo electrónico de la cuenta a recuperar.
         /// </summary>
         [Required(ErrorMessage = "El correo electrónico es obligatorio.")]
         [EmailAddress(ErrorMessage = "El correo electrónico no tiene un formato válido.")]

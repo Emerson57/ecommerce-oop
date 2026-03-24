@@ -99,7 +99,9 @@ public sealed class IndexModel : PageModel
             return RedirectToPage("/Cart/Index");
         }
 
-        if (!ValidateInputModel(Input, nameof(Input)))
+        ValidateRequiredConfirmation();
+
+        if (!ModelState.IsValid || !ValidateInputModel(Input, nameof(Input)))
         {
             return Page();
         }
@@ -197,6 +199,16 @@ public sealed class IndexModel : PageModel
         return HttpContext.SignOutAsync(AuthorizationPolicies.CustomerCookieScheme);
     }
 
+    private void ValidateRequiredConfirmation()
+    {
+        if (!Input.ConfirmOrderCreation)
+        {
+            ModelState.AddModelError(
+                $"{nameof(Input)}.{nameof(CheckoutInputModel.ConfirmOrderCreation)}",
+                "Debes confirmar la creación del pedido para continuar.");
+        }
+    }
+
     private bool ValidateInputModel(object model, string prefix)
     {
         ArgumentNullException.ThrowIfNull(model);
@@ -282,7 +294,6 @@ public sealed class IndexModel : PageModel
         public string? Notes { get; set; }
 
         [Display(Name = "Confirmo que deseo generar el pedido con los productos del carrito")]
-        [Range(typeof(bool), "true", "true", ErrorMessage = "Debes confirmar la creación del pedido para continuar.")]
         public bool ConfirmOrderCreation { get; set; }
     }
 }

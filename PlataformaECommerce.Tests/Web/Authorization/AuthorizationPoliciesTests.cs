@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Web.Pages.Admin.Users;
 using PlataformaECommerce.Web.Authorization;
@@ -75,6 +77,38 @@ public class AuthorizationPoliciesTests
 
         Assert.That(attribute?.Policy, Is.EqualTo(AuthorizationPolicies.SuperUserOnly));
         Assert.That(attribute?.AuthenticationSchemes, Is.EqualTo(AuthorizationPolicies.AdminCookieScheme));
+    }
+
+    [Test]
+    public void ConfigureAdminCookie_AplicaHardeningEsperado()
+    {
+        CookieAuthenticationOptions options = new();
+
+        AuthorizationPolicies.ConfigureAdminCookie(options);
+
+        Assert.That(options.Cookie.Name, Is.EqualTo(AuthorizationPolicies.AdminCookieName));
+        Assert.That(options.Cookie.IsEssential, Is.True);
+        Assert.That(options.Cookie.HttpOnly, Is.True);
+        Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Strict));
+        Assert.That(options.Cookie.SecurePolicy, Is.EqualTo(CookieSecurePolicy.Always));
+        Assert.That(options.ExpireTimeSpan, Is.EqualTo(TimeSpan.FromHours(8)));
+        Assert.That(options.SlidingExpiration, Is.True);
+    }
+
+    [Test]
+    public void ConfigureCustomerCookie_AplicaHardeningEsperado()
+    {
+        CookieAuthenticationOptions options = new();
+
+        AuthorizationPolicies.ConfigureCustomerCookie(options);
+
+        Assert.That(options.Cookie.Name, Is.EqualTo(AuthorizationPolicies.CustomerCookieName));
+        Assert.That(options.Cookie.IsEssential, Is.True);
+        Assert.That(options.Cookie.HttpOnly, Is.True);
+        Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Strict));
+        Assert.That(options.Cookie.SecurePolicy, Is.EqualTo(CookieSecurePolicy.Always));
+        Assert.That(options.ExpireTimeSpan, Is.EqualTo(TimeSpan.FromHours(8)));
+        Assert.That(options.SlidingExpiration, Is.True);
     }
 
     [Test]

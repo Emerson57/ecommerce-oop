@@ -53,6 +53,25 @@ public class CheckoutIndexPageModelTests
         Assert.That(orderApplicationService.LastCreateOrderCommand?.Notes, Is.EqualTo("Entrega prioritaria"));
     }
 
+    [Test]
+    public async Task OnPostPlaceOrderAsync_SinConfirmacion_RetornaPaginaYNoCreaPedido()
+    {
+        FakeCartApplicationService cartApplicationService = new();
+        FakeOrderApplicationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
+        pageModel.Input = new IndexModel.CheckoutInputModel
+        {
+            ConfirmOrderCreation = false,
+            Notes = "Entrega prioritaria"
+        };
+
+        IActionResult result = await pageModel.OnPostPlaceOrderAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastCreateOrderCommand, Is.Null);
+        Assert.That(pageModel.ModelState[$"{nameof(IndexModel.Input)}.{nameof(IndexModel.CheckoutInputModel.ConfirmOrderCreation)}"]?.Errors, Has.Count.EqualTo(1));
+    }
+
     private static IndexModel CreatePageModel(
         FakeCartApplicationService cartApplicationService,
         FakeOrderApplicationService orderApplicationService,

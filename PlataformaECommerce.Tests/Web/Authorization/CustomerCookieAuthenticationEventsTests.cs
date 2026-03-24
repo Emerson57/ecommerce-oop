@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
@@ -9,7 +8,7 @@ using PlataformaECommerce.Web.Authorization;
 namespace PlataformaECommerce.Tests.Web.Authorization;
 
 [TestFixture]
-public class AdminCookieAuthenticationEventsTests
+public class CustomerCookieAuthenticationEventsTests
 {
     [Test]
     public async Task ValidatePrincipal_PrincipalInvalido_RechazaYRevocaLaCookie()
@@ -23,35 +22,31 @@ public class AdminCookieAuthenticationEventsTests
         };
 
         AuthenticationScheme scheme = new(
-            AuthorizationPolicies.AdminCookieScheme,
-            AuthorizationPolicies.AdminCookieScheme,
+            AuthorizationPolicies.CustomerCookieScheme,
+            AuthorizationPolicies.CustomerCookieScheme,
             typeof(CookieAuthenticationHandler));
         CookieAuthenticationOptions options = new();
         AuthenticationTicket ticket = new(
-            CreateAdministrativePrincipal(),
+            CreateCustomerPrincipal(),
             new AuthenticationProperties(),
-            AuthorizationPolicies.AdminCookieScheme);
+            AuthorizationPolicies.CustomerCookieScheme);
         CookieValidatePrincipalContext context = new(httpContext, scheme, options, ticket);
-        AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository()),
-            NullLogger<AdminCookieAuthenticationEvents>.Instance);
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository()));
 
         await events.ValidatePrincipal(context);
 
         Assert.That(authenticationService.SignOutCalls, Is.EqualTo(1));
-        Assert.That(authenticationService.LastSignOutScheme, Is.EqualTo(AuthorizationPolicies.AdminCookieScheme));
+        Assert.That(authenticationService.LastSignOutScheme, Is.EqualTo(AuthorizationPolicies.CustomerCookieScheme));
     }
 
     [Test]
     public async Task RedirectToLogin_SolicitudApi_Retorna401SinRedireccion()
     {
         DefaultHttpContext httpContext = new();
-        httpContext.Request.Path = "/api/admin/products";
+        httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository()),
-            NullLogger<AdminCookieAuthenticationEvents>.Instance);
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository()));
 
         await events.RedirectToLogin(context);
 
@@ -63,12 +58,10 @@ public class AdminCookieAuthenticationEventsTests
     public async Task RedirectToAccessDenied_SolicitudApi_Retorna403SinRedireccion()
     {
         DefaultHttpContext httpContext = new();
-        httpContext.Request.Path = "/api/admin/products";
+        httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository()),
-            NullLogger<AdminCookieAuthenticationEvents>.Instance);
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository()));
 
         await events.RedirectToAccessDenied(context);
 
@@ -76,25 +69,25 @@ public class AdminCookieAuthenticationEventsTests
         Assert.That(httpContext.Response.Headers.Location.ToString(), Is.Empty);
     }
 
-    private static ClaimsPrincipal CreateAdministrativePrincipal()
+    private static System.Security.Claims.ClaimsPrincipal CreateCustomerPrincipal()
     {
-        return new ClaimsPrincipal(new ClaimsIdentity(
+        return new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(
         [
-            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-            new Claim(ClaimTypes.Name, "Admin Demo"),
-            new Claim(ClaimTypes.Role, "Administrador"),
-            new Claim(AuthorizationPolicies.PrimaryRoleClaimType, "Administrador"),
-            new Claim(AuthorizationPolicies.SuperUserClaimType, bool.FalseString),
-            new Claim(AuthorizationPolicies.AdminAreaClaimType, "Operaciones")
-        ], AuthorizationPolicies.AdminCookieScheme));
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Cliente Demo"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, "cliente@plataforma.com"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Cliente"),
+            new System.Security.Claims.Claim(AuthorizationPolicies.PrimaryRoleClaimType, "Cliente"),
+            new System.Security.Claims.Claim(AuthorizationPolicies.SuperUserClaimType, bool.FalseString)
+        ], AuthorizationPolicies.CustomerCookieScheme));
     }
 
     private static RedirectContext<CookieAuthenticationOptions> CreateRedirectContext(HttpContext httpContext)
     {
         CookieAuthenticationOptions options = new();
         AuthenticationScheme scheme = new(
-            AuthorizationPolicies.AdminCookieScheme,
-            AuthorizationPolicies.AdminCookieScheme,
+            AuthorizationPolicies.CustomerCookieScheme,
+            AuthorizationPolicies.CustomerCookieScheme,
             typeof(CookieAuthenticationHandler));
 
         return new RedirectContext<CookieAuthenticationOptions>(
@@ -119,7 +112,7 @@ public class AdminCookieAuthenticationEventsTests
         public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)
             => Task.CompletedTask;
 
-        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties)
+        public Task SignInAsync(HttpContext context, string? scheme, System.Security.Claims.ClaimsPrincipal principal, AuthenticationProperties? properties)
             => Task.CompletedTask;
 
         public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties)

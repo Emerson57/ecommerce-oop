@@ -32,13 +32,14 @@ public class AdminApplicationServiceTests
         Administrador superUserActor = CreateSuperUserActor();
         await userRepository.AddAsync(superUserActor);
         FakeAuditTrailService auditTrailService = new();
+        FakeUnitOfWork unitOfWork = new();
         AdminApplicationService service = new(
             new FakeProductRepository(),
             new FakeOrderRepository(),
             userRepository,
             new FakeCartRepository(),
             new FakeAuditRepository(),
-            new FakeUnitOfWork(),
+            unitOfWork,
             new FakePasswordHasher(),
             auditTrailService,
             new FakeCurrentUserService(userId: superUserActor.Id, role: RolUsuario.SuperUsuario.ToString()),
@@ -56,6 +57,10 @@ public class AdminApplicationServiceTests
         });
 
         Assert.That(auditTrailService.RegisteredEvents.Count, Is.EqualTo(1));
+        Assert.That(unitOfWork.BeginTransactionAsyncCallCount, Is.EqualTo(1));
+        Assert.That(unitOfWork.SaveChangesAsyncCallCount, Is.EqualTo(1));
+        Assert.That(unitOfWork.CommitTransactionAsyncCallCount, Is.EqualTo(1));
+        Assert.That(unitOfWork.RollbackTransactionAsyncCallCount, Is.EqualTo(0));
     }
 
     [Test]
@@ -126,6 +131,34 @@ public class AdminApplicationServiceTests
 
         Assert.That(result.IsFailure, Is.True);
         Assert.That(result.Error.Code, Is.EqualTo("Admin.SuperUserRequired"));
+    }
+
+    [Test]
+    public async Task RegisterAdminAsync_UsuarioNoAutenticado_RetornaErrorDeAutorizacion()
+    {
+        AdminApplicationService service = new(
+            new FakeProductRepository(),
+            new FakeOrderRepository(),
+            new FakeUserRepository(),
+            new FakeCartRepository(),
+            new FakeAuditRepository(),
+            new FakeUnitOfWork(),
+            new FakePasswordHasher(),
+            new FakeAuditTrailService(),
+            new FakeCurrentUserService(isAuthenticated: false, role: null),
+            new RegisterAdminCommandValidator());
+
+        Result<AdminDto> result = await service.RegisterAdminAsync(new RegisterAdminCommand
+        {
+            Name = "Admin No Auth",
+            Email = "admin.noauth@plataforma.com",
+            Password = "Password#2026",
+            ConfirmPassword = "Password#2026",
+            Area = "Operaciones"
+        });
+
+        Assert.That(result.IsFailure, Is.True);
+        Assert.That(result.Error.Code, Is.EqualTo("Admin.AuthenticationRequired"));
     }
 
     [Test]
@@ -205,6 +238,7 @@ public class AdminApplicationServiceTests
         Administrador superUserActor = CreateSuperUserActor();
         await userRepository.AddAsync(superUserActor);
         userRepository.ThrowOnAdd = true;
+        FakeUnitOfWork unitOfWork = new();
 
         AdminApplicationService service = new(
             new FakeProductRepository(),
@@ -212,7 +246,7 @@ public class AdminApplicationServiceTests
             userRepository,
             new FakeCartRepository(),
             new FakeAuditRepository(),
-            new FakeUnitOfWork(),
+            unitOfWork,
             new FakePasswordHasher(),
             new FakeAuditTrailService(),
             new FakeCurrentUserService(userId: superUserActor.Id, role: RolUsuario.SuperUsuario.ToString()),
@@ -229,6 +263,49 @@ public class AdminApplicationServiceTests
 
         Assert.That(result.IsFailure, Is.True);
         Assert.That(result.Error.Code, Is.EqualTo("Admin.Persistence"));
+        Assert.That(unitOfWork.RollbackTransactionAsyncCallCount, Is.EqualTo(1));
+        Assert.That(unitOfWork.CommitTransactionAsyncCallCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task RegisterAdminAsync_FalloDeAuditoria_RetornaFalloControladoYRevierteLaTransaccion()
+    {
+        FakeUserRepository userRepository = new();
+        Administrador superUserActor = CreateSuperUserActor();
+        await userRepository.AddAsync(superUserActor);
+        FakeAuditTrailService auditTrailService = new()
+        {
+            ThrowOnRegister = true
+        };
+        FakeUnitOfWork unitOfWork = new();
+
+        AdminApplicationService service = new(
+            new FakeProductRepository(),
+            new FakeOrderRepository(),
+            userRepository,
+            new FakeCartRepository(),
+            new FakeAuditRepository(),
+            unitOfWork,
+            new FakePasswordHasher(),
+            auditTrailService,
+            new FakeCurrentUserService(userId: superUserActor.Id, role: RolUsuario.SuperUsuario.ToString()),
+            new RegisterAdminCommandValidator());
+
+        Result<AdminDto> result = await service.RegisterAdminAsync(new RegisterAdminCommand
+        {
+            Name = "Admin Auditoria",
+            Email = "admin.auditoria@plataforma.com",
+            Password = "Password#2026",
+            ConfirmPassword = "Password#2026",
+            Area = "Operaciones"
+        });
+
+        Assert.That(result.IsFailure, Is.True);
+        Assert.That(result.Error.Code, Is.EqualTo("Admin.Persistence"));
+        Assert.That(unitOfWork.BeginTransactionAsyncCallCount, Is.EqualTo(1));
+        Assert.That(unitOfWork.SaveChangesAsyncCallCount, Is.EqualTo(1));
+        Assert.That(unitOfWork.CommitTransactionAsyncCallCount, Is.EqualTo(0));
+        Assert.That(unitOfWork.RollbackTransactionAsyncCallCount, Is.EqualTo(1));
     }
 
     [Test]
@@ -712,9 +789,15 @@ public class AdminApplicationServiceTests
     {
         public List<string> RegisteredEvents { get; } = new();
         public IReadOnlyDictionary<string, string>? LastMetadata { get; private set; }
+        public bool ThrowOnRegister { get; set; }
 
         public Task RegisterAsync(Guid aggregateId, string aggregateType, string module, string action, string detail, IReadOnlyDictionary<string, string>? metadata = null, CancellationToken cancellationToken = default)
         {
+            if (ThrowOnRegister)
+            {
+                throw new InvalidOperationException("Fallo de auditoría simulado.");
+            }
+
             RegisteredEvents.Add(action);
             LastMetadata = metadata;
             return Task.CompletedTask;
@@ -723,10 +806,35 @@ public class AdminApplicationServiceTests
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
-        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(1);
-        public Task BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task CommitTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task RollbackTransactionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public int SaveChangesAsyncCallCount { get; private set; }
+        public int BeginTransactionAsyncCallCount { get; private set; }
+        public int CommitTransactionAsyncCallCount { get; private set; }
+        public int RollbackTransactionAsyncCallCount { get; private set; }
+
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveChangesAsyncCallCount++;
+            return Task.FromResult(1);
+        }
+
+        public Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            BeginTransactionAsyncCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            CommitTransactionAsyncCallCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            RollbackTransactionAsyncCallCount++;
+            return Task.CompletedTask;
+        }
+
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 

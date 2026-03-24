@@ -20,6 +20,11 @@ public sealed class BootstrapSuperUserOptions
     public bool Enabled { get; set; }
 
     /// <summary>
+    /// Indica si el bootstrap del super usuario puede ejecutarse explícitamente en producción.
+    /// </summary>
+    public bool AllowInProduction { get; set; }
+
+    /// <summary>
     /// Nombre completo del super usuario inicial.
     /// </summary>
     public string Name { get; set; } = string.Empty;

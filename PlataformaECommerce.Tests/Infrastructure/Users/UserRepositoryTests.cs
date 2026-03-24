@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
+using PlataformaECommerce.Infrastructure.Persistence.Entities;
 using PlataformaECommerce.Infrastructure.Repositories.Users;
 
 namespace PlataformaECommerce.Tests.Infrastructure.Users;
@@ -71,6 +74,42 @@ public class UserRepositoryTests
         bool result = await repository.ExistsByEmailAsync(customer.CorreoElectronico);
 
         Assert.That(result, Is.True);
+    }
+
+    [Test]
+    public void Model_UsersTable_DefineIndiceUnicoPorCorreoElectronico()
+    {
+        using ECommerceDbContext context = CreateSqlServerModelContext();
+        IEntityType entityType = GetUserEntityType(context);
+
+        var emailIndex = entityType.GetIndexes()
+            .Single(index => index.Properties.Select(property => property.Name).SequenceEqual([nameof(UserEntity.CorreoElectronico)]));
+
+        Assert.That(emailIndex.IsUnique, Is.True);
+    }
+
+    [Test]
+    public void Model_UsersTable_DefineRestriccionPersistenteDeRol()
+    {
+        using ECommerceDbContext context = CreateSqlServerModelContext();
+        IEntityType entityType = GetUserEntityType(context);
+
+        var roleConstraint = entityType.GetCheckConstraints()
+            .Single(constraint => constraint.Name == "CK_Users_Rol");
+
+        Assert.That(roleConstraint.Sql, Does.Contain("'SuperUsuario'"));
+    }
+
+    [Test]
+    public void Model_UsersTable_DefineRestriccionPersistenteDeAreaSegunRol()
+    {
+        using ECommerceDbContext context = CreateSqlServerModelContext();
+        IEntityType entityType = GetUserEntityType(context);
+
+        var areaConstraint = entityType.GetCheckConstraints()
+            .Single(constraint => constraint.Name == "CK_Users_Area_ByRole");
+
+        Assert.That(areaConstraint.Sql, Does.Contain("[Area] IS NOT NULL"));
     }
 
     [Test]
@@ -214,5 +253,19 @@ public class UserRepositoryTests
             "Cliente Persistencia",
             new Email($"cliente-{Guid.NewGuid():N}@plataforma.com"),
             "hash-cliente-prueba-2026");
+    }
+
+    private static ECommerceDbContext CreateSqlServerModelContext()
+    {
+        DbContextOptions<ECommerceDbContext> options = new DbContextOptionsBuilder<ECommerceDbContext>()
+            .UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=PlataformaECommerceTests;Trusted_Connection=True;TrustServerCertificate=True;")
+            .Options;
+
+        return new ECommerceDbContext(options);
+    }
+
+    private static IEntityType GetUserEntityType(ECommerceDbContext context)
+    {
+        return context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(UserEntity))!;
     }
 }
