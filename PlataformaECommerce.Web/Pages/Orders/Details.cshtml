@@ -1,0 +1,111 @@
+﻿@page "{id:guid}"
+@model PlataformaECommerce.Web.Pages.Orders.DetailsModel
+@{
+    ViewData["Title"] = "Detalle del pedido";
+}
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+        <div>
+            <div class="small text-uppercase text-muted fw-semibold">Seguimiento del pedido</div>
+            <h1 class="h3 fw-bold mt-2 mb-1">Pedido @Model.Order.Id</h1>
+            <p class="text-muted mb-0">Consulta el detalle, el estado y la trazabilidad principal de esta compra.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-page="./Index" class="btn btn-outline-secondary">Volver al historial</a>
+            <a asp-page="/Account/Index" class="btn btn-outline-dark">Mi cuenta</a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Estado actual</div>
+                    <div class="display-6 fw-bold mt-2">@Model.Order.StatusLabel</div>
+                    <div class="text-muted small mt-2">Se registraron @Model.Order.ItemsCount línea(s) y @Model.Order.TotalUnits unidad(es) en este pedido.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Total</div>
+                    <div class="display-6 fw-bold mt-2">@Model.Order.Currency @Model.Order.TotalAmount.ToString("N2")</div>
+                    <div class="text-muted small mt-2">Pedido creado el @Model.Order.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm 'UTC'").</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Cancelación</div>
+                    <div class="fw-semibold mt-2">@(string.IsNullOrWhiteSpace(Model.Order.CancellationReason) ? "Sin cancelación registrada" : Model.Order.CancellationReason)</div>
+                    <div class="text-muted small mt-2">@(Model.Order.CancelledAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "El pedido continúa su ciclo normal.")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Productos del pedido</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Detalle de líneas</h2>
+
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var item in Model.Order.Items)
+                        {
+                            <div class="border rounded-3 p-3 bg-light-subtle">
+                                <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                    <div>
+                                        <div class="fw-semibold">@item.ProductName</div>
+                                        <div class="text-muted small">SKU: @item.ProductSku</div>
+                                        <div class="text-muted small">@(item.IsDigitalProduct ? "Producto digital" : "Producto físico")</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-semibold">@item.Currency @item.Subtotal.ToString("N2")</div>
+                                        <div class="text-muted small">@item.Quantity unidad(es) · @item.Currency @item.UnitPrice.ToString("N2") c/u</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Trazabilidad principal</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Hitos del pedido</h2>
+
+                    <div class="d-flex flex-column gap-3">
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Creación</div>
+                            <div class="fw-semibold mt-1">@Model.Order.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")</div>
+                        </div>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Confirmación</div>
+                            <div class="fw-semibold mt-1">@(Model.Order.ConfirmedAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")</div>
+                        </div>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Pago</div>
+                            <div class="fw-semibold mt-1">@(Model.Order.PaidAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")</div>
+                        </div>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Envío</div>
+                            <div class="fw-semibold mt-1">@(Model.Order.ShippedAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")</div>
+                        </div>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Entrega</div>
+                            <div class="fw-semibold mt-1">@(Model.Order.DeliveredAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

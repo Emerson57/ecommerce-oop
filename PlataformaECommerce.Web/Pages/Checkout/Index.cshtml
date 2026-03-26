@@ -1,0 +1,100 @@
+@page
+@model PlataformaECommerce.Web.Pages.Checkout.IndexModel
+@{
+    ViewData["Title"] = "Checkout";
+}
+
+<div class="container py-5">
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger mb-4" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+        <div>
+            <div class="small text-uppercase text-muted fw-semibold">Checkout</div>
+            <h1 class="h3 fw-bold mt-2 mb-1">Revisión final del pedido</h1>
+            <p class="text-muted mb-0">Confirma tu compra a partir del carrito actual y genera el pedido real del cliente autenticado.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a asp-page="/Cart/Index" class="btn btn-outline-secondary">Volver al carrito</a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Resumen de compra</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Productos a convertir en pedido</h2>
+
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var item in Model.Cart.Items)
+                        {
+                            <div class="border rounded-3 p-3 bg-light-subtle d-flex justify-content-between gap-3 flex-wrap">
+                                <div>
+                                    <div class="fw-semibold">@item.ProductName</div>
+                                    <div class="text-muted small">SKU: @item.ProductSku</div>
+                                    <div class="text-muted small">Cantidad: @item.Quantity</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-semibold">@item.Currency @item.Subtotal.ToString("N2")</div>
+                                    <div class="text-muted small">@item.Currency @item.UnitPrice.ToString("N2") c/u</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Confirmación</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Crear pedido</h2>
+
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Líneas</span>
+                        <span class="fw-semibold">@Model.Cart.ItemsCount</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Unidades</span>
+                        <span class="fw-semibold">@Model.Cart.TotalUnits</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top">
+                        <span class="fw-semibold">Total</span>
+                        <span class="h5 fw-bold mb-0">@Model.Cart.Currency @Model.Cart.TotalAmount.ToString("N2")</span>
+                    </div>
+
+                    <form method="post" asp-page-handler="PlaceOrder" class="mt-4" novalidate>
+                        <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Notes" class="form-label"></label>
+                            <textarea asp-for="Input.Notes" class="form-control" rows="4" placeholder="Observaciones opcionales para el pedido."></textarea>
+                            <span asp-validation-for="Input.Notes" class="text-danger small"></span>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input asp-for="Input.ConfirmOrderCreation" class="form-check-input" />
+                            <label asp-for="Input.ConfirmOrderCreation" class="form-check-label"></label>
+                            <span asp-validation-for="Input.ConfirmOrderCreation" class="text-danger small d-block mt-1"></span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Generar pedido</button>
+                            <a asp-page="/Cart/Index" class="btn btn-outline-secondary">Volver al carrito</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

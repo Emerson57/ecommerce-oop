@@ -7,12 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Notifications\" />
-    <Folder Include="Validators\" />
-    <Folder Include="UseCases\" />
+    <Folder Include="Abstractions\" />
+    <Folder Include="Common\Audit\" />
+    <Folder Include="Features\Catalog\Commands\" />
+    <Folder Include="Features\Catalog\Validators\" />
+    <Folder Include="Mappings\" />
+    <Folder Include="Services\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
   </ItemGroup>
 

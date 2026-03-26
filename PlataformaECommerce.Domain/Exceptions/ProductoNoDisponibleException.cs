@@ -1,35 +1,35 @@
-﻿using System;
+﻿namespace PlataformaECommerce.Domain.Exceptions;
 
-namespace PlataformaECommerce.Domain.Exceptions
+/// <summary>
+/// Representa el error generado cuando un producto no se encuentra disponible
+/// para ser operado comercialmente dentro del sistema.
+/// </summary>
+/// <remarks>
+/// Esta excepción aplica cuando el producto está inactivo, no tiene stock suficiente,
+/// fue retirado del catálogo o no cumple las condiciones requeridas para su compra
+/// o procesamiento dentro del flujo del negocio.
+/// </remarks>
+public class ProductoNoDisponibleException : ProductException
 {
-    public class ProductoNoDisponibleException : ProductException
+    /// <summary>
+    /// Inicializa una nueva instancia de la clase <see cref="ProductoNoDisponibleException"/>.
+    /// </summary>
+    /// <param name="productId">Identificador del producto afectado.</param>
+    /// <param name="nombreProducto">Nombre comercial del producto.</param>
+    public ProductoNoDisponibleException(Guid productId, string nombreProducto)
+        : base($"El producto '{nombreProducto}' con identificador '{productId}' no se encuentra disponible para la operación solicitada.")
     {
-        /// Identificador del producto afectado.
-        public int ProductoId { get; }
-
-        /// Nombre del producto afectado.
-        public string NombreProducto { get; }
-
-        /// Indica si el producto se encuentra activo en el sistema.
-        public bool Activo { get; }
-
-        /// Stock actual del producto.
-        public int Stock { get; }
-
-        /// Inicializa una nueva instancia de la excepción
-        /// con información contextual del producto no disponible.
-        public ProductoNoDisponibleException(
-            int productoId,
-            string nombreProducto,
-            bool activo,
-            int stock)
-            : base($"El producto '{nombreProducto}' no está disponible para operar. " +
-                   $"Activo: {activo}, stock actual: {stock}.")
-        {
-            ProductoId = productoId;
-            NombreProducto = nombreProducto;
-            Activo = activo;
-            Stock = stock;
-        }
+        ProductId = productId;
+        NombreProducto = nombreProducto;
     }
+
+    /// <summary>
+    /// Obtiene el identificador del producto afectado.
+    /// </summary>
+    public Guid ProductId { get; }
+
+    /// <summary>
+    /// Obtiene el nombre comercial del producto afectado.
+    /// </summary>
+    public string NombreProducto { get; }
 }

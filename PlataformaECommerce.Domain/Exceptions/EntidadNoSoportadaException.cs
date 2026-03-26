@@ -1,46 +1,33 @@
-﻿using System;
+namespace PlataformaECommerce.Domain.Exceptions;
 
-namespace PlataformaECommerce.Domain.Exceptions
+/// <summary>
+/// Representa el error producido cuando se solicita crear o procesar un tipo de entidad no soportado.
+/// </summary>
+/// <remarks>
+/// Esta excepción permite expresar de forma explícita que un discriminador funcional recibido
+/// no corresponde a ningún tipo admitido por el modelo actual.
+/// </remarks>
+public sealed class EntidadNoSoportadaException : DomainException
 {
-    public class EntidadNoSoportadaException : FactoryException
+    /// <summary>
+    /// Inicializa una nueva instancia de la clase <see cref="EntidadNoSoportadaException"/>.
+    /// </summary>
+    /// <param name="tipoEntidad">Tipo recibido que no se encuentra soportado.</param>
+    /// <param name="familiaEntidad">Familia o agrupación funcional esperada.</param>
+    public EntidadNoSoportadaException(string tipoEntidad, string familiaEntidad)
+        : base($"El tipo '{tipoEntidad}' no se encuentra soportado para la familia de entidades '{familiaEntidad}'.")
     {
-        public string TipoEntidad { get; }
-
-        /// Categoría funcional de la entidad, si aplica.
-        public string? Categoria { get; }
-
-        /// Inicializa una nueva instancia de la excepción indicando
-        /// el tipo de entidad no soportado.
-        public EntidadNoSoportadaException(string tipoEntidad)
-            : base($"La entidad solicitada '{tipoEntidad}' no está soportada por la fábrica.")
-        {
-            TipoEntidad = tipoEntidad ?? string.Empty;
-        }
-
-        /// Inicializa una nueva instancia de la excepción indicando
-        /// el tipo y la categoría funcional de la entidad no soportada.
-        public EntidadNoSoportadaException(string tipoEntidad, string? categoria)
-            : base($"La entidad solicitada '{tipoEntidad}' no está soportada por la fábrica en la categoría '{categoria}'.")
-        {
-            TipoEntidad = tipoEntidad ?? string.Empty;
-            Categoria = categoria;
-        }
-
-        /// Inicializa una nueva instancia de la excepción con un mensaje personalizado.
-        public EntidadNoSoportadaException(string message, string tipoEntidad, string? categoria = null)
-            : base(message)
-        {
-            TipoEntidad = tipoEntidad ?? string.Empty;
-            Categoria = categoria;
-        }
-
-        /// Inicializa una nueva instancia de la excepción con mensaje,
-        /// tipo de entidad, categoría y excepción interna.
-        public EntidadNoSoportadaException(string message, string tipoEntidad, string? categoria, Exception innerException)
-            : base(message, innerException)
-        {
-            TipoEntidad = tipoEntidad ?? string.Empty;
-            Categoria = categoria;
-        }
+        TipoEntidad = tipoEntidad;
+        FamiliaEntidad = familiaEntidad;
     }
+
+    /// <summary>
+    /// Tipo no soportado recibido en la operación.
+    /// </summary>
+    public string TipoEntidad { get; }
+
+    /// <summary>
+    /// Familia de entidades para la cual se evaluó el tipo recibido.
+    /// </summary>
+    public string FamiliaEntidad { get; }
 }

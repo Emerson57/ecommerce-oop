@@ -1,60 +1,111 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="es" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - PlataformaECommerce.Web</title>
-    <script type="importmap"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-          theme: {
-            extend: {
-              fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
-            }
-          }
-        }
-    </script>
+    <title>@ViewData["Title"] - NovaShop</title>
+
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/PlataformaECommerce.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">PlataformaECommerce.Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
-                        </li>
-                    </ul>
+    @{
+        bool isAuthenticated = User.Identity?.IsAuthenticated == true;
+        bool isAdminAuthenticated = isAuthenticated && (User.IsInRole("Administrador") || User.IsInRole("SuperUsuario"));
+        bool isCustomerAuthenticated = isAuthenticated && User.IsInRole("Cliente");
+    }
+
+    <div class="site-wrapper">
+        <header class="store-header">
+            <div class="top-header">
+                <div class="container">
+                    <div class="top-header-content">
+                        <a class="store-logo" asp-area="" asp-page="/Index">
+                            <span class="logo-mark">N</span>
+                            <span class="logo-text">NovaShop</span>
+                        </a>
+
+                        <form class="header-search" role="search" method="get" asp-page="/Catalog/Index">
+                            <input type="text" name="SearchTerm" placeholder="Buscar productos, marcas y categorías..." />
+                            <button type="submit">Buscar</button>
+                        </form>
+
+                        <div class="header-actions">
+                            @if (isAuthenticated)
+                            {
+                                @if (isAdminAuthenticated)
+                                {
+                                    <a asp-area="" asp-page="/Admin/Index" class="header-action">Panel</a>
+                                }
+                                else if (isCustomerAuthenticated)
+                                {
+                                    <a asp-area="" asp-page="/Account/Index" class="header-action">Mi cuenta</a>
+                                }
+                                <form method="post" asp-page="/Auth/Logout" class="d-inline">
+                                    <button type="submit" class="header-action btn btn-link p-0 border-0 text-decoration-none">Cerrar sesión</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a asp-area="" asp-page="/Auth/Login" class="header-action">Ingresar</a>
+                                <a asp-area="" asp-page="/Auth/Register" class="header-action">Crear cuenta</a>
+                            }
+                            <a asp-area="" asp-page="/Cart/Index" class="header-action cart-action">Carrito</a>
+
+                            <button type="button" id="themeToggle" class="theme-toggle-btn" title="Cambiar tema">
+                                <span id="themeToggleText">🌞 Claro</span>
+                            </button>
+
+                            <button type="button" id="mobileMenuToggle" class="mobile-menu-btn" aria-label="Abrir menú">
+                                ☰
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+
+            <div class="category-nav-wrapper">
+                <div class="container">
+                    <nav class="category-nav" id="categoryNav">
+                        <a asp-area="" asp-page="/Index">Inicio</a>
+                        <a asp-area="" asp-page="/Catalog/Index">Catálogo</a>
+                        @await Component.InvokeAsync("StoreCategoryNav")
+                        @if (isCustomerAuthenticated)
+                        {
+                            <a asp-area="" asp-page="/Account/Index">Mi cuenta</a>
+                        }
+                        else
+                        {
+                            <a asp-area="" asp-page="/Auth/Login">Mi cuenta</a>
+                        }
+                        <a asp-area="" asp-page="/Cart/Index">Carrito</a>
+                    </nav>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
             @RenderBody()
         </main>
-    </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - PlataformaECommerce.Web - <a asp-area="" asp-page="/Privacy">Privacy</a>
-        </div>
-    </footer>
+        <footer class="store-footer">
+            <div class="container">
+                <div class="footer-grid">
+                    @await Component.InvokeAsync("StoreFooter")
+                </div>
+
+                <div class="footer-bottom">
+                    <span>© @DateTime.UtcNow.Year NovaShop. Todos los derechos reservados.</span>
+                </div>
+            </div>
+        </footer>
+    </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

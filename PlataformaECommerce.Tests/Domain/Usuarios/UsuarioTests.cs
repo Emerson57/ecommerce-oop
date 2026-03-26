@@ -1,228 +1,86 @@
-﻿using NUnit.Framework;
-using PlataformaECommerce.Domain.Entities;
+using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Exceptions;
+using PlataformaECommerce.Domain.ValueObjects;
 
-namespace PlataformaECommerce.Tests.Domain.Usuarios
+namespace PlataformaECommerce.Tests.Domain.Usuarios;
+
+[TestFixture]
+public class UsuarioTests
 {
-    [TestFixture]
-    public class UsuarioTests
+    [Test]
+    public void Constructor_DatosValidos_CreaUsuarioCorrectamente()
     {
-        #region Método auxiliar
+        Cliente usuario = CrearUsuarioValido();
 
-        /// Crea una instancia válida de Cliente para reutilizar
-        /// en las pruebas del comportamiento base de Usuario.
-        private static Cliente CrearUsuarioValido()
-        {
-            return new Cliente(
-                id: 1,
-                nombre: "Juan Pérez",
-                correo: "juan@email.com",
-                contrasena: "Clave123"
-            );
-        }
+        Assert.That(usuario.Id, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(usuario.Nombre, Is.EqualTo("Juan Pérez"));
+        Assert.That(usuario.CorreoElectronico.Value, Is.EqualTo("juan@email.com"));
+        Assert.That(usuario.Activo, Is.True);
+        Assert.That(usuario.FechaCreacionUtc, Is.Not.EqualTo(default(DateTime)));
+    }
 
-        #endregion
+    [Test]
+    public void Constructor_NombreVacio_LanzaUsuarioNoValidoException()
+    {
+        Assert.Throws<UsuarioNoValidoException>(() =>
+            new Cliente(string.Empty, new Email("juan@email.com"), "hash-de-prueba-seguro-12345"));
+    }
 
-        #region Pruebas de creación
+    [Test]
+    public void ActualizarDatosBasicos_DatosValidos_ActualizaNombreYCorreo()
+    {
+        Cliente usuario = CrearUsuarioValido();
 
-        [Test]
-        public void Constructor_DatosValidos_CreaUsuarioCorrectamente()
-        {
-            // Arrange & Act
-            var usuario = CrearUsuarioValido();
+        usuario.ActualizarDatosBasicos("Carlos Gómez", new Email("carlos@email.com"));
 
-            // Assert
-            Assert.That(usuario.Id, Is.EqualTo(1));
-            Assert.That(usuario.Nombre, Is.EqualTo("Juan Pérez"));
-            Assert.That(usuario.Correo, Is.EqualTo("juan@email.com"));
-            Assert.That(usuario.Activo, Is.True);
-        }
+        Assert.That(usuario.Nombre, Is.EqualTo("Carlos Gómez"));
+        Assert.That(usuario.CorreoElectronico.Value, Is.EqualTo("carlos@email.com"));
+    }
 
-        [Test]
-        public void Constructor_IdInvalido_LanzaUsuarioNoValidoException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<UsuarioNoValidoException>(() =>
-                new Cliente(
-                    id: 0,
-                    nombre: "Juan Pérez",
-                    correo: "juan@email.com",
-                    contrasena: "Clave123"
-                ));
+    [Test]
+    public void ActualizarDatosBasicos_MismoCorreoMantieneConfirmacion()
+    {
+        Cliente usuario = CrearUsuarioValido();
+        usuario.ConfirmarCorreoElectronico();
 
-            Assert.That(ex!.Message, Does.Contain("Id"));
-        }
+        usuario.ActualizarDatosBasicos("Carlos Gómez", new Email("juan@email.com"));
 
-        [Test]
-        public void Constructor_NombreVacio_LanzaUsuarioNoValidoException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<UsuarioNoValidoException>(() =>
-                new Cliente(
-                    id: 1,
-                    nombre: "",
-                    correo: "juan@email.com",
-                    contrasena: "Clave123"
-                ));
+        Assert.That(usuario.CorreoConfirmado, Is.True);
+    }
 
-            Assert.That(ex!.Message, Does.Contain("nombre"));
-        }
+    [Test]
+    public void ConfirmarCorreoElectronico_UsuarioValido_MarcaCorreoComoConfirmado()
+    {
+        Cliente usuario = CrearUsuarioValido();
 
-        [Test]
-        public void Constructor_CorreoInvalido_LanzaUsuarioNoValidoException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<UsuarioNoValidoException>(() =>
-                new Cliente(
-                    id: 1,
-                    nombre: "Juan Pérez",
-                    correo: "correo-invalido",
-                    contrasena: "Clave123"
-                ));
+        usuario.ConfirmarCorreoElectronico();
 
-            Assert.That(ex!.Message, Does.Contain("correo"));
-        }
+        Assert.That(usuario.CorreoConfirmado, Is.True);
+    }
 
-        [Test]
-        public void Constructor_ContrasenaInvalida_LanzaUsuarioNoValidoException()
-        {
-            // Arrange, Act & Assert
-            var ex = Assert.Throws<UsuarioNoValidoException>(() =>
-                new Cliente(
-                    id: 1,
-                    nombre: "Juan Pérez",
-                    correo: "juan@email.com",
-                    contrasena: "123"
-                ));
+    [Test]
+    public void EstaHabilitado_ActivoYConCorreoConfirmado_RetornaTrue()
+    {
+        Cliente usuario = CrearUsuarioValido();
+        usuario.ConfirmarCorreoElectronico();
 
-            Assert.That(ex!.Message, Does.Contain("contraseña"));
-        }
+        Assert.That(usuario.EstaHabilitado(), Is.True);
+    }
 
-        #endregion
+    [Test]
+    public void Constructor_HashContrasenaDemasiadoLargo_LanzaUsuarioNoValidoException()
+    {
+        string hashDemasiadoLargo = new('h', Usuario.LongitudMaximaHashContrasena + 1);
 
-        #region Pruebas de actualización
+        Assert.Throws<UsuarioNoValidoException>(() =>
+            new Cliente("Juan Pérez", new Email("juan@email.com"), hashDemasiadoLargo));
+    }
 
-        [Test]
-        public void ActualizarDatos_DatosValidos_ActualizaCorrectamente()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act
-            usuario.ActualizarDatos("Carlos Gómez", "carlos@email.com");
-
-            // Assert
-            Assert.That(usuario.Nombre, Is.EqualTo("Carlos Gómez"));
-            Assert.That(usuario.Correo, Is.EqualTo("carlos@email.com"));
-        }
-
-        [Test]
-        public void ActualizarDatos_NombreInvalido_LanzaUsuarioNoValidoException()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act & Assert
-            var ex = Assert.Throws<UsuarioNoValidoException>(() =>
-                usuario.ActualizarDatos("", "carlos@email.com"));
-
-            Assert.That(ex!.Message, Does.Contain("nombre"));
-        }
-
-        [Test]
-        public void ActualizarDatos_CorreoInvalido_LanzaUsuarioNoValidoException()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act & Assert
-            var ex = Assert.Throws<UsuarioNoValidoException>(() =>
-                usuario.ActualizarDatos("Carlos Gómez", "correo-invalido"));
-
-            Assert.That(ex!.Message, Does.Contain("correo"));
-        }
-
-        #endregion
-
-        #region Pruebas de contraseña
-
-        [Test]
-        public void CambiarContrasena_ValorValido_ActualizaCorrectamente()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act
-            usuario.CambiarContrasena("NuevaClave123");
-
-            // Assert
-            Assert.That(usuario.VerificarContrasena("NuevaClave123"), Is.True);
-        }
-
-        [Test]
-        public void CambiarContrasena_ValorInvalido_LanzaUsuarioNoValidoException()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act & Assert
-            var ex = Assert.Throws<UsuarioNoValidoException>(() =>
-                usuario.CambiarContrasena("123"));
-
-            Assert.That(ex!.Message, Does.Contain("contraseña"));
-        }
-
-        [Test]
-        public void VerificarContrasena_ClaveCorrecta_RetornaTrue()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act & Assert
-            Assert.That(usuario.VerificarContrasena("Clave123"), Is.True);
-        }
-
-        [Test]
-        public void VerificarContrasena_ClaveIncorrecta_RetornaFalse()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act & Assert
-            Assert.That(usuario.VerificarContrasena("OtraClave"), Is.False);
-        }
-
-        #endregion
-
-        #region Pruebas de estado
-
-        [Test]
-        public void Desactivar_UsuarioActivo_CambiaEstadoAInactivo()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-
-            // Act
-            usuario.Desactivar();
-
-            // Assert
-            Assert.That(usuario.Activo, Is.False);
-        }
-
-        [Test]
-        public void Activar_UsuarioInactivo_CambiaEstadoAActivo()
-        {
-            // Arrange
-            var usuario = CrearUsuarioValido();
-            usuario.Desactivar();
-
-            // Act
-            usuario.Activar();
-
-            // Assert
-            Assert.That(usuario.Activo, Is.True);
-        }
-
-        #endregion
+    private static Cliente CrearUsuarioValido()
+    {
+        return new Cliente(
+            "Juan Pérez",
+            new Email("juan@email.com"),
+            "hash-de-prueba-seguro-12345");
     }
 }

@@ -1,0 +1,209 @@
+@page
+@using PlataformaECommerce.Application.Features.Admin
+@model PlataformaECommerce.Web.Pages.Admin.Users.CreateModel
+@{
+    ViewData["Title"] = "Crear Administrador";
+    ViewData["Subtitle"] = "Alta segura de cuentas administrativas operativas desde el backoffice";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success admin-feedback-alert" role="status" aria-live="polite">
+        @Model.StatusMessage
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger admin-feedback-alert" role="alert" aria-live="assertive">
+        @Model.ErrorMessage
+    </div>
+}
+
+@if (string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="card admin-summary-card border-0 mb-4">
+        <div class="card-body p-4 d-flex flex-column flex-lg-row justify-content-between gap-3">
+            <div>
+                <div class="admin-muted-label">Alta administrativa</div>
+                <h2 class="h4 fw-bold mt-2 mb-2">Registrar una nueva cuenta administrativa para operación interna.</h2>
+                <p class="text-muted mb-0">
+                    Esta interfaz captura los datos mínimos del nuevo administrador y delega autorización, validación de negocio, persistencia y auditoría al backend para mantener una separación limpia por capas.
+                </p>
+            </div>
+            <div class="text-muted small align-self-lg-end">
+                Generado: @Model.Definition.GeneratedAtUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")<br />
+                Canal: @(Model.Definition.Source ?? "Admin.Backoffice.Users.Create")
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-12 col-xl-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="admin-muted-label">Formulario</div>
+                    <h2 class="h5 fw-bold mb-2">Datos del nuevo administrador</h2>
+                    <p class="text-muted mb-4">Complete la información mínima requerida para habilitar una nueva cuenta operativa del backoffice.</p>
+
+                    <form method="post"
+                          id="admin-create-form"
+                          novalidate
+                          data-admin-create-form
+                          data-password-min-length="@AdminRegistrationPolicies.MinPasswordLength"
+                          data-password-max-length="@AdminRegistrationPolicies.MaxPasswordLength">
+                        <div asp-validation-summary="ModelOnly" class="alert alert-danger admin-inline-validation mb-4" role="alert" aria-live="assertive"></div>
+
+                        <fieldset class="admin-form-section mb-4">
+                            <legend class="h6 fw-semibold mb-3">Identidad y acceso</legend>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="Input.Name" class="form-label"></label>
+                                    <input asp-for="Input.Name" class="form-control" autocomplete="name" required minlength="@AdminRegistrationPolicies.MinNameLength" maxlength="@AdminRegistrationPolicies.MaxNameLength" aria-describedby="name-help" />
+                                    <div id="name-help" class="form-text">Use el nombre visible con el que operará la cuenta dentro del backoffice.</div>
+                                    <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label asp-for="Input.Email" class="form-label"></label>
+                                    <input asp-for="Input.Email" type="email" class="form-control" autocomplete="email" required maxlength="@AdminRegistrationPolicies.MaxEmailLength" aria-describedby="email-help" />
+                                    <div id="email-help" class="form-text">El correo debe ser único y será usado para acceso y trazabilidad.</div>
+                                    <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label asp-for="Input.Password" class="form-label"></label>
+                                    <input asp-for="Input.Password" type="password" class="form-control" autocomplete="new-password" required minlength="@AdminRegistrationPolicies.MinPasswordLength" maxlength="@AdminRegistrationPolicies.MaxPasswordLength" aria-describedby="password-help" data-admin-create-password />
+                                    <div id="password-help" class="form-text">Use una contraseña temporal robusta. La política completa se valida nuevamente en servidor.</div>
+                                    <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                                    <div class="form-text mt-2" aria-live="polite">
+                                        <div class="fw-semibold text-body-secondary mb-2">Requisitos de seguridad</div>
+                                        <ul class="list-unstyled small mb-0" data-admin-create-password-rules>
+                                            <li data-password-rule="length" class="text-muted">Debe tener entre 8 y 100 caracteres.</li>
+                                            <li data-password-rule="uppercase" class="text-muted">Debe incluir al menos una letra mayúscula.</li>
+                                            <li data-password-rule="lowercase" class="text-muted">Debe incluir al menos una letra minúscula.</li>
+                                            <li data-password-rule="digit" class="text-muted">Debe incluir al menos un número.</li>
+                                            <li data-password-rule="special" class="text-muted">Debe incluir al menos un carácter especial.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+                                    <input asp-for="Input.ConfirmPassword" type="password" class="form-control" autocomplete="new-password" required minlength="@AdminRegistrationPolicies.MinPasswordLength" maxlength="@AdminRegistrationPolicies.MaxPasswordLength" data-admin-create-confirm-password />
+                                    <span asp-validation-for="Input.ConfirmPassword" class="text-danger small"></span>
+                                    <div class="small text-muted mt-2" data-admin-create-confirm-feedback aria-live="polite">
+                                        Repite la contraseña para validar coincidencia.
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="admin-form-section mb-4">
+                            <legend class="h6 fw-semibold mb-3">Contexto operativo</legend>
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label asp-for="Input.Area" class="form-label"></label>
+                                    <input asp-for="Input.Area" class="form-control" autocomplete="organization" required minlength="@AdminRegistrationPolicies.MinAreaLength" maxlength="@AdminRegistrationPolicies.MaxAreaLength" aria-describedby="area-help" />
+                                    <div id="area-help" class="form-text">Defina el área responsable del nuevo administrador, por ejemplo Operaciones, Finanzas o Seguridad.</div>
+                                    <span asp-validation-for="Input.Area" class="text-danger small"></span>
+                                </div>
+
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <div class="admin-readonly-pill w-100">
+                                        Rol asignado: <strong>@Model.Definition.AllowedRole</strong>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label asp-for="Input.Reason" class="form-label"></label>
+                                    <textarea asp-for="Input.Reason" class="form-control" rows="3" maxlength="@AdminRegistrationPolicies.MaxReasonLength" aria-describedby="reason-help"></textarea>
+                                    <div id="reason-help" class="form-text">Campo opcional para contexto operativo o referencia interna del alta.</div>
+                                    <span asp-validation-for="Input.Reason" class="text-danger small"></span>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <fieldset class="admin-form-section mb-4">
+                            <legend class="h6 fw-semibold mb-3">Estado inicial</legend>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="admin-switch-card">
+                                        <div class="form-check form-switch mb-0">
+                                            <input asp-for="Input.IsActive" class="form-check-input" />
+                                            <label asp-for="Input.IsActive" class="form-check-label"></label>
+                                        </div>
+                                        <div class="form-text mt-2">Permite que la cuenta quede disponible para operar desde su creación.</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="admin-switch-card">
+                                        <div class="form-check form-switch mb-0">
+                                            <input asp-for="Input.IsEmailConfirmed" class="form-check-input" />
+                                            <label asp-for="Input.IsEmailConfirmed" class="form-check-label"></label>
+                                        </div>
+                                        <div class="form-text mt-2">Use esta opción solo si la validación del correo ya fue completada por un proceso controlado.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        <div class="d-flex flex-wrap gap-2 mt-4">
+                            <button type="submit" class="btn btn-dark" id="submit-admin-create" data-admin-create-submit>Guardar administrador</button>
+                            <a asp-page="./Index" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card admin-summary-card border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="admin-muted-label">Resumen de reglas</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Lineamientos del alta</h2>
+                    <ul class="admin-rule-list mb-0">
+                        <li>Solo se crea el rol <strong>@Model.Definition.AllowedRole</strong>.</li>
+                        <li>La cuenta puede iniciar activa o pendiente según el formulario.</li>
+                        <li>El correo debe ser único dentro de la plataforma.</li>
+                        <li>La trazabilidad del alta queda registrada en auditoría.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card admin-summary-card border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="admin-muted-label">Política aplicada</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Restricciones visibles</h2>
+                    <dl class="row mb-0 admin-definition-list">
+                        <dt class="col-sm-5">Rol creado</dt>
+                        <dd class="col-sm-7">@Model.Definition.AllowedRole</dd>
+                        <dt class="col-sm-5">Área inicial</dt>
+                        <dd class="col-sm-7">@Model.Input.Area</dd>
+                        <dt class="col-sm-5">Contraseña mínima</dt>
+                        <dd class="col-sm-7">@Model.Definition.PasswordMinLength caracteres</dd>
+                        <dt class="col-sm-5">Cuenta activa</dt>
+                        <dd class="col-sm-7">@(Model.Input.IsActive ? "Sí" : "No")</dd>
+                        <dt class="col-sm-5">Correo confirmado</dt>
+                        <dd class="col-sm-7">@(Model.Input.IsEmailConfirmed ? "Sí" : "No")</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="admin-muted-label">Contexto del módulo</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Buenas prácticas operativas</h2>
+                    <p class="text-muted small mb-3">La autorización real, la unicidad del correo, la seguridad de contraseña y la auditoría se resuelven en backend.</p>
+                    <a asp-page="./Index" class="btn btn-outline-secondary w-100">Volver al listado de usuarios</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/admin/users/create.js" asp-append-version="true"></script>
+}

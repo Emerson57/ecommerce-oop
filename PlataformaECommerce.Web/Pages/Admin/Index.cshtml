@@ -1,0 +1,225 @@
+@page
+@model PlataformaECommerce.Web.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Backoffice";
+    ViewData["Subtitle"] = "Panel operativo administrativo";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mb-4" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card admin-summary-card border-0">
+            <div class="card-body p-4 p-lg-5">
+                <div class="row g-4 align-items-center">
+                    <div class="col-lg-8">
+                        <div class="admin-muted-label">Bienvenido</div>
+                        <h2 class="h4 fw-bold mb-3">@Model.DisplayName, el backoffice está listo para operar.</h2>
+                        <p class="text-muted mb-3">
+                            El panel resume el estado actual del catálogo, los pedidos en curso, la base de usuarios,
+                            los carritos activos y la trazabilidad reciente del sistema para facilitar decisiones operativas.
+                        </p>
+                        <div class="small text-muted">
+                            Generado: <strong>@Model.Dashboard.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</strong>
+                            · Ventana analítica: <strong>@Model.Dashboard.WindowInDays días</strong>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="rounded-4 bg-light border p-4 h-100">
+                            <div class="admin-muted-label">Sesión actual</div>
+                            <div class="fw-semibold mt-2">@Model.Role</div>
+                            <div class="text-muted small">@Model.Email</div>
+                            <div class="text-muted small">Área: @Model.Area</div>
+                            <div class="text-muted small">Privilegio elevado: @(Model.IsSuperUser ? "Sí" : "No")</div>
+                            <div class="text-muted small">Autenticado: @(Model.IsAuthenticated ? "Sí" : "No")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card h-100 border-0">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Catálogo</div>
+                <h3 class="display-6 fw-bold mt-2 mb-1">@Model.Dashboard.TotalProducts</h3>
+                <p class="text-muted small mb-3">Productos registrados</p>
+                <div class="small text-muted">Activos: <strong>@Model.Dashboard.ActiveProducts</strong></div>
+                <div class="small text-muted">Destacados: <strong>@Model.Dashboard.FeaturedProducts</strong></div>
+                <div class="small text-muted">Bajo stock: <strong>@Model.Dashboard.LowStockProducts</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card h-100 border-0">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Pedidos</div>
+                <h3 class="display-6 fw-bold mt-2 mb-1">@Model.Dashboard.ActiveOrders</h3>
+                <p class="text-muted small mb-3">Pedidos activos</p>
+                <div class="small text-muted">Total: <strong>@Model.Dashboard.TotalOrders</strong></div>
+                <div class="small text-muted">Entregados: <strong>@Model.Dashboard.DeliveredOrders</strong></div>
+                <div class="small text-muted">Cancelados: <strong>@Model.Dashboard.CancelledOrders</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card h-100 border-0">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Usuarios</div>
+                <h3 class="display-6 fw-bold mt-2 mb-1">@Model.Dashboard.TotalUsers</h3>
+                <p class="text-muted small mb-3">Usuarios registrados</p>
+                <div class="small text-muted">Clientes: <strong>@Model.Dashboard.TotalCustomers</strong></div>
+                <div class="small text-muted">Administradores: <strong>@Model.Dashboard.TotalAdministrators</strong></div>
+                <div class="small text-muted">Con acceso reciente: <strong>@Model.Dashboard.UsersWithRecentAccess</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card h-100 border-0">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Trazabilidad</div>
+                <h3 class="display-6 fw-bold mt-2 mb-1">@Model.Dashboard.AuditEventsLast24Hours</h3>
+                <p class="text-muted small mb-3">Eventos en las últimas 24 horas</p>
+                <div class="small text-muted">Carritos activos: <strong>@Model.Dashboard.ActiveCarts</strong></div>
+                <div class="small text-muted">Backlog operativo: <strong>@(Model.Dashboard.HasOperationalBacklog ? "Sí" : "No")</strong></div>
+                <div class="small text-muted">Moneda base: <strong>@Model.Dashboard.Currency</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Indicadores operativos</div>
+                <h3 class="h5 fw-semibold mt-2">Señales clave del negocio</h3>
+                <div class="row g-3 mt-1">
+                    <div class="col-sm-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Disponibilidad del catálogo</div>
+                            <div class="fw-semibold fs-5">@Model.Dashboard.ProductAvailabilityRate%</div>
+                            <div class="small text-muted">Productos disponibles: @Model.Dashboard.AvailableProducts</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Tasa de entrega</div>
+                            <div class="fw-semibold fs-5">@Model.Dashboard.OrderDeliveryRate%</div>
+                            <div class="small text-muted">Pedidos entregados: @Model.Dashboard.DeliveredOrders</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Tasa de cancelación</div>
+                            <div class="fw-semibold fs-5">@Model.Dashboard.OrderCancellationRate%</div>
+                            <div class="small text-muted">Pedidos cancelados: @Model.Dashboard.CancelledOrders</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Ticket promedio</div>
+                            <div class="fw-semibold fs-5">@Model.Dashboard.AverageOrderAmount.ToString("N2") @Model.Dashboard.Currency</div>
+                            <div class="small text-muted">Total facturado: @Model.Dashboard.TotalOrdersAmount.ToString("N2")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Acciones operativas</div>
+                <h3 class="h5 fw-semibold mt-2">Atajos del panel</h3>
+                <div class="d-grid gap-2">
+                    <a asp-page="/Admin/Audit/Index" class="btn btn-outline-dark btn-sm">Abrir auditoría administrativa</a>
+                    <a asp-page="/Admin/Products/Index" class="btn btn-outline-primary btn-sm">Abrir catálogo administrativo</a>
+                    <a asp-page="/Admin/Categories/Index" class="btn btn-outline-info btn-sm">Abrir backoffice de categorías</a>
+                    @if (Model.IsSuperUser)
+                    {
+                        <a asp-page="/Admin/Users/Index" class="btn btn-outline-success btn-sm">Abrir backoffice de usuarios</a>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-outline-success btn-sm" disabled>Backoffice de usuarios · Requiere super usuario</button>
+                    }
+                    <a asp-page="/Index" class="btn btn-outline-secondary btn-sm">Ir al storefront</a>
+                    <form method="post" asp-page="/Auth/Logout">
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">Cerrar sesión administrativa</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Actividad reciente</div>
+                <h3 class="h5 fw-semibold mt-2">Últimos eventos auditados</h3>
+
+                @if (Model.Dashboard.RecentActivities.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No hay eventos recientes disponibles en el rastro de auditoría.</p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush mt-3">
+                        @foreach (var activity in Model.Dashboard.RecentActivities)
+                        {
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                    <div>
+                                        <div class="fw-semibold">@activity.Detail</div>
+                                        <div class="small text-muted">
+                                            <span class="badge text-bg-dark me-2">@activity.Module</span>
+                                            <code>@activity.Action</code>
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted text-lg-end">
+                                        <div>@activity.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</div>
+                                        <div>@activity.PerformedBy</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Salud operativa</div>
+                <h3 class="h5 fw-semibold mt-2">Alertas rápidas</h3>
+                <ul class="mb-0 text-muted small mt-3">
+                    <li>Productos agotados: <strong>@Model.Dashboard.OutOfStockProducts</strong></li>
+                    <li>Inventario bajo: <strong>@Model.Dashboard.LowStockProducts</strong></li>
+                    <li>Pedidos finalizados: <strong>@Model.Dashboard.FinalizedOrders</strong></li>
+                    <li>Usuarios activos: <strong>@Model.Dashboard.ActiveUsers</strong></li>
+                    <li>Correos confirmados: <strong>@Model.Dashboard.EmailConfirmedUsers</strong></li>
+                    <li>Pedidos en ventana: <strong>@Model.Dashboard.NewOrdersInWindow</strong></li>
+                    <li>Usuarios nuevos en ventana: <strong>@Model.Dashboard.NewUsersInWindow</strong></li>
+                    <li>Productos nuevos en ventana: <strong>@Model.Dashboard.NewProductsInWindow</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

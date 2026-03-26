@@ -1,0 +1,40 @@
+@model PlataformaECommerce.Web.ViewComponents.StoreFooterViewComponent.StoreFooterViewModel
+
+<div>
+    <h4>NovaShop</h4>
+    <p>
+        Una experiencia de compra moderna, segura y pensada para ofrecer productos,
+        promociones atractivas y una navegación clara.
+    </p>
+</div>
+
+<div>
+    <h5>Explora</h5>
+    @foreach (var link in Model.ExploreLinks)
+    {
+        <a asp-area="" asp-page="@link.Page" asp-all-route-data="@link.RouteValues">@link.Text</a>
+    }
+</div>
+
+<div>
+    <h5>Categorías</h5>
+    @if (Model.CategoryLinks.Count == 0)
+    {
+        <span class="footer-placeholder">Categorías disponibles próximamente</span>
+    }
+    else
+    {
+        @foreach (var link in Model.CategoryLinks)
+        {
+            <a asp-area="" asp-page="@link.Page" asp-all-route-data="@link.RouteValues">@link.Text</a>
+        }
+    }
+</div>
+
+<div>
+    <h5>Accesos</h5>
+    @foreach (var link in Model.AccessLinks)
+    {
+        <a asp-area="" asp-page="@link.Page" asp-all-route-data="@link.RouteValues" class="@(link.IsMuted ? "footer-link-muted" : string.Empty)">@link.Text</a>
+    }
+</div>

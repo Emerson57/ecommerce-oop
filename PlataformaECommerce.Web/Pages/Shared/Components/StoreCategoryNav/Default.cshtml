@@ -1,0 +1,13 @@
+@model IReadOnlyCollection<PlataformaECommerce.Web.ViewComponents.StoreCategoryNavViewComponent.StoreCategoryNavItemViewModel>
+
+@if (Model.Count == 0)
+{
+    <span class="category-nav-placeholder">Categorías disponibles próximamente</span>
+}
+else
+{
+    foreach (var category in Model)
+    {
+        <a asp-area="" asp-page="/Catalog/Index" asp-route-categoryId="@category.Id">@category.Name</a>
+    }
+}

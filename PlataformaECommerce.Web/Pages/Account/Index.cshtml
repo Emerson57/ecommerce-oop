@@ -1,0 +1,200 @@
+@page
+@model PlataformaECommerce.Web.Pages.Account.IndexModel
+@{
+    ViewData["Title"] = "Mi cuenta";
+}
+
+<div class="container py-5">
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <div class="alert alert-success mb-4" role="status">
+            @Model.StatusMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger mb-4" role="alert">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="small text-uppercase text-muted fw-semibold">Mi cuenta</div>
+                    <h1 class="h3 fw-bold mt-2 mb-2">Hola, @Model.Account.FullName</h1>
+                    <p class="text-muted mb-0">
+                        Administra tu perfil, consulta tu historial de pedidos y mantén segura tu cuenta desde un único espacio de autoservicio.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="small text-uppercase text-muted fw-semibold">Estado de la cuenta</div>
+                    <div class="display-6 fw-bold mt-2 @(Model.Account.IsEnabled ? "text-success" : "text-warning")">@Model.Account.StatusLabel</div>
+                    <div class="text-muted small mt-2">
+                        @(Model.Account.IsEnabled
+                            ? "Tu cuenta está habilitada para utilizar las funcionalidades disponibles del sitio."
+                            : "Tu cuenta requiere atención para completar la experiencia de acceso.")
+                    </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <a asp-page="/Orders/Index" class="btn btn-primary">Ver mis pedidos</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-5">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Perfil principal</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Información de acceso</h2>
+
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4 text-muted">Nombre</dt>
+                        <dd class="col-sm-8 fw-semibold">@Model.Account.FullName</dd>
+
+                        <dt class="col-sm-4 text-muted">Correo</dt>
+                        <dd class="col-sm-8">@Model.Account.Email</dd>
+
+                        <dt class="col-sm-4 text-muted">Rol</dt>
+                        <dd class="col-sm-8">@Model.Account.Role</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Seguridad y trazabilidad</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Contexto de la cuenta</h2>
+
+                    <div class="d-flex flex-column gap-3">
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Correo confirmado</div>
+                            <div class="fw-semibold mt-1">@(Model.Account.IsEmailConfirmed ? "Sí" : "No")</div>
+                        </div>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Cuenta activa</div>
+                            <div class="fw-semibold mt-1">@(Model.Account.IsActive ? "Sí" : "No")</div>
+                        </div>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Último acceso registrado</div>
+                            <div class="fw-semibold mt-1">@(Model.Account.LastLoginAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Sin registros previos")</div>
+                        </div>
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="small text-muted">Fecha de creación</div>
+                            <div class="fw-semibold mt-1">@(Model.Account.CreatedAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "No disponible")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="small text-uppercase text-muted fw-semibold">Perfil editable</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Actualizar información básica</h2>
+                    <p class="text-muted small mb-4">
+                        Mantén actualizados tu nombre y el correo con el que ingresas al sistema. Si cambias la dirección de correo, deberás volver a validar tu sesión.
+                    </p>
+
+                    <form method="post" asp-page-handler="UpdateProfile" novalidate>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="Profile.Name" class="form-label"></label>
+                                <input asp-for="Profile.Name" class="form-control" autocomplete="name" />
+                                <span asp-validation-for="Profile.Name" class="text-danger small"></span>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Profile.Email" class="form-label"></label>
+                                <input asp-for="Profile.Email" class="form-control" autocomplete="email" />
+                                <span asp-validation-for="Profile.Email" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap mt-4">
+                            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                            <a asp-page="/Orders/Index" class="btn btn-outline-secondary">Ver mis pedidos</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="small text-uppercase text-muted fw-semibold">Seguridad</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Cambiar contraseña</h2>
+                    <p class="text-muted small mb-4">
+                        Para proteger tu cuenta, valida tu contraseña actual y define una nueva credencial conforme a la política de seguridad vigente.
+                    </p>
+
+                    <form method="post" asp-page-handler="ChangePassword" novalidate data-account-password-form>
+                        <div class="mb-3">
+                            <label asp-for="PasswordChange.CurrentPassword" class="form-label"></label>
+                            <input asp-for="PasswordChange.CurrentPassword" class="form-control" autocomplete="current-password" />
+                            <span asp-validation-for="PasswordChange.CurrentPassword" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="PasswordChange.NewPassword" class="form-label"></label>
+                            <input asp-for="PasswordChange.NewPassword" class="form-control" autocomplete="new-password" data-account-password-new />
+                            <span asp-validation-for="PasswordChange.NewPassword" class="text-danger small"></span>
+                            <div class="form-text mt-2" aria-live="polite">
+                                <div class="fw-semibold text-body-secondary mb-2">Validación en tiempo real</div>
+                                <ul class="list-unstyled small mb-0" data-account-password-rules>
+                                    <li data-password-rule="length" class="text-muted">Debe tener entre 8 y 100 caracteres.</li>
+                                    <li data-password-rule="uppercase" class="text-muted">Debe incluir al menos una letra mayúscula.</li>
+                                    <li data-password-rule="lowercase" class="text-muted">Debe incluir al menos una letra minúscula.</li>
+                                    <li data-password-rule="digit" class="text-muted">Debe incluir al menos un número.</li>
+                                    <li data-password-rule="special" class="text-muted">Debe incluir al menos un carácter especial.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="PasswordChange.ConfirmPassword" class="form-label"></label>
+                            <input asp-for="PasswordChange.ConfirmPassword" class="form-control" autocomplete="new-password" data-account-password-confirm />
+                            <span asp-validation-for="PasswordChange.ConfirmPassword" class="text-danger small"></span>
+                            <div class="small text-muted mt-2" data-account-password-feedback aria-live="polite">
+                                Repite la nueva contraseña para validar coincidencia antes de continuar.
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 flex-wrap mt-4">
+                            <button type="submit" class="btn btn-dark" data-account-password-submit>Cambiar contraseña</button>
+                            <a asp-page="/Auth/ForgotPassword" class="btn btn-outline-secondary">Recuperación de acceso</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-body p-4">
+            <div class="small text-uppercase text-muted fw-semibold">Roles efectivos</div>
+            <h2 class="h5 fw-bold mt-2 mb-3">Cobertura actual de la cuenta</h2>
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (string role in Model.Account.Roles)
+                {
+                    <span class="badge rounded-pill text-bg-secondary">@role</span>
+                }
+            </div>
+            <p class="text-muted small mt-3 mb-0">
+                Esta vista resume el contexto actual de tu identidad autenticada sin exponer información sensible ni alterar el flujo existente del sitio.
+            </p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/account/index.js" asp-append-version="true"></script>
+}

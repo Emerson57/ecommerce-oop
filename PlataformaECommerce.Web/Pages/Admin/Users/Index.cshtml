@@ -1,0 +1,252 @@
+@page
+@model PlataformaECommerce.Web.Pages.Admin.Users.IndexModel
+@{
+    ViewData["Title"] = "Usuarios";
+    ViewData["Subtitle"] = "Gestión segura de usuarios y restablecimiento administrativo de credenciales";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success admin-feedback-alert" role="status" aria-live="polite">
+        @Model.StatusMessage
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger admin-feedback-alert" role="alert" aria-live="assertive">
+        @Model.ErrorMessage
+    </div>
+}
+
+@if (string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card admin-summary-card border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="admin-muted-label">Usuarios visibles</div>
+                    <div class="display-6 fw-bold mt-2">@Model.UsersBackoffice.TotalUsers</div>
+                    <div class="text-muted small mt-2">@Model.UsersBackoffice.ActiveUsers activos · @Model.UsersBackoffice.InactiveUsers inactivos</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card admin-summary-card border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="admin-muted-label">Cuentas administrativas</div>
+                    <div class="display-6 fw-bold mt-2">@Model.UsersBackoffice.TotalAdministrators</div>
+                    <div class="text-muted small mt-2">@Model.UsersBackoffice.TotalSuperUsers super usuario(s) con privilegios elevados.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card admin-summary-card border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="admin-muted-label">Clientes</div>
+                    <div class="display-6 fw-bold mt-2">@Model.UsersBackoffice.TotalCustomers</div>
+                    <div class="text-muted small mt-2">@Model.UsersBackoffice.EmailConfirmedUsers usuarios con correo confirmado.</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="card admin-summary-card border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="admin-muted-label">Acceso reciente</div>
+                    <div class="display-6 fw-bold mt-2">@Model.UsersBackoffice.UsersWithRecentAccess</div>
+                    <div class="text-muted small mt-2">Actividad detectada dentro de la ventana operativa actual.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card admin-summary-card border-0 mb-4">
+        <div class="card-body p-4 d-flex flex-column flex-xl-row justify-content-between gap-4 align-items-xl-center">
+            <div>
+                <div class="admin-muted-label">Módulo de usuarios</div>
+                <h2 class="h4 fw-bold mt-2 mb-2">Gestión centralizada de usuarios y credenciales sensibles.</h2>
+                <p class="text-muted mb-0">
+                    Este módulo concentra el listado de usuarios del sistema, con acceso limitado a sesiones autenticadas de superusuario y restablecimiento de contraseñas delegado a la capa Application.
+                </p>
+            </div>
+            <div class="admin-action-panel">
+                @if (Model.IsAdminCreationUiAvailable)
+                {
+                    <a asp-page="./Create" class="btn btn-dark">Crear administrador</a>
+                }
+                <a asp-page="/Admin/Index" class="btn btn-outline-secondary">Volver al dashboard</a>
+                <div class="text-muted small">
+                    Generado: @Model.UsersBackoffice.GeneratedAtUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")<br />
+                    Ventana de accesos recientes: desde @Model.UsersBackoffice.RecentAccessWindowStartUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")
+                </div>
+                @if (!Model.IsAdminCreationUiAvailable)
+                {
+                    <div class="text-muted small">La creación visual de administradores no se encuentra disponible en este entorno.</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <div class="admin-muted-label">Gobierno administrativo</div>
+                    <h2 class="h5 fw-bold mb-0">Usuarios existentes</h2>
+                </div>
+                <span class="badge rounded-pill text-bg-dark">@Model.VisibleUsers.Count cuenta(s)</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0" aria-describedby="admin-users-caption">
+                    <caption id="admin-users-caption" class="visually-hidden">
+                        Listado de usuarios visibles en el backoffice con acciones de restablecimiento administrativo.
+                    </caption>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Correo</th>
+                            <th>Rol</th>
+                            <th>Área</th>
+                            <th>Estado</th>
+                            <th>Último acceso</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.VisibleUsers.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7">
+                                <div class="admin-empty-state">
+                                    <div class="fw-semibold mb-1">No existen usuarios visibles en el backoffice.</div>
+                                    <div class="text-muted small">Cuando se registren nuevas cuentas, aparecerán aquí con su rol, área, estado operativo y acciones administrativas disponibles.</div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var user in Model.VisibleUsers)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@user.Name</td>
+                                <td>@user.Email</td>
+                                <td>
+                                    <span class="badge rounded-pill @(user.IsSuperUser ? "text-bg-danger" : user.IsAdministrative ? "text-bg-primary" : "text-bg-secondary")">@user.Role</span>
+                                </td>
+                                <td>@(user.Area ?? "N/D")</td>
+                                <td>
+                                    <span class="badge rounded-pill @(user.IsEnabled ? "text-bg-success" : user.IsActive ? "text-bg-warning" : "text-bg-secondary")">
+                                        @(user.IsEnabled ? "Habilitado" : user.IsActive ? "Pendiente" : "Inactivo")
+                                    </span>
+                                </td>
+                                <td>@(user.LastAccessAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Sin accesos")</td>
+                                <td class="text-end">
+                                    <a asp-page="./Index"
+                                       asp-route-selectedUserId="@user.Id"
+                                       class="btn btn-sm btn-outline-dark">
+                                        Restablecer contraseña
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="reset-password-section" class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3 gap-3 flex-wrap">
+                <div>
+                    <div class="admin-muted-label">Operación sensible</div>
+                    <h2 class="h5 fw-bold mb-0">Restablecimiento administrativo de contraseña</h2>
+                </div>
+                @if (Model.SelectedUser is not null)
+                {
+                    <a asp-page="./Index" class="btn btn-outline-secondary btn-sm">Cancelar selección</a>
+                }
+            </div>
+
+            @if (Model.SelectedUser is null)
+            {
+                <div class="admin-empty-state">
+                    <div class="fw-semibold mb-1">Seleccione un usuario desde la lista.</div>
+                    <div class="text-muted small">La acción permitirá asignar una nueva contraseña cumpliendo la política vigente y dejar trazabilidad en auditoría.</div>
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    <div class="col-lg-5">
+                        <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+                            <div class="admin-muted-label">Usuario objetivo</div>
+                            <div class="fw-semibold mt-2">@Model.SelectedUser.Name</div>
+                            <div class="text-muted">@Model.SelectedUser.Email</div>
+                            <div class="mt-3 d-flex flex-wrap gap-2">
+                                <span class="badge rounded-pill @(Model.SelectedUser.IsSuperUser ? "text-bg-danger" : Model.SelectedUser.IsAdministrative ? "text-bg-primary" : "text-bg-secondary")">@Model.SelectedUser.Role</span>
+                                <span class="badge rounded-pill @(Model.SelectedUser.IsEnabled ? "text-bg-success" : Model.SelectedUser.IsActive ? "text-bg-warning" : "text-bg-secondary")">
+                                    @(Model.SelectedUser.IsEnabled ? "Habilitado" : Model.SelectedUser.IsActive ? "Pendiente" : "Inactivo")
+                                </span>
+                            </div>
+                            <div class="text-muted small mt-3">
+                                Área: @(Model.SelectedUser.Area ?? "N/D")<br />
+                                Último acceso: @(Model.SelectedUser.LastAccessAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Sin accesos")
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-7">
+                        <form method="post" asp-page-handler="ResetPassword" novalidate data-reset-password-form>
+                            <input asp-for="ResetPassword.TargetUserId" type="hidden" />
+                            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                            <div class="mb-3">
+                                <label asp-for="ResetPassword.NewPassword" class="form-label"></label>
+                                <input asp-for="ResetPassword.NewPassword" class="form-control" autocomplete="new-password" data-reset-password-new data-val="true" />
+                                <span asp-validation-for="ResetPassword.NewPassword" class="text-danger"></span>
+                                <div class="form-text mt-2" aria-live="polite">
+                                    <div class="fw-semibold text-body-secondary mb-2">Validación en tiempo real</div>
+                                    <ul class="list-unstyled small mb-0" data-reset-password-rules>
+                                        <li data-password-rule="length" class="text-muted">Debe tener entre 8 y 100 caracteres.</li>
+                                        <li data-password-rule="uppercase" class="text-muted">Debe incluir al menos una letra mayúscula.</li>
+                                        <li data-password-rule="lowercase" class="text-muted">Debe incluir al menos una letra minúscula.</li>
+                                        <li data-password-rule="digit" class="text-muted">Debe incluir al menos un número.</li>
+                                        <li data-password-rule="special" class="text-muted">Debe incluir al menos un carácter especial.</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="ResetPassword.ConfirmPassword" class="form-label"></label>
+                                <input asp-for="ResetPassword.ConfirmPassword" class="form-control" autocomplete="new-password" data-reset-password-confirm data-val="true" />
+                                <span asp-validation-for="ResetPassword.ConfirmPassword" class="text-danger"></span>
+                                <div class="small text-muted mt-2" data-reset-password-match-feedback aria-live="polite">
+                                    Ingrese y confirme la nueva contraseña para validar coincidencia en tiempo real.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="ResetPassword.Reason" class="form-label"></label>
+                                <textarea asp-for="ResetPassword.Reason" class="form-control" rows="3"></textarea>
+                                <span asp-validation-for="ResetPassword.Reason" class="text-danger"></span>
+                            </div>
+
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="submit" class="btn btn-dark" data-reset-password-submit>Restablecer contraseña</button>
+                                <a asp-page="./Index" class="btn btn-outline-secondary">Cancelar</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/admin/users/reset-password.js" asp-append-version="true"></script>
+}
+        </div>
+    </div>
+}
