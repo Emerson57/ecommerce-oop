@@ -14,12 +14,19 @@
             themeToggleText.textContent = theme === "dark" ? "🌙 Oscuro" : "🌞 Claro";
         }
 
+        if (themeToggle) {
+            themeToggle.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+            themeToggle.setAttribute("aria-label", theme === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro");
+        }
+
         localStorage.setItem(STORAGE_THEME, theme);
     }
 
     function loadTheme() {
-        const savedTheme = localStorage.getItem(STORAGE_THEME) || "light";
-        applyTheme(savedTheme);
+        const savedTheme = localStorage.getItem(STORAGE_THEME);
+        const preferredTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        const effectiveTheme = savedTheme || preferredTheme;
+        applyTheme(effectiveTheme);
     }
 
     if (themeToggle) {

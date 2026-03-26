@@ -39,6 +39,16 @@ public interface IProductApplicationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Importa productos físicos y digitales desde una plantilla tabular validada.
+    /// </summary>
+    /// <param name="command">Comando de importación masiva de productos.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Resultado con el resumen de productos creados durante la importación.</returns>
+    Task<Result<ProductImportResultDto>> ImportProductsAsync(
+        ImportProductsCommand command,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Actualiza la información integral de un producto existente.
     /// </summary>
     /// <param name="command">Comando de actualización del producto.</param>

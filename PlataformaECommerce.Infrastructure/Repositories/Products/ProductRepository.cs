@@ -175,36 +175,38 @@ public sealed class ProductRepository : IProductRepository
         ArgumentNullException.ThrowIfNull(entity);
 
         Producto product = entity.TipoProducto.Trim().Equals(TipoProducto.Fisico.ToString(), StringComparison.OrdinalIgnoreCase)
-            ? new ProductoFisico(
-                entity.Nombre,
-                entity.Descripcion,
-                new Sku(entity.Sku),
-                new Money(entity.Precio, entity.Moneda),
-                entity.Stock,
-                entity.Slug,
-                entity.ImagenPrincipalUrl,
-                entity.CategoriaId,
-                entity.SubcategoriaId,
-                DeserializeTags(entity.EtiquetasSerializadas),
-                entity.PesoKg ?? 0m,
-                entity.AltoCm ?? 0m,
-                entity.AnchoCm ?? 0m,
-                entity.LargoCm ?? 0m,
-                entity.RequiereEnvio ?? true)
-            : new ProductoDigital(
-                entity.Nombre,
-                entity.Descripcion,
-                new Sku(entity.Sku),
-                new Money(entity.Precio, entity.Moneda),
-                entity.Stock,
-                entity.Slug,
-                entity.ImagenPrincipalUrl,
-                entity.CategoriaId,
-                entity.SubcategoriaId,
-                DeserializeTags(entity.EtiquetasSerializadas),
-                entity.FormatoArchivo ?? string.Empty,
-                entity.TamanoMB,
-                entity.RequiereLicencia ?? false);
+             ? new ProductoFisico(
+                 entity.Nombre,
+                 entity.Descripcion,
+                 new Sku(entity.Sku),
+                 new Money(entity.Precio, entity.Moneda),
+                 entity.Stock,
+                 entity.Slug,
+                 entity.ImagenPrincipalUrl,
+                 entity.CategoriaId,
+                 entity.SubcategoriaId,
+                 DeserializeTags(entity.EtiquetasSerializadas),
+                 entity.PesoKg ?? 0m,
+                 entity.AltoCm ?? 0m,
+                 entity.AnchoCm ?? 0m,
+                 entity.LargoCm ?? 0m,
+                 entity.RequiereEnvio ?? true,
+                 DeserializeImageGallery(entity.GaleriaImagenesSerializadas))
+             : new ProductoDigital(
+                 entity.Nombre,
+                 entity.Descripcion,
+                 new Sku(entity.Sku),
+                 new Money(entity.Precio, entity.Moneda),
+                 entity.Stock,
+                 entity.Slug,
+                 entity.ImagenPrincipalUrl,
+                 entity.CategoriaId,
+                 entity.SubcategoriaId,
+                 DeserializeTags(entity.EtiquetasSerializadas),
+                 entity.FormatoArchivo ?? string.Empty,
+                 entity.TamanoMB,
+                 entity.RequiereLicencia ?? false,
+                 DeserializeImageGallery(entity.GaleriaImagenesSerializadas));
 
         ApplyPersistenceState(product, entity);
         return product;
@@ -234,6 +236,7 @@ public sealed class ProductRepository : IProductRepository
         entity.TipoProducto = producto.TipoProducto.ToString();
         entity.Slug = producto.Slug;
         entity.ImagenPrincipalUrl = producto.ImagenPrincipalUrl;
+        entity.GaleriaImagenesSerializadas = SerializeImageGallery(producto.GaleriaImagenes);
         entity.CategoriaId = producto.CategoriaId;
         entity.SubcategoriaId = producto.SubcategoriaId;
         entity.EtiquetasSerializadas = SerializeTags(producto.Etiquetas);
@@ -290,6 +293,39 @@ public sealed class ProductRepository : IProductRepository
         string[] values = tags
             .Select(tag => tag.Value)
             .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+
+        return values.Length == 0
+            ? null
+            : JsonSerializer.Serialize(values, JsonOptions);
+    }
+
+    private static IReadOnlyCollection<string> DeserializeImageGallery(string? serializedImageGallery)
+    {
+        if (string.IsNullOrWhiteSpace(serializedImageGallery))
+        {
+            return Array.Empty<string>();
+        }
+
+        string[]? values = JsonSerializer.Deserialize<string[]>(serializedImageGallery, JsonOptions);
+        if (values is null || values.Length == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        return values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string? SerializeImageGallery(IEnumerable<string> imageGallery)
+    {
+        string[] values = imageGallery
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         return values.Length == 0

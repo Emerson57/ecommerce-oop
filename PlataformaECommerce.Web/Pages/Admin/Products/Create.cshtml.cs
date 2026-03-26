@@ -1,9 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PlataformaECommerce.Application.Features.Categories.DTOs;
+using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Features.Products.Commands;
+using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Admin.Products
 {
@@ -17,14 +22,21 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     public sealed class CreateModel : PageModel
     {
         private readonly IProductApplicationService _productApplicationService;
+        private readonly ICategoryApplicationService _categoryApplicationService;
+        private readonly IProductImageStorageService _productImageStorageService;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="CreateModel"/>.
         /// </summary>
         /// <param name="productApplicationService">Servicio de aplicación de productos.</param>
-        public CreateModel(IProductApplicationService productApplicationService)
+        public CreateModel(
+            IProductApplicationService productApplicationService,
+            ICategoryApplicationService categoryApplicationService,
+            IProductImageStorageService productImageStorageService)
         {
             _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+            _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
+            _productImageStorageService = productImageStorageService ?? throw new ArgumentNullException(nameof(productImageStorageService));
         }
 
         /// <summary>
@@ -45,15 +57,32 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         public string? SuccessMessage { get; set; }
 
         /// <summary>
+        /// Obtiene las categorías principales disponibles para clasificación.
+        /// </summary>
+        public IReadOnlyCollection<CategoryOptionViewModel> MainCategories { get; private set; } = Array.Empty<CategoryOptionViewModel>();
+
+        /// <summary>
+        /// Obtiene las subcategorías disponibles para clasificación.
+        /// </summary>
+        public IReadOnlyCollection<CategoryOptionViewModel> Subcategories { get; private set; } = Array.Empty<CategoryOptionViewModel>();
+
+        /// <summary>
+        /// Obtiene la URL visible utilizada para previsualizar la imagen principal actual del producto.
+        /// </summary>
+        public string MainImagePreviewUrl => ProductImageDefaults.ResolveDisplayUrl(Input.Images.MainImage.ResolvePreviewUrl());
+
+        /// <summary>
         /// Inicializa el formulario administrativo de creación con el tipo indicado o el valor por defecto.
         /// </summary>
         /// <param name="productType">Tipo de producto inicialmente seleccionado.</param>
-        public void OnGet(TipoProducto? productType = null)
+        public async Task OnGetAsync(TipoProducto? productType = null)
         {
             Input.ProductType = productType ?? TipoProducto.Fisico;
             Input.Currency = "COP";
             Input.IsActive = true;
             Input.RequiresShipping = true;
+            EnsureImageContracts();
+            await LoadCategoryOptionsAsync(CancellationToken.None);
         }
 
         /// <summary>
@@ -63,32 +92,38 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         /// <returns>Resultado de navegación correspondiente al flujo de creación.</returns>
         public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
         {
+            EnsureImageContracts();
+
             if (!ModelState.IsValid)
             {
+                await LoadCategoryOptionsAsync(cancellationToken);
                 return Page();
             }
 
-            if (!TryParseGuid(Input.CategoryId, out Guid? categoryId))
-            {
-                ModelState.AddModelError(nameof(Input.CategoryId), "La categoría debe ser un GUID válido o permanecer vacía.");
-                return Page();
-            }
+            ProductImageProcessResult imageResult = await _productImageStorageService.ProcessMainImageAsync(
+                Input.Images.MainImage.UploadedFile,
+                Normalize(Input.Images.MainImage.ExternalImageUrl),
+                currentImageUrl: null,
+                Input.Slug,
+                removeCurrentImage: false,
+                cancellationToken);
 
-            if (!TryParseGuid(Input.SubcategoryId, out Guid? subcategoryId))
+            if (!imageResult.IsSuccess)
             {
-                ModelState.AddModelError(nameof(Input.SubcategoryId), "La subcategoría debe ser un GUID válido o permanecer vacía.");
+                ErrorMessage = imageResult.ErrorMessage;
+                await LoadCategoryOptionsAsync(cancellationToken);
                 return Page();
             }
 
             return Input.ProductType switch
             {
-                TipoProducto.Fisico => await CreatePhysicalProductAsync(categoryId, subcategoryId, cancellationToken),
-                TipoProducto.Digital => await CreateDigitalProductAsync(categoryId, cancellationToken),
+                TipoProducto.Fisico => await CreatePhysicalProductAsync(imageResult.ImageUrl, cancellationToken),
+                TipoProducto.Digital => await CreateDigitalProductAsync(imageResult.ImageUrl, cancellationToken),
                 _ => Page()
             };
         }
 
-        private async Task<IActionResult> CreatePhysicalProductAsync(Guid? categoryId, Guid? subcategoryId, CancellationToken cancellationToken)
+        private async Task<IActionResult> CreatePhysicalProductAsync(string? mainImageUrl, CancellationToken cancellationToken)
         {
             var result = await _productApplicationService.CreatePhysicalProductAsync(
                 new CreatePhysicalProductCommand
@@ -100,11 +135,12 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                     Currency = Input.Currency.Trim().ToUpperInvariant(),
                     Stock = Input.Stock,
                     Slug = Input.Slug,
-                    MainImageUrl = Normalize(Input.MainImageUrl),
+                    MainImageUrl = mainImageUrl,
+                    ImageGallery = Input.Images.GetPersistableGalleryUrls(mainImageUrl),
                     IsActive = Input.IsActive,
                     IsFeatured = Input.IsFeatured,
-                    CategoryId = categoryId,
-                    SubcategoryId = subcategoryId,
+                    CategoryId = Input.CategoryId,
+                    SubcategoryId = Input.SubcategoryId,
                     Tags = ParseTags(Input.Tags),
                     WeightKg = Input.WeightKg ?? 0,
                     HeightCm = Input.HeightCm ?? 0,
@@ -116,7 +152,9 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
 
             if (result.IsFailure)
             {
+                await _productImageStorageService.DeleteIfManagedAsync(mainImageUrl, cancellationToken);
                 ErrorMessage = result.Error.Message;
+                await LoadCategoryOptionsAsync(cancellationToken);
                 return Page();
             }
 
@@ -124,7 +162,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             return RedirectToPage("./Edit", new { id = result.Value });
         }
 
-        private async Task<IActionResult> CreateDigitalProductAsync(Guid? categoryId, CancellationToken cancellationToken)
+        private async Task<IActionResult> CreateDigitalProductAsync(string? mainImageUrl, CancellationToken cancellationToken)
         {
             var result = await _productApplicationService.CreateDigitalProductAsync(
                 new CreateDigitalProductCommand
@@ -136,10 +174,12 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                     Currency = Input.Currency.Trim().ToUpperInvariant(),
                     Stock = Input.Stock,
                     Slug = Input.Slug,
-                    MainImageUrl = Normalize(Input.MainImageUrl),
+                    MainImageUrl = mainImageUrl,
+                    ImageGallery = Input.Images.GetPersistableGalleryUrls(mainImageUrl),
                     IsActive = Input.IsActive,
                     IsFeatured = Input.IsFeatured,
-                    CategoryId = categoryId,
+                    CategoryId = Input.CategoryId,
+                    SubcategoryId = Input.SubcategoryId,
                     Tags = ParseTags(Input.Tags),
                     FileFormat = Normalize(Input.FileFormat) ?? string.Empty,
                     FileSizeMb = Input.FileSizeMb,
@@ -149,7 +189,9 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
 
             if (result.IsFailure)
             {
+                await _productImageStorageService.DeleteIfManagedAsync(mainImageUrl, cancellationToken);
                 ErrorMessage = result.Error.Message;
+                await LoadCategoryOptionsAsync(cancellationToken);
                 return Page();
             }
 
@@ -157,22 +199,30 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             return RedirectToPage("./Edit", new { id = result.Value });
         }
 
-        private static bool TryParseGuid(string? value, out Guid? parsedValue)
+        private async Task LoadCategoryOptionsAsync(CancellationToken cancellationToken)
         {
-            parsedValue = null;
+            var result = await _categoryApplicationService.GetCategoriesAsync(
+                new GetCategoriesQuery { OnlyActive = true },
+                cancellationToken);
 
-            if (string.IsNullOrWhiteSpace(value))
+            if (result.IsFailure)
             {
-                return true;
+                MainCategories = Array.Empty<CategoryOptionViewModel>();
+                Subcategories = Array.Empty<CategoryOptionViewModel>();
+                ErrorMessage ??= result.Error.Message;
+                return;
             }
 
-            if (!Guid.TryParse(value.Trim(), out Guid guidValue))
-            {
-                return false;
-            }
+            IReadOnlyCollection<CategoryDto> categories = result.Value;
+            MainCategories = categories
+                .Where(category => category.IsRootCategory)
+                .Select(MapCategoryOption)
+                .ToArray();
 
-            parsedValue = guidValue;
-            return true;
+            Subcategories = categories
+                .Where(category => category.IsSubcategory)
+                .Select(MapCategoryOption)
+                .ToArray();
         }
 
         private static IReadOnlyCollection<string> ParseTags(string? tags)
@@ -191,6 +241,22 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         private static string? Normalize(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        private void EnsureImageContracts()
+        {
+            Input.Images ??= new ProductImagesInputModel();
+            Input.Images.EnsureGallerySlots();
+        }
+
+        private static CategoryOptionViewModel MapCategoryOption(CategoryDto category)
+        {
+            return new CategoryOptionViewModel
+            {
+                Id = category.Id,
+                Name = category.Name,
+                ParentCategoryId = category.ParentCategoryId
+            };
         }
 
         /// <summary>
@@ -252,9 +318,9 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             public string Slug { get; set; } = string.Empty;
 
             /// <summary>
-            /// Obtiene o establece la imagen principal del producto.
+            /// Obtiene o establece el contrato de imágenes utilizado por el formulario administrativo.
             /// </summary>
-            public string? MainImageUrl { get; set; }
+            public ProductImagesInputModel Images { get; set; } = new();
 
             /// <summary>
             /// Obtiene o establece el estado inicial del producto.
@@ -267,14 +333,14 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             public bool IsFeatured { get; set; }
 
             /// <summary>
-            /// Obtiene o establece la categoría principal en formato GUID opcional.
+            /// Obtiene o establece la categoría principal seleccionada.
             /// </summary>
-            public string? CategoryId { get; set; }
+            public Guid? CategoryId { get; set; }
 
             /// <summary>
-            /// Obtiene o establece la subcategoría en formato GUID opcional.
+            /// Obtiene o establece la subcategoría seleccionada.
             /// </summary>
-            public string? SubcategoryId { get; set; }
+            public Guid? SubcategoryId { get; set; }
 
             /// <summary>
             /// Obtiene o establece las etiquetas separadas por comas.
@@ -330,6 +396,27 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             /// Obtiene un valor que indica si el formulario está configurado para un producto digital.
             /// </summary>
             public bool IsDigitalProduct => ProductType == TipoProducto.Digital;
+        }
+
+        /// <summary>
+        /// Representa una opción de categoría consumida por la UI administrativa.
+        /// </summary>
+        public sealed class CategoryOptionViewModel
+        {
+            /// <summary>
+            /// Identificador de la categoría.
+            /// </summary>
+            public Guid Id { get; init; }
+
+            /// <summary>
+            /// Nombre visible de la categoría.
+            /// </summary>
+            public string Name { get; init; } = string.Empty;
+
+            /// <summary>
+            /// Identificador de la categoría padre cuando se trata de una subcategoría.
+            /// </summary>
+            public Guid? ParentCategoryId { get; init; }
         }
     }
 }

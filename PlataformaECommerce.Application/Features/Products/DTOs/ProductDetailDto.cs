@@ -117,9 +117,9 @@ public sealed class ProductDetailDto
     public Guid? CategoryId { get; init; }
 
     /// <summary>
-    /// Nombre de la categoría del producto.
+    /// Identificador de la subcategoría del producto.
     /// </summary>
-    public string? CategoryName { get; init; }
+    public Guid? SubcategoryId { get; init; }
 
     /// <summary>
     /// Colección de etiquetas asociadas al producto.

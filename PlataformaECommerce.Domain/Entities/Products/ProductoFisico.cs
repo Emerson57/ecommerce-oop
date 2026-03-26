@@ -78,8 +78,9 @@ public sealed class ProductoFisico : Producto
         decimal altoCm,
         decimal anchoCm,
         decimal largoCm,
-        bool requiereEnvio = true)
-        : base(nombre, descripcion, sku, precio, stock, slug, imagenPrincipalUrl, categoriaId, subcategoriaId, etiquetas)
+        bool requiereEnvio = true,
+        IEnumerable<string>? galeriaImagenes = null)
+        : base(nombre, descripcion, sku, precio, stock, slug, imagenPrincipalUrl, categoriaId, subcategoriaId, etiquetas, galeriaImagenes)
     {
         PesoKg = ValidarPeso(pesoKg);
         Dimensiones = new DimensionesProducto(altoCm, anchoCm, largoCm);

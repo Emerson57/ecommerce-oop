@@ -998,16 +998,36 @@ public sealed class CatalogApplicationService : ICatalogApplicationService
     }
 
     /// <summary>
-    /// Construye una galería simple de imágenes a partir de la imagen principal.
+    /// Construye la colección visible de imágenes para el catálogo unificando portada y galería complementaria.
     /// </summary>
     private static IReadOnlyCollection<string> BuildImageGallery(Producto product)
     {
-        if (string.IsNullOrWhiteSpace(product.ImagenPrincipalUrl))
+        List<string> images = [];
+
+        void AddIfValid(string? imageUrl)
         {
-            return Array.Empty<string>();
+            if (string.IsNullOrWhiteSpace(imageUrl))
+            {
+                return;
+            }
+
+            string normalizedImageUrl = imageUrl.Trim();
+            if (images.Contains(normalizedImageUrl, StringComparer.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            images.Add(normalizedImageUrl);
         }
 
-        return new[] { product.ImagenPrincipalUrl };
+        AddIfValid(product.ImagenPrincipalUrl);
+
+        foreach (string imageUrl in product.GaleriaImagenes)
+        {
+            AddIfValid(imageUrl);
+        }
+
+        return images;
     }
 
     /// <summary>

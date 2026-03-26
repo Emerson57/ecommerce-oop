@@ -101,9 +101,24 @@ public sealed class ProductDto
     public string? MainImageUrl { get; init; }
 
     /// <summary>
+    /// Colección de imágenes complementarias asociadas al producto.
+    /// </summary>
+    public IReadOnlyCollection<string> ImageGallery { get; init; } = Array.Empty<string>();
+
+    /// <summary>
     /// Tipo funcional del producto.
     /// </summary>
     public TipoProducto ProductType { get; init; }
+
+    /// <summary>
+    /// Identificador de la categoría principal del producto.
+    /// </summary>
+    public Guid? CategoryId { get; init; }
+
+    /// <summary>
+    /// Identificador de la subcategoría del producto.
+    /// </summary>
+    public Guid? SubcategoryId { get; init; }
 
     /// <summary>
     /// Fecha y hora UTC en que fue creado el producto.

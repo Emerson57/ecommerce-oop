@@ -71,6 +71,10 @@ public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<Produc
             .HasMaxLength(500)
             .IsRequired(false);
 
+        builder.Property(product => product.GaleriaImagenesSerializadas)
+            .HasMaxLength(4000)
+            .IsRequired(false);
+
         builder.Property(product => product.EtiquetasSerializadas)
             .HasMaxLength(4000)
             .IsRequired(false);
@@ -111,6 +115,16 @@ public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<Produc
         builder.Property(product => product.RequiereEnvio)
             .IsRequired(false);
 
+        builder.HasOne<CategoryEntity>()
+            .WithMany()
+            .HasForeignKey(product => product.CategoriaId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<CategoryEntity>()
+            .WithMany()
+            .HasForeignKey(product => product.SubcategoriaId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(product => product.Sku)
             .IsUnique();
 
@@ -118,5 +132,6 @@ public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<Produc
         builder.HasIndex(product => product.Activo);
         builder.HasIndex(product => product.Nombre);
         builder.HasIndex(product => product.CategoriaId);
+        builder.HasIndex(product => product.SubcategoriaId);
     }
 }

@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
+using PlataformaECommerce.Application.Interfaces.Repositories.Categories;
 using PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
@@ -22,6 +23,7 @@ using PlataformaECommerce.Infrastructure.Mongo;
 using PlataformaECommerce.Infrastructure.Mongo.Repositories;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
 using PlataformaECommerce.Infrastructure.Repositories.Cart;
+using PlataformaECommerce.Infrastructure.Repositories.Categories;
 using PlataformaECommerce.Infrastructure.Repositories.Common;
 using PlataformaECommerce.Infrastructure.Repositories.Orders;
 using PlataformaECommerce.Infrastructure.Repositories.Products;
@@ -108,6 +110,7 @@ public static class InfrastructureServiceRegistration
             options.UseSqlServer(connectionString));
 
         services.AddScoped<ICartRepository, CartRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IUserRepository, UserRepository>();

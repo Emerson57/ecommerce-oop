@@ -73,6 +73,11 @@ public sealed class CreateDigitalProductCommand
     /// </summary>
     public string? MainImageUrl { get; init; }
 
+    /// <summary>
+    /// Colección de imágenes complementarias asociadas al producto.
+    /// </summary>
+    public IReadOnlyCollection<string> ImageGallery { get; init; } = Array.Empty<string>();
+
     #endregion
 
     #region Estado inicial
@@ -95,6 +100,11 @@ public sealed class CreateDigitalProductCommand
     /// Identificador de la categoría a la que pertenecerá el producto.
     /// </summary>
     public Guid? CategoryId { get; init; }
+
+    /// <summary>
+    /// Identificador de la subcategoría del producto cuando aplica.
+    /// </summary>
+    public Guid? SubcategoryId { get; init; }
 
     /// <summary>
     /// Colección de etiquetas asociadas al producto.
@@ -143,7 +153,7 @@ public sealed class CreateDigitalProductCommand
     /// <returns>Cadena representativa del comando de creación.</returns>
     public override string ToString()
     {
-        return $"CreateDigitalProductCommand | Name: {Name} | Sku: {Sku} | Price: {Currency} {Price:N2} | Stock: {Stock} | FileFormat: {FileFormat}";
+        return $"CreateDigitalProductCommand | Name: {Name} | Sku: {Sku} | Price: {Currency} {Price:N2} | Stock: {Stock} | CategoryId: {CategoryId} | SubcategoryId: {SubcategoryId} | FileFormat: {FileFormat}";
     }
 
     #endregion

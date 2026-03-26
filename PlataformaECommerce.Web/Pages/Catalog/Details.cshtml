@@ -29,6 +29,34 @@
             <div class="col-xl-7">
                 <div class="card shadow-sm border-0">
                     <div class="card-body p-4 p-lg-5">
+                        <div class="product-gallery-shell mb-4">
+                            <div class="product-detail-image-stage">
+                                <img src="@Model.Product.MainImageUrl" alt="Imagen principal de @Model.Product.Name" class="product-detail-image" id="productDetailPrimaryImage" />
+                            </div>
+
+                            @if (Model.Product.ImageUrls.Count > 1)
+                            {
+                                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mt-3 mb-2">
+                                    <div class="small text-uppercase text-muted fw-semibold">Galería visual</div>
+                                    <div class="small text-muted">@Model.Product.ImageUrls.Count imágenes disponibles</div>
+                                </div>
+
+                                <div class="product-detail-thumbnails">
+                                    @foreach (string imageUrl in Model.Product.ImageUrls)
+                                    {
+                                        bool isSelected = string.Equals(imageUrl, Model.Product.MainImageUrl, StringComparison.OrdinalIgnoreCase);
+                                        <button type="button"
+                                                class="product-detail-thumbnail-button @(isSelected ? "is-active" : string.Empty)"
+                                                data-product-image="@imageUrl"
+                                                aria-pressed="@isSelected.ToString().ToLowerInvariant()"
+                                                aria-label="Ver imagen adicional de @Model.Product.Name">
+                                            <img src="@imageUrl" alt="Miniatura de @Model.Product.Name" class="product-detail-thumbnail-image" loading="lazy" />
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+
                         <div class="small text-uppercase text-muted fw-semibold">@Model.Product.ProductTypeLabel</div>
                         <h2 class="h4 fw-bold mt-2 mb-3">@Model.Product.Name</h2>
                         <p class="text-muted">@Model.Product.Description</p>
@@ -110,4 +138,31 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const primaryImage = document.getElementById('productDetailPrimaryImage');
+            const thumbnailButtons = document.querySelectorAll('.product-detail-thumbnail-button');
+
+            if (!primaryImage || thumbnailButtons.length === 0) {
+                return;
+            }
+
+            thumbnailButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const imageUrl = button.getAttribute('data-product-image');
+                    if (!imageUrl) {
+                        return;
+                    }
+
+                    primaryImage.src = imageUrl;
+
+                    thumbnailButtons.forEach(currentButton => {
+                        const isActive = currentButton === button;
+                        currentButton.classList.toggle('is-active', isActive);
+                        currentButton.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                    });
+                });
+            });
+        })();
+    </script>
 }

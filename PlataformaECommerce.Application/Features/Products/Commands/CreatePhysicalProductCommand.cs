@@ -61,6 +61,11 @@ public sealed class CreatePhysicalProductCommand
     /// </summary>
     public string? MainImageUrl { get; init; }
 
+    /// <summary>
+    /// Colección de imágenes complementarias asociadas al producto.
+    /// </summary>
+    public IReadOnlyCollection<string> ImageGallery { get; init; } = Array.Empty<string>();
+
     #endregion
 
     #region Estado inicial

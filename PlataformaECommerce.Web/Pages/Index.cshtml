@@ -48,31 +48,27 @@
             <p>Una navegación clara mejora la experiencia de compra y hace que el catálogo se vea más profesional.</p>
         </div>
 
-        <div class="categories-grid">
-            <a href="#" class="category-card">
-                <div class="category-image placeholder-tech"></div>
-                <h3>Tecnología</h3>
-                <p>Accesorios, dispositivos y novedades.</p>
-            </a>
-
-            <a href="#" class="category-card">
-                <div class="category-image placeholder-home"></div>
-                <h3>Hogar</h3>
-                <p>Diseño, orden y comodidad para tu espacio.</p>
-            </a>
-
-            <a href="#" class="category-card">
-                <div class="category-image placeholder-fashion"></div>
-                <h3>Moda</h3>
-                <p>Prendas y complementos con estilo actual.</p>
-            </a>
-
-            <a href="#" class="category-card">
-                <div class="category-image placeholder-sport"></div>
-                <h3>Deportes</h3>
-                <p>Productos para una vida más activa.</p>
-            </a>
-        </div>
+        @if (Model.FeaturedCategories.Count == 0)
+        {
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 text-center text-muted">
+                    Aún no hay categorías activas destacadas para mostrar en el storefront.
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="categories-grid">
+                @foreach (var category in Model.FeaturedCategories)
+                {
+                    <a asp-page="/Catalog/Index" asp-route-categoryId="@category.Id" class="category-card">
+                        <div class="category-image @category.AccentCssClass"></div>
+                        <h3>@category.Name</h3>
+                        <p>@category.Description</p>
+                    </a>
+                }
+            </div>
+        }
     </div>
 </section>
 
@@ -86,55 +82,58 @@
             <a asp-page="/Catalog/Index" class="view-all-link">Ver todo</a>
         </div>
 
-        <div class="products-grid">
-            <article class="product-card">
-                <div class="product-image placeholder-product-1"></div>
-                <span class="product-tag">Nuevo</span>
-                <h3>Audífonos inalámbricos Pro</h3>
-                <p class="product-category">Tecnología</p>
-                <div class="product-price-row">
-                    <strong>$199.900</strong>
-                    <span>$249.900</span>
-                </div>
-                <a asp-page="/Catalog/Index" class="product-btn text-decoration-none text-center d-inline-block">Agregar al carrito</a>
-            </article>
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger mb-4" role="alert">
+                @Model.ErrorMessage
+            </div>
+        }
 
-            <article class="product-card">
-                <div class="product-image placeholder-product-2"></div>
-                <span class="product-tag">Top ventas</span>
-                <h3>Lámpara decorativa minimalista</h3>
-                <p class="product-category">Hogar</p>
-                <div class="product-price-row">
-                    <strong>$89.900</strong>
-                    <span>$119.900</span>
+        @if (Model.FeaturedProducts.Count == 0)
+        {
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-lg-5 text-center">
+                    <h3 class="h5 fw-bold mb-2">Aún no hay productos visibles en portada</h3>
+                    <p class="text-muted mb-0">Cuando existan productos activos con stock, esta sección se alimentará automáticamente desde el catálogo real.</p>
                 </div>
-                <a asp-page="/Catalog/Index" class="product-btn text-decoration-none text-center d-inline-block">Agregar al carrito</a>
-            </article>
+            </div>
+        }
+        else
+        {
+            <div class="products-grid">
+                @foreach (var product in Model.FeaturedProducts)
+                {
+                    <article class="product-card">
+                        <a asp-page="/Catalog/Details" asp-route-id="@product.Id" class="text-decoration-none d-block">
+                            <img src="@product.MainImageUrl" alt="Imagen principal de @product.Name" class="product-image product-image-cover" loading="lazy" />
+                        </a>
+                        <span class="product-tag">@product.BadgeText</span>
+                        <h3>@product.Name</h3>
+                        <p class="product-category">@product.CategoryName</p>
+                        <div class="product-price-row">
+                            <strong>@product.Currency @product.Price.ToString("N2")</strong>
+                            @if (product.PreviousPrice.HasValue && product.PreviousPrice.Value > product.Price)
+                            {
+                                <span>@product.Currency @product.PreviousPrice.Value.ToString("N2")</span>
+                            }
+                        </div>
 
-            <article class="product-card">
-                <div class="product-image placeholder-product-3"></div>
-                <span class="product-tag">Oferta</span>
-                <h3>Reloj deportivo inteligente</h3>
-                <p class="product-category">Deportes</p>
-                <div class="product-price-row">
-                    <strong>$159.900</strong>
-                    <span>$209.900</span>
-                </div>
-                <a asp-page="/Catalog/Index" class="product-btn text-decoration-none text-center d-inline-block">Agregar al carrito</a>
-            </article>
-
-            <article class="product-card">
-                <div class="product-image placeholder-product-4"></div>
-                <span class="product-tag">Colección</span>
-                <h3>Mochila urbana premium</h3>
-                <p class="product-category">Moda</p>
-                <div class="product-price-row">
-                    <strong>$139.900</strong>
-                    <span>$179.900</span>
-                </div>
-                <a asp-page="/Catalog/Index" class="product-btn text-decoration-none text-center d-inline-block">Agregar al carrito</a>
-            </article>
-        </div>
+                        <div class="d-grid gap-2">
+                            <a asp-page="/Catalog/Details" asp-route-id="@product.Id" class="product-btn text-decoration-none text-center d-inline-block">Ver detalle</a>
+                            @if (Model.CanPurchaseAsCustomer)
+                            {
+                                <form method="post" asp-page="/Cart/Index" asp-page-handler="AddItem" class="d-grid">
+                                    <input type="hidden" name="productId" value="@product.Id" />
+                                    <input type="hidden" name="quantity" value="1" />
+                                    <input type="hidden" name="returnUrl" value="@Url.Page("/Index")" />
+                                    <button type="submit" class="btn btn-outline-secondary">Agregar al carrito</button>
+                                </form>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+        }
     </div>
 </section>
 

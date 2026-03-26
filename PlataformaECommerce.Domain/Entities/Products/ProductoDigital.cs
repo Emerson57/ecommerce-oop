@@ -50,6 +50,7 @@ public sealed class ProductoDigital : Producto
     /// <param name="formatoArchivo">Formato técnico principal del archivo digital.</param>
     /// <param name="tamanoArchivoMb">Tamaño del archivo expresado en megabytes.</param>
     /// <param name="requiereLicencia">Indica si el producto requiere activación, licencia o autorización adicional para su uso.</param>
+    /// <param name="galeriaImagenes">Colección opcional de URLs o rutas de imágenes adicionales para la galería del producto.</param>
     public ProductoDigital(
         string nombre,
         string descripcion,
@@ -63,8 +64,9 @@ public sealed class ProductoDigital : Producto
         IEnumerable<EtiquetaProducto>? etiquetas,
         string formatoArchivo,
         decimal? tamanoArchivoMb,
-        bool requiereLicencia)
-        : base(nombre, descripcion, sku, precio, stock, slug, imagenPrincipalUrl, categoriaId, subcategoriaId, etiquetas)
+        bool requiereLicencia,
+        IEnumerable<string>? galeriaImagenes = null)
+        : base(nombre, descripcion, sku, precio, stock, slug, imagenPrincipalUrl, categoriaId, subcategoriaId, etiquetas, galeriaImagenes)
     {
         Archivo = new ArchivoDigital(formatoArchivo, tamanoArchivoMb);
         RequiereLicencia = requiereLicencia;

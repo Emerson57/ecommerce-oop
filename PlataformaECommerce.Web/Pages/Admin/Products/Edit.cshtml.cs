@@ -1,15 +1,20 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PlataformaECommerce.Application.Features.Audit.DTOs;
 using PlataformaECommerce.Application.Features.Audit.Queries;
+using PlataformaECommerce.Application.Features.Categories.DTOs;
+using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
+using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Admin.Products
 {
@@ -26,7 +31,9 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         private const int PromotionHistoryPageSize = 10;
         private static readonly string[] PromotionAuditActions = ["product.promotion.applied", "product.promotion.removed"];
         private readonly IProductApplicationService _productApplicationService;
+        private readonly ICategoryApplicationService _categoryApplicationService;
         private readonly IAuditApplicationService _auditApplicationService;
+        private readonly IProductImageStorageService _productImageStorageService;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="EditModel"/>.
@@ -35,10 +42,14 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         /// <param name="auditApplicationService">Servicio público del módulo de auditoría.</param>
         public EditModel(
             IProductApplicationService productApplicationService,
-            IAuditApplicationService auditApplicationService)
+            ICategoryApplicationService categoryApplicationService,
+            IAuditApplicationService auditApplicationService,
+            IProductImageStorageService productImageStorageService)
         {
             _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+            _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
             _auditApplicationService = auditApplicationService ?? throw new ArgumentNullException(nameof(auditApplicationService));
+            _productImageStorageService = productImageStorageService ?? throw new ArgumentNullException(nameof(productImageStorageService));
         }
 
         /// <summary>
@@ -58,9 +69,29 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         public PromotionSummaryViewModel? PromotionSummary { get; private set; }
 
         /// <summary>
+        /// Obtiene las categorías principales disponibles para clasificación.
+        /// </summary>
+        public IReadOnlyCollection<CategoryOptionViewModel> MainCategories { get; private set; } = Array.Empty<CategoryOptionViewModel>();
+
+        /// <summary>
+        /// Obtiene las subcategorías disponibles para clasificación.
+        /// </summary>
+        public IReadOnlyCollection<CategoryOptionViewModel> Subcategories { get; private set; } = Array.Empty<CategoryOptionViewModel>();
+
+        /// <summary>
         /// Obtiene el historial resumido de promociones asociado al producto actual.
         /// </summary>
         public IReadOnlyCollection<PromotionHistoryItemViewModel> PromotionHistory { get; private set; } = Array.Empty<PromotionHistoryItemViewModel>();
+
+        /// <summary>
+        /// Obtiene la URL visible utilizada para previsualizar la imagen principal actual del producto.
+        /// </summary>
+        public string MainImagePreviewUrl => ProductImageDefaults.ResolveDisplayUrl(Input.Images.MainImage.ResolvePreviewUrl());
+
+        /// <summary>
+        /// Obtiene la etiqueta visible del origen actualmente asociado a la imagen principal.
+        /// </summary>
+        public string MainImageOriginLabel => ProductImageOriginResolver.ToDisplayName(Input.Images.MainImage.CurrentOrigin);
 
         /// <summary>
         /// Carga el detalle del producto solicitado para inicializar el formulario de edición.
@@ -78,6 +109,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             }
 
             MapToInput(result.Value);
+            await LoadCategoryOptionsAsync(cancellationToken);
             await LoadPromotionContextAsync(result.Value, cancellationToken);
             return Page();
         }
@@ -87,15 +119,28 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         /// </summary>
         public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
         {
+            EnsureImageContracts();
+
             if (!ModelState.IsValid)
             {
+                await LoadCategoryOptionsAsync(cancellationToken);
                 await LoadPromotionContextAsync(Input.Id, cancellationToken);
                 return Page();
             }
 
-            if (!TryParseCategoryId(Input.CategoryId, out Guid? categoryId))
+            string? currentMainImageUrl = Input.Images.MainImage.CurrentImageUrl;
+            ProductImageProcessResult imageResult = await _productImageStorageService.ProcessMainImageAsync(
+                Input.Images.MainImage.UploadedFile,
+                Normalize(Input.Images.MainImage.ExternalImageUrl),
+                currentMainImageUrl,
+                Input.Slug,
+                Input.Images.MainImage.RemoveCurrentImage,
+                cancellationToken);
+
+            if (!imageResult.IsSuccess)
             {
-                ModelState.AddModelError(nameof(Input.CategoryId), "El identificador de categoría debe ser un GUID válido o permanecer vacío.");
+                ErrorMessage = imageResult.ErrorMessage;
+                await LoadCategoryOptionsAsync(cancellationToken);
                 await LoadPromotionContextAsync(Input.Id, cancellationToken);
                 return Page();
             }
@@ -111,11 +156,13 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                     Currency = Input.Currency.Trim().ToUpperInvariant(),
                     Stock = Input.Stock,
                     Slug = Input.Slug,
-                    MainImageUrl = Normalize(Input.MainImageUrl),
+                    MainImageUrl = imageResult.ImageUrl,
+                    ImageGallery = Input.Images.GetPersistableGalleryUrls(imageResult.ImageUrl),
                     IsActive = Input.IsActive,
                     IsFeatured = Input.IsFeatured,
                     ProductType = Input.ProductType,
-                    CategoryId = categoryId,
+                    CategoryId = Input.CategoryId,
+                    SubcategoryId = Input.SubcategoryId,
                     Tags = ParseTags(Input.Tags),
                     WeightKg = Input.IsPhysicalProduct ? Input.WeightKg : null,
                     HeightCm = Input.IsPhysicalProduct ? Input.HeightCm : null,
@@ -130,9 +177,20 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
 
             if (result.IsFailure)
             {
+                if (!string.Equals(imageResult.ImageUrl, currentMainImageUrl, StringComparison.Ordinal))
+                {
+                    await _productImageStorageService.DeleteIfManagedAsync(imageResult.ImageUrl, cancellationToken);
+                }
+
                 ErrorMessage = result.Error.Message;
+                await LoadCategoryOptionsAsync(cancellationToken);
                 await LoadPromotionContextAsync(Input.Id, cancellationToken);
                 return Page();
+            }
+
+            if (!string.Equals(imageResult.ImageUrl, currentMainImageUrl, StringComparison.Ordinal))
+            {
+                await _productImageStorageService.DeleteIfManagedAsync(currentMainImageUrl, cancellationToken);
             }
 
             TempData["SuccessMessage"] = "Producto actualizado correctamente.";
@@ -141,6 +199,13 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
 
         private void MapToInput(ProductDetailDto product)
         {
+            List<ProductGalleryImageInputModel> gallery = product.ImageGallery
+                .Select(imageUrl => new ProductGalleryImageInputModel
+                {
+                    ImageUrl = imageUrl
+                })
+                .ToList();
+
             Input = new InputModel
             {
                 Id = product.Id,
@@ -151,11 +216,22 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                 Currency = product.Currency,
                 Stock = product.Stock,
                 Slug = product.Slug,
-                MainImageUrl = product.MainImageUrl,
+                Images = new ProductImagesInputModel
+                {
+                    MainImage = new ProductMainImageInputModel
+                    {
+                        CurrentImageUrl = product.MainImageUrl,
+                        ExternalImageUrl = product.MainImageUrl is not null && ProductImageOriginResolver.Resolve(product.MainImageUrl) == ProductImageOrigin.External
+                            ? product.MainImageUrl
+                            : null
+                    },
+                    Gallery = gallery
+                },
                 IsActive = product.IsActive,
                 IsFeatured = product.IsFeatured,
                 ProductType = product.ProductType,
-                CategoryId = product.CategoryId?.ToString(),
+                CategoryId = product.CategoryId,
+                SubcategoryId = product.SubcategoryId,
                 Tags = string.Join(", ", product.Tags),
                 WeightKg = product.WeightKg,
                 HeightCm = product.HeightCm,
@@ -166,6 +242,8 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                 FileSizeMb = product.FileSizeMb,
                 RequiresLicense = product.RequiresLicense
             };
+
+            EnsureImageContracts();
         }
 
         private async Task LoadPromotionContextAsync(ProductDetailDto product, CancellationToken cancellationToken)
@@ -205,6 +283,32 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             }
 
             await LoadPromotionContextAsync(result.Value, cancellationToken);
+        }
+
+        private async Task LoadCategoryOptionsAsync(CancellationToken cancellationToken)
+        {
+            var result = await _categoryApplicationService.GetCategoriesAsync(
+                new GetCategoriesQuery { OnlyActive = true },
+                cancellationToken);
+
+            if (result.IsFailure)
+            {
+                MainCategories = Array.Empty<CategoryOptionViewModel>();
+                Subcategories = Array.Empty<CategoryOptionViewModel>();
+                ErrorMessage ??= result.Error.Message;
+                return;
+            }
+
+            IReadOnlyCollection<CategoryDto> categories = result.Value;
+            MainCategories = categories
+                .Where(category => category.IsRootCategory)
+                .Select(MapCategoryOption)
+                .ToArray();
+
+            Subcategories = categories
+                .Where(category => category.IsSubcategory)
+                .Select(MapCategoryOption)
+                .ToArray();
         }
 
         private async Task LoadPromotionHistoryAsync(Guid productId, CancellationToken cancellationToken)
@@ -270,22 +374,14 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                 : null;
         }
 
-        private static bool TryParseCategoryId(string? value, out Guid? categoryId)
+        private static CategoryOptionViewModel MapCategoryOption(CategoryDto category)
         {
-            categoryId = null;
-
-            if (string.IsNullOrWhiteSpace(value))
+            return new CategoryOptionViewModel
             {
-                return true;
-            }
-
-            if (!Guid.TryParse(value.Trim(), out Guid parsedCategoryId))
-            {
-                return false;
-            }
-
-            categoryId = parsedCategoryId;
-            return true;
+                Id = category.Id,
+                Name = category.Name,
+                ParentCategoryId = category.ParentCategoryId
+            };
         }
 
         private static IReadOnlyCollection<string> ParseTags(string? tags)
@@ -304,6 +400,12 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         private static string? Normalize(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        private void EnsureImageContracts()
+        {
+            Input.Images ??= new ProductImagesInputModel();
+            Input.Images.EnsureGallerySlots();
         }
 
         /// <summary>
@@ -447,9 +549,9 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             public string Slug { get; set; } = string.Empty;
 
             /// <summary>
-            /// Imagen principal del producto.
+            /// Contrato de imágenes utilizado por el formulario de edición.
             /// </summary>
-            public string? MainImageUrl { get; set; }
+            public ProductImagesInputModel Images { get; set; } = new();
 
             /// <summary>
             /// Estado actual del producto.
@@ -467,9 +569,14 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             public TipoProducto ProductType { get; set; }
 
             /// <summary>
-            /// Categoría asociada al producto en formato GUID opcional.
+            /// Categoría principal seleccionada para el producto.
             /// </summary>
-            public string? CategoryId { get; set; }
+            public Guid? CategoryId { get; set; }
+
+            /// <summary>
+            /// Subcategoría seleccionada para el producto.
+            /// </summary>
+            public Guid? SubcategoryId { get; set; }
 
             /// <summary>
             /// Etiquetas del producto expresadas como una lista separada por comas.
@@ -525,6 +632,27 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             /// Indica si el formulario corresponde a un producto digital.
             /// </summary>
             public bool IsDigitalProduct => ProductType == TipoProducto.Digital;
+        }
+
+        /// <summary>
+        /// Representa una opción de categoría consumida por la UI administrativa.
+        /// </summary>
+        public sealed class CategoryOptionViewModel
+        {
+            /// <summary>
+            /// Identificador de la categoría.
+            /// </summary>
+            public Guid Id { get; init; }
+
+            /// <summary>
+            /// Nombre visible de la categoría.
+            /// </summary>
+            public string Name { get; init; } = string.Empty;
+
+            /// <summary>
+            /// Identificador de la categoría padre cuando se trata de una subcategoría.
+            /// </summary>
+            public Guid? ParentCategoryId { get; init; }
         }
     }
 }

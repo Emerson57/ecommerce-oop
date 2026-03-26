@@ -1,13 +1,18 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using PlataformaECommerce.Application.DependencyInjection;
 using PlataformaECommerce.Infrastructure.DependencyInjection;
+using PlataformaECommerce.Infrastructure.Persistence.Context;
 using PlataformaECommerce.Web.Authorization;
 using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Initialization;
 using PlataformaECommerce.Web.Middlewares;
 using PlataformaECommerce.Web.OpenApi;
+using PlataformaECommerce.Web.Services.Products;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,11 +84,21 @@ builder.Services
     .AddOptions<AdminUsersBackofficeOptions>()
     .Bind(builder.Configuration.GetSection(AdminUsersBackofficeOptions.SectionName));
 
+builder.Services
+    .AddOptions<ProductImagesOptions>()
+    .Bind(builder.Configuration.GetSection(ProductImagesOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.UploadsDirectory), "La configuración de imágenes de productos requiere un directorio de almacenamiento válido.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.RequestPath) && options.RequestPath.StartsWith('/'), "La configuración de imágenes de productos requiere una ruta pública válida que comience con '/'.")
+    .Validate(options => options.MaxFileSizeInBytes > 0, "La configuración de imágenes de productos requiere un tamaño máximo de archivo mayor que cero.")
+    .Validate(options => options.AllowedExtensions.Count > 0, "La configuración de imágenes de productos requiere al menos una extensión permitida.")
+    .ValidateOnStart();
+
 builder.Services.AddScoped<AdminCookieSecurityService>();
 builder.Services.AddScoped<AdminCookieAuthenticationEvents>();
 builder.Services.AddScoped<CustomerCookieSecurityService>();
 builder.Services.AddScoped<CustomerCookieAuthenticationEvents>();
 builder.Services.AddScoped<SuperUserBootstrapService>();
+builder.Services.AddScoped<IProductImageStorageService, ProductImageStorageService>();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -105,6 +120,9 @@ var app = builder.Build();
 
 await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
 {
+    ECommerceDbContext dbContext = scope.ServiceProvider.GetRequiredService<ECommerceDbContext>();
+    await dbContext.Database.MigrateAsync();
+
     SuperUserBootstrapService bootstrapService = scope.ServiceProvider.GetRequiredService<SuperUserBootstrapService>();
     await bootstrapService.BootstrapAsync();
 }
@@ -128,6 +146,18 @@ else
 }
 
 app.UseHttpsRedirection();
+
+ProductImagesOptions productImagesOptions = app.Services.GetRequiredService<IOptions<ProductImagesOptions>>().Value;
+string webRootPath = string.IsNullOrWhiteSpace(app.Environment.WebRootPath)
+    ? Path.Combine(app.Environment.ContentRootPath, "wwwroot")
+    : app.Environment.WebRootPath;
+string productImagesPhysicalPath = Path.Combine(webRootPath, productImagesOptions.UploadsDirectory.Replace('/', Path.DirectorySeparatorChar));
+Directory.CreateDirectory(productImagesPhysicalPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(productImagesPhysicalPath),
+    RequestPath = productImagesOptions.RequestPath
+});
 
 app.UseRouting();
 

@@ -109,6 +109,49 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                     b.ToTable("CartItems", (string)null);
                 });
 
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Activa")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("FechaActualizacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FechaCreacionUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<Guid?>("ParentCategoryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .HasColumnType("nvarchar(140)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nombre");
+
+                    b.HasIndex("ParentCategoryId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Categories", (string)null);
+                });
+
             modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -281,6 +324,10 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("GaleriaImagenesSerializadas")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
                     b.Property<string>("ImagenPrincipalUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -356,6 +403,8 @@ namespace PlataformaECommerce.Infrastructure.Migrations
 
                     b.HasIndex("Sku")
                         .IsUnique();
+
+                    b.HasIndex("SubcategoriaId");
 
                     b.HasIndex("TipoProducto");
 
@@ -444,6 +493,14 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                     b.Navigation("Cart");
                 });
 
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ParentCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderItemEntity", b =>
                 {
                     b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderEntity", "Pedido")
@@ -453,6 +510,19 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Pedido");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.ProductEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", null)
+                        .WithMany()
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SubcategoriaId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CartEntity", b =>

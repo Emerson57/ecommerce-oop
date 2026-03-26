@@ -6,6 +6,7 @@ using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Features.Products.Validators;
+using PlataformaECommerce.Application.Interfaces.Repositories.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
@@ -48,6 +49,11 @@ public sealed class ProductApplicationService : IProductApplicationService
     private readonly IProductRepository _productRepository;
 
     /// <summary>
+    /// Repositorio de categorías del catálogo.
+    /// </summary>
+    private readonly ICategoryRepository _categoryRepository;
+
+    /// <summary>
     /// Servicio transversal de auditoría.
     /// </summary>
     private readonly IAuditTrailService _auditTrailService;
@@ -59,6 +65,7 @@ public sealed class ProductApplicationService : IProductApplicationService
 
     private readonly IValidator<CreatePhysicalProductCommand> _createPhysicalProductCommandValidator;
     private readonly IValidator<CreateDigitalProductCommand> _createDigitalProductCommandValidator;
+    private readonly IValidator<ImportProductsCommand> _importProductsCommandValidator;
     private readonly IValidator<UpdateProductCommand> _updateProductCommandValidator;
     private readonly IValidator<UpdateProductStockCommand> _updateProductStockCommandValidator;
 
@@ -74,18 +81,22 @@ public sealed class ProductApplicationService : IProductApplicationService
     /// <param name="unitOfWork">Unidad de trabajo.</param>
     public ProductApplicationService(
         IProductRepository productRepository,
+        ICategoryRepository categoryRepository,
         IAuditTrailService auditTrailService,
         IUnitOfWork unitOfWork,
         IValidator<CreatePhysicalProductCommand> createPhysicalProductCommandValidator,
         IValidator<CreateDigitalProductCommand> createDigitalProductCommandValidator,
+        IValidator<ImportProductsCommand> importProductsCommandValidator,
         IValidator<UpdateProductCommand> updateProductCommandValidator,
         IValidator<UpdateProductStockCommand> updateProductStockCommandValidator)
     {
         _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+        _categoryRepository = categoryRepository ?? throw new ArgumentNullException(nameof(categoryRepository));
         _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _createPhysicalProductCommandValidator = createPhysicalProductCommandValidator ?? throw new ArgumentNullException(nameof(createPhysicalProductCommandValidator));
         _createDigitalProductCommandValidator = createDigitalProductCommandValidator ?? throw new ArgumentNullException(nameof(createDigitalProductCommandValidator));
+        _importProductsCommandValidator = importProductsCommandValidator ?? throw new ArgumentNullException(nameof(importProductsCommandValidator));
         _updateProductCommandValidator = updateProductCommandValidator ?? throw new ArgumentNullException(nameof(updateProductCommandValidator));
         _updateProductStockCommandValidator = updateProductStockCommandValidator ?? throw new ArgumentNullException(nameof(updateProductStockCommandValidator));
     }
@@ -114,6 +125,12 @@ public sealed class ProductApplicationService : IProductApplicationService
             return Result.Failure<Guid>(validationError);
         }
 
+        Error? categoryValidationError = await ValidateCategoryAssignmentAsync(command.CategoryId, command.SubcategoryId, cancellationToken);
+        if (categoryValidationError is not null)
+        {
+            return Result.Failure<Guid>(categoryValidationError);
+        }
+
         return await ExecuteAsync(async () =>
         {
             bool skuExists = await _productRepository.ExistsBySkuAsync(command.Sku, cancellationToken);
@@ -123,22 +140,7 @@ public sealed class ProductApplicationService : IProductApplicationService
                     Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
             }
 
-            ProductoFisico product = new(
-                command.Name,
-                command.Description,
-                CreateSku(command.Sku),
-                CreateMoney(command.Price, command.Currency),
-                command.Stock,
-                command.Slug,
-                command.MainImageUrl,
-                command.CategoryId,
-                command.SubcategoryId,
-                CreateTags(command.Tags),
-                command.WeightKg,
-                command.HeightCm,
-                command.WidthCm,
-                command.LengthCm,
-                command.RequiresShipping);
+            ProductoFisico product = CreatePhysicalProduct(command);
 
             ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
 
@@ -181,6 +183,12 @@ public sealed class ProductApplicationService : IProductApplicationService
             return Result.Failure<Guid>(validationError);
         }
 
+        Error? categoryValidationError = await ValidateCategoryAssignmentAsync(command.CategoryId, command.SubcategoryId, cancellationToken);
+        if (categoryValidationError is not null)
+        {
+            return Result.Failure<Guid>(categoryValidationError);
+        }
+
         return await ExecuteAsync(async () =>
         {
             bool skuExists = await _productRepository.ExistsBySkuAsync(command.Sku, cancellationToken);
@@ -190,20 +198,7 @@ public sealed class ProductApplicationService : IProductApplicationService
                     Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{command.Sku}'."));
             }
 
-            ProductoDigital product = new(
-                command.Name,
-                command.Description,
-                CreateSku(command.Sku),
-                CreateMoney(command.Price, command.Currency),
-                command.Stock,
-                command.Slug,
-                command.MainImageUrl,
-                command.CategoryId,
-                null,
-                CreateTags(command.Tags),
-                command.FileFormat,
-                command.FileSizeMb,
-                command.RequiresLicense);
+            ProductoDigital product = CreateDigitalProduct(command);
 
             ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
 
@@ -223,6 +218,189 @@ public sealed class ProductApplicationService : IProductApplicationService
                 cancellationToken);
 
             return Result.Success(product.Id);
+        }, "Products.Domain");
+    }
+
+    /// <summary>
+    /// Importa productos físicos y digitales desde una plantilla tabular validada.
+    /// </summary>
+    /// <param name="command">Comando de importación masiva de productos.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Resultado con el resumen de productos creados durante la importación.</returns>
+    public async Task<Result<ProductImportResultDto>> ImportProductsAsync(
+        ImportProductsCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        Error? validationError = await ValidateAsync(command, _importProductsCommandValidator, cancellationToken);
+        if (validationError is not null)
+        {
+            return Result.Failure<ProductImportResultDto>(validationError);
+        }
+
+        return await ExecuteAsync(async () =>
+        {
+            IReadOnlyCollection<Producto> existingProducts = await _productRepository.GetAllAsync(cancellationToken);
+            IReadOnlyCollection<PlataformaECommerce.Domain.Entities.Categories.CategoriaProducto> categories = await _categoryRepository.GetAllAsync(cancellationToken);
+
+            string? duplicatedImportSku = command.Rows
+                .GroupBy(row => row.Sku, StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(duplicatedImportSku))
+            {
+                return Result.Failure<ProductImportResultDto>(
+                    Error.Validation("Products.ImportDuplicatedSku", $"El SKU '{duplicatedImportSku}' está repetido dentro del archivo de importación."));
+            }
+
+            string? existingSkuConflict = command.Rows
+                .Select(row => row.Sku)
+                .FirstOrDefault(sku => existingProducts.Any(product => product.Sku.Value.Equals(sku, StringComparison.OrdinalIgnoreCase)));
+
+            if (!string.IsNullOrWhiteSpace(existingSkuConflict))
+            {
+                return Result.Failure<ProductImportResultDto>(
+                    Error.Conflict("Products.SkuAlreadyExists", $"Ya existe un producto registrado con el SKU '{existingSkuConflict}'."));
+            }
+
+            int physicalProductsCreated = 0;
+            int digitalProductsCreated = 0;
+            List<Producto> importedProducts = [];
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                foreach (ImportProductRowCommand row in command.Rows.OrderBy(current => current.RowNumber))
+                {
+                    Result<(Guid CategoryId, Guid? SubcategoryId)> categoryResolution = ResolveCategoryAssignment(row, categories);
+                    if (categoryResolution.IsFailure)
+                    {
+                        await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                        return Result.Failure<ProductImportResultDto>(categoryResolution.Error);
+                    }
+
+                    switch (row.ProductType)
+                    {
+                        case TipoProducto.Fisico:
+                        {
+                            CreatePhysicalProductCommand physicalCommand = new()
+                            {
+                                Name = row.Name,
+                                Description = row.Description,
+                                Sku = row.Sku,
+                                Price = row.Price,
+                                Currency = row.Currency,
+                                Stock = row.Stock,
+                                Slug = row.Slug,
+                                MainImageUrl = null,
+                                ImageGallery = Array.Empty<string>(),
+                                IsActive = row.IsActive,
+                                IsFeatured = false,
+                                CategoryId = categoryResolution.Value.CategoryId,
+                                SubcategoryId = categoryResolution.Value.SubcategoryId,
+                                Tags = ParseSerializedTags(row.SerializedTags),
+                                WeightKg = row.WeightKg ?? 0m,
+                                HeightCm = row.HeightCm ?? 0m,
+                                WidthCm = row.WidthCm ?? 0m,
+                                LengthCm = row.LengthCm ?? 0m,
+                                RequiresShipping = row.RequiresShipping ?? true
+                            };
+
+                            Error? rowValidationError = await ValidateAsync(physicalCommand, _createPhysicalProductCommandValidator, cancellationToken);
+                            if (rowValidationError is not null)
+                            {
+                                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                                return Result.Failure<ProductImportResultDto>(WrapImportRowError(row.RowNumber, rowValidationError));
+                            }
+
+                            ProductoFisico physicalProduct = CreatePhysicalProduct(physicalCommand);
+                            ApplyCommercialFlags(physicalProduct, physicalCommand.IsActive, physicalCommand.IsFeatured);
+                            await _productRepository.AddAsync(physicalProduct, cancellationToken);
+                            importedProducts.Add(physicalProduct);
+                            physicalProductsCreated++;
+                            break;
+                        }
+
+                        case TipoProducto.Digital:
+                        {
+                            CreateDigitalProductCommand digitalCommand = new()
+                            {
+                                Name = row.Name,
+                                Description = row.Description,
+                                Sku = row.Sku,
+                                Price = row.Price,
+                                Currency = row.Currency,
+                                Stock = row.Stock,
+                                Slug = row.Slug,
+                                MainImageUrl = null,
+                                ImageGallery = Array.Empty<string>(),
+                                IsActive = row.IsActive,
+                                IsFeatured = false,
+                                CategoryId = categoryResolution.Value.CategoryId,
+                                SubcategoryId = categoryResolution.Value.SubcategoryId,
+                                Tags = ParseSerializedTags(row.SerializedTags),
+                                FileFormat = Normalize(row.FileFormat) ?? string.Empty,
+                                FileSizeMb = row.FileSizeMb,
+                                RequiresLicense = row.RequiresLicense ?? false
+                            };
+
+                            Error? rowValidationError = await ValidateAsync(digitalCommand, _createDigitalProductCommandValidator, cancellationToken);
+                            if (rowValidationError is not null)
+                            {
+                                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                                return Result.Failure<ProductImportResultDto>(WrapImportRowError(row.RowNumber, rowValidationError));
+                            }
+
+                            ProductoDigital digitalProduct = CreateDigitalProduct(digitalCommand);
+                            ApplyCommercialFlags(digitalProduct, digitalCommand.IsActive, digitalCommand.IsFeatured);
+                            await _productRepository.AddAsync(digitalProduct, cancellationToken);
+                            importedProducts.Add(digitalProduct);
+                            digitalProductsCreated++;
+                            break;
+                        }
+
+                        default:
+                            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                            return Result.Failure<ProductImportResultDto>(
+                                Error.Validation("Products.ImportInvalidType", $"La fila {row.RowNumber} contiene un tipo de producto no soportado."));
+                    }
+                }
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                foreach (Producto importedProduct in importedProducts)
+                {
+                    await AuditProductEventAsync(
+                        importedProduct,
+                        "product.imported",
+                        $"Se importó el producto con SKU '{importedProduct.Sku.Value}' desde la plantilla Excel administrativa.",
+                        new Dictionary<string, string>
+                        {
+                            ["productType"] = importedProduct.TipoProducto.ToString(),
+                            ["sku"] = importedProduct.Sku.Value,
+                            ["currency"] = importedProduct.Precio.Currency,
+                            ["stock"] = importedProduct.Stock.ToString(CultureInfo.InvariantCulture)
+                        },
+                        cancellationToken);
+                }
+
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
+            return Result.Success(new ProductImportResultDto
+            {
+                PhysicalProductsCreated = physicalProductsCreated,
+                DigitalProductsCreated = digitalProductsCreated
+            });
         }, "Products.Domain");
     }
 
@@ -250,6 +428,12 @@ public sealed class ProductApplicationService : IProductApplicationService
             return Result.Failure<ProductResponseDto>(validationError);
         }
 
+        Error? categoryValidationError = await ValidateCategoryAssignmentAsync(command.CategoryId, command.SubcategoryId, cancellationToken);
+        if (categoryValidationError is not null)
+        {
+            return Result.Failure<ProductResponseDto>(categoryValidationError);
+        }
+
         return await ExecuteAsync(async () =>
         {
             Producto? product = await FindProductByIdAsync(command.Id, cancellationToken);
@@ -273,7 +457,12 @@ public sealed class ProductApplicationService : IProductApplicationService
                 CreateMoney(command.Price, command.Currency),
                 command.Slug,
                 command.MainImageUrl);
+            product.ActualizarGaleriaImagenes(command.ImageGallery);
 
+            product.ActualizarClasificacion(
+                command.CategoryId,
+                command.SubcategoryId,
+                CreateTags(command.Tags));
             product.ActualizarStock(command.Stock);
             ApplyCommercialFlags(product, command.IsActive, command.IsFeatured);
 
@@ -766,6 +955,11 @@ public sealed class ProductApplicationService : IProductApplicationService
             products = products.Where(product => product.TipoProducto == query.ProductType.Value);
         }
 
+        if (query.CategoryId.HasValue)
+        {
+            products = products.Where(product => product.CategoriaId == query.CategoryId.Value || product.SubcategoriaId == query.CategoryId.Value);
+        }
+
         if (query.IsActive.HasValue)
         {
             products = products.Where(product => product.Activo == query.IsActive.Value);
@@ -868,6 +1062,60 @@ public sealed class ProductApplicationService : IProductApplicationService
     }
 
     /// <summary>
+    /// Resuelve la clasificación de una fila importada a identificadores reales de categoría y subcategoría.
+    /// </summary>
+    private static Result<(Guid CategoryId, Guid? SubcategoryId)> ResolveCategoryAssignment(
+        ImportProductRowCommand row,
+        IReadOnlyCollection<PlataformaECommerce.Domain.Entities.Categories.CategoriaProducto> categories)
+    {
+        PlataformaECommerce.Domain.Entities.Categories.CategoriaProducto[] mainCategoryMatches = categories
+            .Where(category => category.EsCategoriaRaiz
+                && category.Activa
+                && category.Nombre.Equals(row.CategoryName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (mainCategoryMatches.Length == 0)
+        {
+            return Result.Failure<(Guid CategoryId, Guid? SubcategoryId)>(
+                Error.Validation("Products.ImportCategoryNotFound", $"La fila {row.RowNumber} referencia una categoría principal inexistente o inactiva: '{row.CategoryName}'."));
+        }
+
+        if (mainCategoryMatches.Length > 1)
+        {
+            return Result.Failure<(Guid CategoryId, Guid? SubcategoryId)>(
+                Error.Validation("Products.ImportCategoryAmbiguous", $"La fila {row.RowNumber} referencia una categoría principal ambigua: '{row.CategoryName}'."));
+        }
+
+        PlataformaECommerce.Domain.Entities.Categories.CategoriaProducto mainCategory = mainCategoryMatches[0];
+
+        if (string.IsNullOrWhiteSpace(row.SubcategoryName))
+        {
+            return Result.Success((mainCategory.Id, (Guid?)null));
+        }
+
+        PlataformaECommerce.Domain.Entities.Categories.CategoriaProducto[] subcategoryMatches = categories
+            .Where(category => category.EsSubcategoria
+                && category.Activa
+                && category.ParentCategoryId == mainCategory.Id
+                && category.Nombre.Equals(row.SubcategoryName, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        if (subcategoryMatches.Length == 0)
+        {
+            return Result.Failure<(Guid CategoryId, Guid? SubcategoryId)>(
+                Error.Validation("Products.ImportSubcategoryNotFound", $"La fila {row.RowNumber} referencia una subcategoría inexistente o inactiva para la categoría '{row.CategoryName}': '{row.SubcategoryName}'."));
+        }
+
+        if (subcategoryMatches.Length > 1)
+        {
+            return Result.Failure<(Guid CategoryId, Guid? SubcategoryId)>(
+                Error.Validation("Products.ImportSubcategoryAmbiguous", $"La fila {row.RowNumber} referencia una subcategoría ambigua para la categoría '{row.CategoryName}': '{row.SubcategoryName}'."));
+        }
+
+        return Result.Success((mainCategory.Id, (Guid?)subcategoryMatches[0].Id));
+    }
+
+    /// <summary>
     /// Aplica el ordenamiento solicitado a la colección de productos.
     /// </summary>
     /// <param name="products">Colección base de productos.</param>
@@ -910,6 +1158,52 @@ public sealed class ProductApplicationService : IProductApplicationService
     }
 
     /// <summary>
+    /// Construye una entidad de producto físico a partir de su comando validado.
+    /// </summary>
+    private static ProductoFisico CreatePhysicalProduct(CreatePhysicalProductCommand command)
+    {
+        return new ProductoFisico(
+            command.Name,
+            command.Description,
+            CreateSku(command.Sku),
+            CreateMoney(command.Price, command.Currency),
+            command.Stock,
+            command.Slug,
+            command.MainImageUrl,
+            command.CategoryId,
+            command.SubcategoryId,
+            CreateTags(command.Tags),
+            command.WeightKg,
+            command.HeightCm,
+            command.WidthCm,
+            command.LengthCm,
+            command.RequiresShipping,
+            command.ImageGallery);
+    }
+
+    /// <summary>
+    /// Construye una entidad de producto digital a partir de su comando validado.
+    /// </summary>
+    private static ProductoDigital CreateDigitalProduct(CreateDigitalProductCommand command)
+    {
+        return new ProductoDigital(
+            command.Name,
+            command.Description,
+            CreateSku(command.Sku),
+            CreateMoney(command.Price, command.Currency),
+            command.Stock,
+            command.Slug,
+            command.MainImageUrl,
+            command.CategoryId,
+            command.SubcategoryId,
+            CreateTags(command.Tags),
+            command.FileFormat,
+            command.FileSizeMb,
+            command.RequiresLicense,
+            command.ImageGallery);
+    }
+
+    /// <summary>
     /// Construye la colección de etiquetas de producto a partir de valores textuales.
     /// </summary>
     /// <param name="values">Valores textuales de las etiquetas.</param>
@@ -925,6 +1219,22 @@ public sealed class ProductApplicationService : IProductApplicationService
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => new EtiquetaProducto(value))
             .Distinct()
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Convierte la representación serializada de etiquetas de la plantilla en una colección normalizada.
+    /// </summary>
+    private static IReadOnlyCollection<string> ParseSerializedTags(string? serializedTags)
+    {
+        if (string.IsNullOrWhiteSpace(serializedTags))
+        {
+            return Array.Empty<string>();
+        }
+
+        return serializedTags
+            .Split([',', ';', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -966,6 +1276,64 @@ public sealed class ProductApplicationService : IProductApplicationService
     }
 
     /// <summary>
+    /// Valida que la clasificación principal y secundaria del producto corresponda a categorías reales y coherentes.
+    /// </summary>
+    private async Task<Error?> ValidateCategoryAssignmentAsync(
+        Guid? categoryId,
+        Guid? subcategoryId,
+        CancellationToken cancellationToken)
+    {
+        if (!categoryId.HasValue || categoryId.Value == Guid.Empty)
+        {
+            return Error.Validation("Products.CategoryRequired", "La categoría principal del producto es obligatoria.");
+        }
+
+        var category = await _categoryRepository.GetByIdAsync(categoryId.Value, cancellationToken);
+        if (category is null)
+        {
+            return Error.Validation("Products.CategoryNotFound", "La categoría principal indicada no existe.");
+        }
+
+        if (!category.Activa)
+        {
+            return Error.Validation("Products.CategoryInactive", "La categoría principal indicada no se encuentra activa.");
+        }
+
+        if (!category.EsCategoriaRaiz)
+        {
+            return Error.Validation("Products.InvalidCategory", "En el MVP el producto debe pertenecer a una categoría principal raíz.");
+        }
+
+        if (!subcategoryId.HasValue)
+        {
+            return null;
+        }
+
+        if (subcategoryId.Value == Guid.Empty)
+        {
+            return Error.Validation("Products.InvalidSubcategory", "La subcategoría del producto no puede ser un identificador vacío.");
+        }
+
+        var subcategory = await _categoryRepository.GetByIdAsync(subcategoryId.Value, cancellationToken);
+        if (subcategory is null)
+        {
+            return Error.Validation("Products.SubcategoryNotFound", "La subcategoría indicada no existe.");
+        }
+
+        if (!subcategory.Activa)
+        {
+            return Error.Validation("Products.SubcategoryInactive", "La subcategoría indicada no se encuentra activa.");
+        }
+
+        if (!subcategory.EsSubcategoria || subcategory.ParentCategoryId != category.Id)
+        {
+            return Error.Validation("Products.InvalidSubcategory", "La subcategoría indicada no pertenece a la categoría principal seleccionada.");
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Obtiene el factor decimal aplicable al precio original a partir del porcentaje de descuento.
     /// </summary>
     /// <param name="discountPercentage">Porcentaje de descuento validado.</param>
@@ -973,6 +1341,22 @@ public sealed class ProductApplicationService : IProductApplicationService
     private static decimal ResolveDiscountFactor(decimal discountPercentage)
     {
         return decimal.Round(1m - (discountPercentage / 100m), 4, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// Enriquecer un error funcional con el número de fila de la importación que lo originó.
+    /// </summary>
+    private static Error WrapImportRowError(int rowNumber, Error error)
+    {
+        return Error.Validation(error.Code, $"Fila {rowNumber}: {error.Message}");
+    }
+
+    /// <summary>
+    /// Normaliza cadenas opcionales utilizadas en los flujos de importación.
+    /// </summary>
+    private static string? Normalize(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     /// <summary>

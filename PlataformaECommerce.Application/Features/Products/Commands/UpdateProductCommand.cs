@@ -80,6 +80,11 @@ public sealed class UpdateProductCommand
     /// </summary>
     public string? MainImageUrl { get; init; }
 
+    /// <summary>
+    /// Colección de imágenes complementarias asociadas al producto.
+    /// </summary>
+    public IReadOnlyCollection<string> ImageGallery { get; init; } = Array.Empty<string>();
+
     #endregion
 
     #region Estado del producto
@@ -107,6 +112,11 @@ public sealed class UpdateProductCommand
     /// Identificador de la categoría a la que pertenece el producto.
     /// </summary>
     public Guid? CategoryId { get; init; }
+
+    /// <summary>
+    /// Identificador de la subcategoría del producto cuando aplica.
+    /// </summary>
+    public Guid? SubcategoryId { get; init; }
 
     /// <summary>
     /// Colección de etiquetas asociadas al producto.

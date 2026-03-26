@@ -75,6 +75,11 @@ public sealed class CreateDigitalProductCommandValidator : AbstractValidator<Cre
     private const int MaxTagsCount = 20;
 
     /// <summary>
+    /// Cantidad máxima de imágenes permitidas en la galería del producto.
+    /// </summary>
+    private const int MaxGalleryImagesCount = 3;
+
+    /// <summary>
     /// Precio mínimo permitido para el producto.
     /// </summary>
     private const decimal MinPrice = 0.01m;
@@ -180,8 +185,14 @@ public sealed class CreateDigitalProductCommandValidator : AbstractValidator<Cre
     private void ConfigureClassificationRules()
     {
         RuleFor(x => x.CategoryId)
+            .NotNull()
+                .WithMessage("La categoría principal del producto es obligatoria.")
+            .Must(id => id.HasValue && id.Value != Guid.Empty)
+                .WithMessage("La categoría principal del producto no puede ser un identificador vacío.");
+
+        RuleFor(x => x.SubcategoryId)
             .Must(id => !id.HasValue || id.Value != Guid.Empty)
-            .WithMessage("La categoría del producto no puede ser un identificador vacío.");
+            .WithMessage("La subcategoría del producto no puede ser un identificador vacío.");
 
         RuleFor(x => x.Tags)
             .Must(tags => tags is not null)
@@ -190,6 +201,22 @@ public sealed class CreateDigitalProductCommandValidator : AbstractValidator<Cre
         RuleFor(x => x.Tags)
             .Must(tags => tags.Count <= MaxTagsCount)
             .WithMessage($"No es posible registrar más de {MaxTagsCount} etiquetas por producto.");
+
+        RuleFor(x => x.ImageGallery)
+            .Must(gallery => gallery is not null)
+            .WithMessage("La colección de imágenes de galería no puede ser nula.");
+
+        RuleFor(x => x.ImageGallery)
+            .Must(gallery => gallery.Count <= MaxGalleryImagesCount)
+            .WithMessage($"No es posible registrar más de {MaxGalleryImagesCount} imágenes en la galería del producto.");
+
+        RuleForEach(x => x.ImageGallery)
+            .NotEmpty()
+                .WithMessage("Las imágenes de galería no pueden estar vacías.")
+            .MaximumLength(MaxMainImageUrlLength)
+                .WithMessage($"Cada imagen de galería no puede superar los {MaxMainImageUrlLength} caracteres.")
+            .Must(BeAValidUrlOrRelativePath)
+                .WithMessage("Cada imagen de galería debe ser una URL válida o una ruta relativa válida.");
 
         RuleForEach(x => x.Tags)
             .NotEmpty()

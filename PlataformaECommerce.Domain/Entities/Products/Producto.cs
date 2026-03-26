@@ -70,6 +70,11 @@ public abstract class Producto : AggregateRoot
     /// </summary>
     private readonly List<EtiquetaProducto> _etiquetas = new();
 
+    /// <summary>
+    /// Colección interna de imágenes complementarias asociadas al producto.
+    /// </summary>
+    private readonly List<string> _galeriaImagenes = new();
+
     #endregion
 
     #region Constructores
@@ -94,6 +99,7 @@ public abstract class Producto : AggregateRoot
     /// <param name="categoriaId">Identificador de la categoría principal.</param>
     /// <param name="subcategoriaId">Identificador de la subcategoría.</param>
     /// <param name="etiquetas">Colección de etiquetas de clasificación comercial.</param>
+    /// <param name="galeriaImagenes">Colección de imágenes complementarias para el producto.</param>
     protected Producto(
         string nombre,
         string descripcion,
@@ -104,7 +110,8 @@ public abstract class Producto : AggregateRoot
         string? imagenPrincipalUrl,
         Guid? categoriaId,
         Guid? subcategoriaId,
-        IEnumerable<EtiquetaProducto>? etiquetas)
+        IEnumerable<EtiquetaProducto>? etiquetas,
+        IEnumerable<string>? galeriaImagenes = null)
     {
         InicializarAggregateRoot();
         AplicarInformacionBasica(nombre, descripcion, sku, precio, slug, imagenPrincipalUrl);
@@ -113,6 +120,7 @@ public abstract class Producto : AggregateRoot
         Activo = false;
         Destacado = false;
         AplicarClasificacion(categoriaId, subcategoriaId, etiquetas);
+        AplicarGaleriaImagenes(galeriaImagenes);
     }
 
     #endregion
@@ -200,6 +208,11 @@ public abstract class Producto : AggregateRoot
     public IReadOnlyCollection<EtiquetaProducto> Etiquetas => _etiquetas.AsReadOnly();
 
     /// <summary>
+    /// Colección de imágenes complementarias asociadas al producto.
+    /// </summary>
+    public IReadOnlyCollection<string> GaleriaImagenes => _galeriaImagenes.AsReadOnly();
+
+    /// <summary>
     /// Indica si el producto tiene una promoción activa sobre su precio base.
     /// </summary>
     public bool TienePromocion => PrecioPromocionalActual is not null && DescuentoPromocionalActual.HasValue;
@@ -226,6 +239,7 @@ public abstract class Producto : AggregateRoot
         string? imagenPrincipalUrl)
     {
         AplicarInformacionBasica(nombre, descripcion, sku, precio, slug, imagenPrincipalUrl);
+        AplicarGaleriaImagenes(_galeriaImagenes);
 
         MarcarActualizacion();
     }
@@ -280,6 +294,16 @@ public abstract class Producto : AggregateRoot
     public void ReemplazarEtiquetas(IEnumerable<EtiquetaProducto>? etiquetas)
     {
         AplicarClasificacion(CategoriaId, SubcategoriaId, etiquetas);
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Actualiza la galería de imágenes complementarias del producto.
+    /// </summary>
+    /// <param name="galeriaImagenes">Nueva colección de imágenes complementarias.</param>
+    public void ActualizarGaleriaImagenes(IEnumerable<string>? galeriaImagenes)
+    {
+        AplicarGaleriaImagenes(galeriaImagenes);
         MarcarActualizacion();
     }
 
@@ -364,6 +388,7 @@ public abstract class Producto : AggregateRoot
     public void ActualizarImagenPrincipal(string? imagenPrincipalUrl)
     {
         ImagenPrincipalUrl = ValidarImagenPrincipalUrl(imagenPrincipalUrl);
+        AplicarGaleriaImagenes(_galeriaImagenes);
         MarcarActualizacion();
     }
 
@@ -576,6 +601,29 @@ public abstract class Producto : AggregateRoot
         ActualizarPrecioInterno(precio, limpiarPromocion: true);
         Slug = ValidarSlug(slug);
         ImagenPrincipalUrl = ValidarImagenPrincipalUrl(imagenPrincipalUrl);
+    }
+
+    /// <summary>
+    /// Aplica de forma consistente la galería complementaria del producto.
+    /// </summary>
+    /// <param name="galeriaImagenes">Colección de imágenes complementarias.</param>
+    private void AplicarGaleriaImagenes(IEnumerable<string>? galeriaImagenes)
+    {
+        _galeriaImagenes.Clear();
+
+        if (galeriaImagenes is null)
+        {
+            return;
+        }
+
+        string? imagenPrincipalNormalizada = ValidarImagenPrincipalUrl(ImagenPrincipalUrl);
+        IEnumerable<string> galeriaNormalizada = galeriaImagenes
+            .Where(imageUrl => !string.IsNullOrWhiteSpace(imageUrl))
+            .Select(imageUrl => imageUrl.Trim())
+            .Where(imageUrl => !string.Equals(imageUrl, imagenPrincipalNormalizada, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        _galeriaImagenes.AddRange(galeriaNormalizada);
     }
 
     /// <summary>

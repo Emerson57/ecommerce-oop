@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
+using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Catalog;
 
@@ -38,6 +39,12 @@ public sealed class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? SearchTerm { get; set; }
 
+        /// <summary>
+        /// Identificador opcional de la categoría principal a filtrar.
+        /// </summary>
+        [BindProperty(SupportsGet = true)]
+        public Guid? CategoryId { get; set; }
+
     /// <summary>
     /// Mensaje funcional asociado a la consulta del catálogo.
     /// </summary>
@@ -57,6 +64,7 @@ public sealed class IndexModel : PageModel
             new GetProductsQuery
             {
                 SearchTerm = string.IsNullOrWhiteSpace(SearchTerm) ? null : SearchTerm.Trim(),
+                CategoryId = CategoryId,
                 IsActive = true,
                 HasStock = true,
                 SortBy = "createdAt",
@@ -88,6 +96,8 @@ public sealed class IndexModel : PageModel
 
     private static CatalogProductViewModel Map(ProductDto product)
     {
+        IReadOnlyCollection<string> imageUrls = ProductImageDefaults.ResolveDisplayGallery(product.MainImageUrl, product.ImageGallery);
+
         return new CatalogProductViewModel
         {
             Id = product.Id,
@@ -98,7 +108,8 @@ public sealed class IndexModel : PageModel
             Stock = product.Stock,
             IsFeatured = product.IsFeatured,
             HasPromotion = product.HasPromotion,
-            MainImageUrl = product.MainImageUrl,
+            MainImageUrl = imageUrls.First(),
+            ImageUrls = imageUrls,
             ProductTypeLabel = product.ProductType == PlataformaECommerce.Domain.Enums.TipoProducto.Digital ? "Digital" : "Físico"
         };
     }
@@ -117,6 +128,8 @@ public sealed class IndexModel : PageModel
         public bool IsFeatured { get; init; }
         public bool HasPromotion { get; init; }
         public string? MainImageUrl { get; init; }
+        public IReadOnlyCollection<string> ImageUrls { get; init; } = Array.Empty<string>();
+        public int AdditionalImageCount => Math.Max(0, ImageUrls.Count - 1);
         public string ProductTypeLabel { get; init; } = string.Empty;
     }
 }

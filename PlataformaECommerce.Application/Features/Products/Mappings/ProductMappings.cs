@@ -54,7 +54,10 @@ public static class ProductMappings
             CurrentDiscountPercentage = product.DescuentoPromocionalActual,
             Slug = product.Slug,
             MainImageUrl = product.ImagenPrincipalUrl,
+            ImageGallery = BuildImageGallery(product),
             ProductType = product.TipoProducto,
+            CategoryId = product.CategoriaId,
+            SubcategoryId = product.SubcategoriaId,
             CreatedAtUtc = product.FechaCreacionUtc,
             UpdatedAtUtc = product.FechaActualizacionUtc,
             WeightKg = product is ProductoFisico physical ? physical.PesoKg : null,
@@ -98,7 +101,7 @@ public static class ProductMappings
             CurrentDiscountPercentage = product.DescuentoPromocionalActual,
             ProductType = product.TipoProducto,
             CategoryId = product.CategoriaId,
-            CategoryName = null,
+            SubcategoryId = product.SubcategoriaId,
             Tags = product.Etiquetas.Select(tag => tag.Value).ToArray(),
             MainImageUrl = product.ImagenPrincipalUrl,
             ImageGallery = BuildImageGallery(product),
@@ -147,7 +150,7 @@ public static class ProductMappings
             CurrentDiscountPercentage = product.DescuentoPromocionalActual,
             ProductType = product.TipoProducto,
             CategoryId = product.CategoriaId,
-            CategoryName = null,
+            SubcategoryId = product.SubcategoriaId,
             Tags = product.Etiquetas.Select(tag => tag.Value).ToArray(),
             MainImageUrl = product.ImagenPrincipalUrl,
             ImageGallery = BuildImageGallery(product),
@@ -207,21 +210,13 @@ public static class ProductMappings
     #region Métodos privados auxiliares
 
     /// <summary>
-    /// Construye una galería básica de imágenes a partir de la imagen principal del producto.
+    /// Construye la galería complementaria persistida para el producto.
     /// </summary>
     /// <param name="product">Producto origen.</param>
-    /// <returns>
-    /// Una colección con la imagen principal cuando existe;
-    /// en caso contrario, una colección vacía.
-    /// </returns>
+    /// <returns>Colección de imágenes complementarias del producto.</returns>
     private static IReadOnlyCollection<string> BuildImageGallery(Producto product)
     {
-        if (string.IsNullOrWhiteSpace(product.ImagenPrincipalUrl))
-        {
-            return Array.Empty<string>();
-        }
-
-        return new[] { product.ImagenPrincipalUrl };
+        return product.GaleriaImagenes.ToArray();
     }
 
     #endregion

@@ -75,11 +75,7 @@
                     <nav class="category-nav" id="categoryNav">
                         <a asp-area="" asp-page="/Index">Inicio</a>
                         <a asp-area="" asp-page="/Catalog/Index">Catálogo</a>
-                        <a href="#">Ofertas</a>
-                        <a href="#">Tecnología</a>
-                        <a href="#">Hogar</a>
-                        <a href="#">Moda</a>
-                        <a href="#">Deportes</a>
+                        @await Component.InvokeAsync("StoreCategoryNav")
                         @if (isCustomerAuthenticated)
                         {
                             <a asp-area="" asp-page="/Account/Index">Mi cuenta</a>
@@ -101,59 +97,11 @@
         <footer class="store-footer">
             <div class="container">
                 <div class="footer-grid">
-                    <div>
-                        <h4>NovaShop</h4>
-                        <p>
-                            Una experiencia de compra moderna, segura y pensada para ofrecer productos,
-                            promociones atractivas y una navegación clara.
-                        </p>
-                    </div>
-
-                    <div>
-                        <h5>Compra</h5>
-                        <a href="#">Nuevos ingresos</a>
-                        <a href="#">Ofertas</a>
-                        <a href="#">Categorías</a>
-                        <a href="#">Más vendidos</a>
-                    </div>
-
-                    <div>
-                        <h5>Mi cuenta</h5>
-                        @if (isAuthenticated)
-                        {
-                            @if (isAdminAuthenticated)
-                            {
-                                <a asp-area="" asp-page="/Admin/Index">Panel</a>
-                            }
-                            else if (isCustomerAuthenticated)
-                            {
-                                <a asp-area="" asp-page="/Account/Index">Mi cuenta</a>
-                            }
-                            <span class="text-muted">Sesión activa</span>
-                        }
-                        else
-                        {
-                            <a asp-area="" asp-page="/Auth/Login">Ingresar</a>
-                            <a asp-area="" asp-page="/Auth/Register">Crear cuenta</a>
-                        }
-                        <a asp-area="" asp-page="/Cart/Index">Carrito</a>
-                    </div>
-
-                    <div>
-                        <h5>Empresa</h5>
-                        <a href="#">Nosotros</a>
-                        <a href="#" class="disabled-link" aria-disabled="true">Privacidad</a>
-                        <a href="#">Términos</a>
-                        <a href="#">Contacto</a>
-                        @if (isAdminAuthenticated)
-                        {
-                            <a asp-area="" asp-page="/Admin/Index">Panel</a>
-                        }
-                    </div>
+                    @await Component.InvokeAsync("StoreFooter")
                 </div>
 
                 <div class="footer-bottom">
-                    <span>© 2026 NovaShop. Todos los derechos reservados.</span>
+                    <span>© @DateTime.UtcNow.Year NovaShop. Todos los derechos reservados.</span>
                 </div>
             </div>
         </footer>

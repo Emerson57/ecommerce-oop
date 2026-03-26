@@ -5,13 +5,18 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Audit.DTOs;
 using PlataformaECommerce.Application.Features.Audit.Queries;
+using PlataformaECommerce.Application.Features.Categories.Commands;
+using PlataformaECommerce.Application.Features.Categories.DTOs;
+using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
+using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Pages.Admin.Products;
+using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Tests.Web.Admin.Products;
 
@@ -28,6 +33,30 @@ public class AdminProductsEditPageModelTests
 
         Assert.That(result, Is.InstanceOf<PageResult>());
         Assert.That(pageModel.Input.Name, Is.EqualTo("Mouse gamer"));
+    }
+
+    [Test]
+    public async Task OnGetAsync_ProductoExistente_MapeaImagenPrincipalEnContrato()
+    {
+        FakeProductApplicationService service = new();
+        EditModel pageModel = CreatePageModel(service, new FakeAuditApplicationService());
+
+        await pageModel.OnGetAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(pageModel.Input.Images.MainImage.CurrentImageUrl, Is.EqualTo("/uploads/products/mouse-gamer-actual.webp"));
+    }
+
+    [Test]
+    public async Task OnGetAsync_ProductoExistente_MapeaGaleriaEnTresSlotsFijos()
+    {
+        FakeProductApplicationService service = new();
+        EditModel pageModel = CreatePageModel(service, new FakeAuditApplicationService());
+
+        await pageModel.OnGetAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(pageModel.Input.Images.Gallery.Count, Is.EqualTo(ProductImagesInputModel.DefaultGallerySlots));
+        Assert.That(pageModel.Input.Images.Gallery[0].ImageUrl, Is.EqualTo("https://cdn.novashop.com/products/mouse-gamer-side.webp"));
+        Assert.That(pageModel.Input.Images.Gallery[1].ImageUrl, Is.EqualTo("/images/products/mouse-gamer-box.webp"));
     }
 
     [Test]
@@ -56,6 +85,20 @@ public class AdminProductsEditPageModelTests
             Currency = "COP",
             Stock = 7,
             Slug = "mouse-gamer",
+            Images = new ProductImagesInputModel
+            {
+                MainImage = new ProductMainImageInputModel
+                {
+                    CurrentImageUrl = "/uploads/products/mouse-gamer-actual.webp",
+                    ExternalImageUrl = "https://cdn.novashop.com/products/mouse-gamer.webp"
+                },
+                Gallery =
+                [
+                    new ProductGalleryImageInputModel { ImageUrl = "https://cdn.novashop.com/products/mouse-gamer-side.webp" },
+                    new ProductGalleryImageInputModel { ImageUrl = "/images/products/mouse-gamer-box.webp" },
+                    new ProductGalleryImageInputModel { ImageUrl = "https://cdn.novashop.com/products/mouse-gamer.webp" }
+                ]
+            },
             ProductType = TipoProducto.Fisico,
             IsActive = true,
             IsFeatured = false,
@@ -65,11 +108,17 @@ public class AdminProductsEditPageModelTests
         IActionResult result = await pageModel.OnPostAsync(CancellationToken.None);
 
         Assert.That(result, Is.InstanceOf<RedirectToPageResult>());
+        Assert.That(service.LastUpdateCommand?.MainImageUrl, Is.EqualTo("https://cdn.novashop.com/products/mouse-gamer.webp"));
+        Assert.That(service.LastUpdateCommand?.ImageGallery, Is.EqualTo(new[]
+        {
+            "https://cdn.novashop.com/products/mouse-gamer-side.webp",
+            "/images/products/mouse-gamer-box.webp"
+        }));
     }
 
     private static EditModel CreatePageModel(IProductApplicationService service, IAuditApplicationService auditApplicationService)
     {
-        EditModel pageModel = new(service, auditApplicationService);
+        EditModel pageModel = new(service, new FakeCategoryApplicationService(), auditApplicationService, new FakeProductImageStorageService());
         DefaultHttpContext httpContext = new();
         pageModel.PageContext = new PageContext { HttpContext = httpContext };
         pageModel.TempData = new TempDataDictionary(httpContext, new FakeTempDataProvider());
@@ -78,9 +127,16 @@ public class AdminProductsEditPageModelTests
 
     private sealed class FakeProductApplicationService : IProductApplicationService
     {
+        public UpdateProductCommand? LastUpdateCommand { get; private set; }
+
         public Task<Result<Guid>> CreatePhysicalProductAsync(CreatePhysicalProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(Guid.NewGuid()));
         public Task<Result<Guid>> CreateDigitalProductAsync(CreateDigitalProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(Guid.NewGuid()));
-        public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto { Id = command.Id, Name = command.Name }));
+        public Task<Result<ProductImportResultDto>> ImportProductsAsync(ImportProductsCommand command, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default)
+        {
+            LastUpdateCommand = command;
+            return Task.FromResult(Result.Success(new ProductResponseDto { Id = command.Id, Name = command.Name }));
+        }
         public Task<Result<ProductResponseDto>> UpdateProductStockAsync(UpdateProductStockCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
         public Task<Result<ProductResponseDto>> ActivateProductAsync(ActivateProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
         public Task<Result<ProductResponseDto>> DeactivateProductAsync(DeactivateProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
@@ -98,6 +154,12 @@ public class AdminProductsEditPageModelTests
                 Description = "Producto de prueba.",
                 Sku = "PROD-010",
                 Slug = "mouse-gamer",
+                MainImageUrl = "/uploads/products/mouse-gamer-actual.webp",
+                ImageGallery = new[]
+                {
+                    "https://cdn.novashop.com/products/mouse-gamer-side.webp",
+                    "/images/products/mouse-gamer-box.webp"
+                },
                 Price = 129900m,
                 BasePrice = 149900m,
                 PromotionalPrice = 129900m,
@@ -116,6 +178,15 @@ public class AdminProductsEditPageModelTests
 
         public Task<Result<ProductQueryResultDto>> GetProductsAsync(GetProductsQuery query, CancellationToken cancellationToken = default)
             => Task.FromResult(Result.Success(new ProductQueryResultDto()));
+    }
+
+    private sealed class FakeProductImageStorageService : IProductImageStorageService
+    {
+        public Task<ProductImageProcessResult> ProcessMainImageAsync(IFormFile? uploadedImage, string? externalImageUrl, string? currentImageUrl, string productSlug, bool removeCurrentImage, CancellationToken cancellationToken = default)
+            => Task.FromResult(ProductImageProcessResult.Success(removeCurrentImage ? null : externalImageUrl ?? currentImageUrl));
+
+        public Task DeleteIfManagedAsync(string? imageUrl, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class FakeAuditApplicationService : IAuditApplicationService
@@ -167,6 +238,35 @@ public class AdminProductsEditPageModelTests
                 TotalPages = 1
             }));
         }
+    }
+
+    private sealed class FakeCategoryApplicationService : ICategoryApplicationService
+    {
+        public Task<Result<IReadOnlyCollection<CategoryDto>>> GetCategoriesAsync(GetCategoriesQuery query, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<CategoryDto> categories =
+            [
+                new CategoryDto { Id = Guid.NewGuid(), Name = "Periféricos", IsActive = true, IsRootCategory = true },
+                new CategoryDto { Id = Guid.NewGuid(), Name = "Mouse", ParentCategoryId = Guid.NewGuid(), IsActive = true, IsRootCategory = false }
+            ];
+
+            return Task.FromResult(Result.Success(categories));
+        }
+
+        public Task<Result<CategoryDto>> GetCategoryByIdAsync(GetCategoryByIdQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Result<Guid>> CreateCategoryAsync(CreateCategoryCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Result<CategoryImportResultDto>> ImportCategoriesFromXmlAsync(ImportCategoriesFromXmlCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Result<CategoryDto>> UpdateCategoryAsync(UpdateCategoryCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Result<CategoryDto>> ChangeCategoryStatusAsync(ChangeCategoryStatusCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 
     private sealed class FakeTempDataProvider : ITempDataProvider

@@ -6,6 +6,7 @@ using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Catalog;
 
@@ -93,6 +94,8 @@ public sealed class DetailsModel : PageModel
 
     private static ProductDetailsViewModel Map(ProductDetailDto product)
     {
+        IReadOnlyCollection<string> imageUrls = ProductImageDefaults.ResolveDisplayGallery(product.MainImageUrl, product.ImageGallery);
+
         return new ProductDetailsViewModel
         {
             Id = product.Id,
@@ -102,12 +105,26 @@ public sealed class DetailsModel : PageModel
             Price = product.Price,
             Currency = product.Currency,
             Stock = product.Stock,
+            MainImageUrl = imageUrls.First(),
+            ImageUrls = imageUrls,
             IsAvailable = product.IsAvailable,
             HasPromotion = product.HasPromotion,
             ProductTypeLabel = product.ProductType == TipoProducto.Digital ? "Digital" : "Físico",
-            CategoryName = product.CategoryName,
+            CategoryName = ResolveCategoryLabel(product),
             Tags = product.Tags
         };
+    }
+
+    private static string? ResolveCategoryLabel(ProductDetailDto product)
+    {
+        if (product.SubcategoryId.HasValue)
+        {
+            return "Subcategoría asignada";
+        }
+
+        return product.CategoryId.HasValue
+            ? "Categoría asignada"
+            : null;
     }
 
     /// <summary>
@@ -122,6 +139,8 @@ public sealed class DetailsModel : PageModel
         public decimal Price { get; init; }
         public string Currency { get; init; } = string.Empty;
         public int Stock { get; init; }
+        public string MainImageUrl { get; init; } = ProductImageDefaults.PlaceholderImageUrl;
+        public IReadOnlyCollection<string> ImageUrls { get; init; } = Array.Empty<string>();
         public bool IsAvailable { get; init; }
         public bool HasPromotion { get; init; }
         public string ProductTypeLabel { get; init; } = string.Empty;

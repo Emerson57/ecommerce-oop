@@ -110,6 +110,47 @@
     </div>
 </div>
 
+<div class="card admin-summary-card border-0 mb-4">
+    <div class="card-body p-4 p-lg-5">
+        <div class="row g-4 align-items-start">
+            <div class="col-lg-7">
+                <div class="admin-muted-label">Importación masiva</div>
+                <h2 class="h4 fw-bold mt-2 mb-2">Carga Excel profesional de productos</h2>
+                <p class="text-muted mb-3">Descargue la plantilla oficial en Excel, complete la información comercial y técnica del producto y luego cargue el archivo desde este mismo panel para registrar productos físicos y digitales en el catálogo.</p>
+                <ul class="admin-rule-list mb-0">
+                    <li>La plantilla usa listas desplegables para <code>TipoProducto</code>, <code>Categoria</code> y <code>Subcategoria</code>.</li>
+                    <li>Las categorías y subcategorías se cargan desde la base de datos y se resuelven internamente a sus identificadores reales.</li>
+                    <li>Los productos físicos deben informar <code>PesoKg</code>, <code>AltoCm</code>, <code>AnchoCm</code>, <code>LargoCm</code> y <code>RequiereEnvio</code>.</li>
+                    <li>Los productos digitales deben informar <code>FormatoArchivo</code>, <code>TamanoMB</code> y <code>RequiereLicencia</code>.</li>
+                    <li>La columna <code>EtiquetasSerializadas</code> admite valores separados por coma, punto y coma o barra vertical.</li>
+                    <li>La importación es atómica: si una fila falla, no se persisten productos parciales.</li>
+                </ul>
+            </div>
+            <div class="col-lg-5">
+                <div class="rounded-4 border bg-light-subtle p-4 h-100">
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <a asp-page-handler="DownloadImportTemplate" class="btn btn-outline-primary">Descargar plantilla Excel</a>
+                    </div>
+
+                    <form method="post" asp-page-handler="Import" enctype="multipart/form-data" novalidate>
+                        <div class="mb-3">
+                            <label asp-for="ImportInput.ImportFile" class="form-label">Archivo Excel</label>
+                            <input asp-for="ImportInput.ImportFile" type="file" class="form-control" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                            <div class="form-text">Formato soportado: Excel (.xlsx). Tamaño máximo permitido: 2 MB.</div>
+                            <span asp-validation-for="ImportInput.ImportFile" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-primary">Importar productos</button>
+                            <a asp-page="./Create" class="btn btn-outline-secondary">Crear manualmente</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card admin-summary-card border-0">
     <div class="card-body p-0">
         @if (Model.Products.Count == 0)
@@ -144,9 +185,14 @@
                         {
                             <tr>
                                 <td>
-                                    <div class="fw-semibold">@product.Name</div>
-                                    <div class="small text-muted">SKU: @product.Sku</div>
-                                    <div class="small text-muted">Slug: @product.Slug</div>
+                                    <div class="d-flex gap-3 align-items-start">
+                                        <img src="@(string.IsNullOrWhiteSpace(product.MainImageUrl) ? "/images/placeholders/product-placeholder.svg" : product.MainImageUrl)" alt="Imagen principal de @product.Name" class="admin-product-thumbnail" loading="lazy" />
+                                        <div>
+                                            <div class="fw-semibold">@product.Name</div>
+                                            <div class="small text-muted">SKU: @product.Sku</div>
+                                            <div class="small text-muted">Slug: @product.Slug</div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="badge @(product.ProductType == TipoProducto.Fisico ? "text-bg-secondary" : "text-bg-info")">

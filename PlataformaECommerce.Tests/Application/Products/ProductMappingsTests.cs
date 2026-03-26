@@ -28,7 +28,27 @@ public class ProductMappingsTests
         Assert.That(dto.Tags, Is.EqualTo(new[] { "nuevo", "oferta" }));
     }
 
-    private static ProductoDigital CrearProducto(Guid? categoriaId, IEnumerable<EtiquetaProducto> etiquetas)
+    [Test]
+    public void ToProductDto_ProductoConGaleria_ProyectaImageGallery()
+    {
+        ProductoDigital producto = CrearProducto(
+            Guid.NewGuid(),
+            new[] { new EtiquetaProducto("nuevo") },
+            ["https://cdn.novashop.com/products/curso-csharp-1.webp", "/images/products/curso-csharp-2.webp"]);
+
+        var dto = producto.ToProductDto();
+
+        Assert.That(dto.ImageGallery, Is.EqualTo(new[]
+        {
+            "https://cdn.novashop.com/products/curso-csharp-1.webp",
+            "/images/products/curso-csharp-2.webp"
+        }));
+    }
+
+    private static ProductoDigital CrearProducto(
+        Guid? categoriaId,
+        IEnumerable<EtiquetaProducto> etiquetas,
+        IEnumerable<string>? imageGallery = null)
     {
         return new ProductoDigital(
             "Curso C#",
@@ -43,6 +63,7 @@ public class ProductMappingsTests
             etiquetas,
             "PDF",
             5m,
-            false);
+            false,
+            imageGallery);
     }
 }

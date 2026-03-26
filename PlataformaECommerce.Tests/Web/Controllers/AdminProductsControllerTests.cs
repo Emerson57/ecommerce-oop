@@ -205,6 +205,9 @@ public class AdminProductsControllerTests
         public Task<Result<Guid>> CreateDigitalProductAsync(CreateDigitalProductCommand command, CancellationToken cancellationToken = default)
             => Task.FromResult(Result.Success(Guid.NewGuid()));
 
+        public Task<Result<ProductImportResultDto>> ImportProductsAsync(ImportProductsCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default)
             => Task.FromResult(Result.Success(CreateResponse()));
 

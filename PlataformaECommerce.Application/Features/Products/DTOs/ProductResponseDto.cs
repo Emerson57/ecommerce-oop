@@ -116,9 +116,9 @@ public sealed class ProductResponseDto
     public Guid? CategoryId { get; init; }
 
     /// <summary>
-    /// Nombre de la categoría asociada al producto.
+    /// Identificador de la subcategoría asociada al producto.
     /// </summary>
-    public string? CategoryName { get; init; }
+    public Guid? SubcategoryId { get; init; }
 
     /// <summary>
     /// Colección de etiquetas asociadas al producto.

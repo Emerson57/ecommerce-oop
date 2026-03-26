@@ -1,11 +1,15 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PlataformaECommerce.Application.Features.Categories.DTOs;
+using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
+using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Admin.Products
 {
@@ -20,15 +24,20 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     public sealed class IndexModel : PageModel
     {
         private const int MaxVisiblePageLinks = 5;
+        private const long MaxImportFileSizeInBytes = 2 * 1024 * 1024;
+        private readonly ICategoryApplicationService _categoryApplicationService;
         private readonly IProductApplicationService _productApplicationService;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
         /// </summary>
         /// <param name="productApplicationService">Servicio de aplicación de productos.</param>
-        public IndexModel(IProductApplicationService productApplicationService)
+        public IndexModel(
+            IProductApplicationService productApplicationService,
+            ICategoryApplicationService categoryApplicationService)
         {
             _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+            _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
         }
 
         [BindProperty(SupportsGet = true)]
@@ -57,6 +66,12 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
 
         [BindProperty(SupportsGet = true)]
         public int PageSize { get; set; } = 20;
+
+        /// <summary>
+        /// Modelo de entrada utilizado para la importación Excel de productos.
+        /// </summary>
+        [BindProperty]
+        public ImportInputModel ImportInput { get; set; } = new();
 
         /// <summary>
         /// Obtiene la colección de productos proyectados para el listado administrativo.
@@ -165,6 +180,73 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             HasPreviousPage = result.Value.HasPreviousPage;
             HasNextPage = result.Value.HasNextPage;
             VisiblePageNumbers = BuildVisiblePageNumbers(PageNumber, TotalPages);
+        }
+
+        /// <summary>
+        /// Descarga la plantilla Excel oficial de importación de productos.
+        /// </summary>
+        public async Task<IActionResult> OnGetDownloadImportTemplateAsync(CancellationToken cancellationToken)
+        {
+            var categoriesResult = await _categoryApplicationService.GetCategoriesAsync(
+                new GetCategoriesQuery { OnlyActive = true },
+                cancellationToken);
+
+            if (categoriesResult.IsFailure)
+            {
+                StatusErrorMessage = categoriesResult.Error.Message;
+                return RedirectToPage("./Index", BuildRouteValues());
+            }
+
+            if (!categoriesResult.Value.Any(category => category.IsRootCategory))
+            {
+                StatusErrorMessage = "Debe registrar al menos una categoría principal activa antes de descargar la plantilla Excel de productos.";
+                return RedirectToPage("./Index", BuildRouteValues());
+            }
+
+            byte[] templateBytes = ProductExcelTemplateProvider.BuildTemplateBytes(categoriesResult.Value);
+            return File(templateBytes, ProductExcelTemplateProvider.ContentType, ProductExcelTemplateProvider.FileName);
+        }
+
+        /// <summary>
+        /// Procesa la importación Excel de productos desde el backoffice administrativo.
+        /// </summary>
+        public async Task<IActionResult> OnPostImportAsync(CancellationToken cancellationToken)
+        {
+            if (ImportInput.ImportFile is null || ImportInput.ImportFile.Length == 0)
+            {
+                StatusErrorMessage = "Seleccione un archivo Excel válido para importar productos.";
+                return RedirectToPage("./Index", BuildRouteValues());
+            }
+
+            if (ImportInput.ImportFile.Length > MaxImportFileSizeInBytes)
+            {
+                StatusErrorMessage = "El archivo Excel de productos supera el tamaño máximo permitido de 2 MB.";
+                return RedirectToPage("./Index", BuildRouteValues());
+            }
+
+            var conversionResult = await ProductExcelImportFileConverter.ConvertAsync(ImportInput.ImportFile, cancellationToken);
+            if (conversionResult.IsFailure)
+            {
+                StatusErrorMessage = conversionResult.Error.Message;
+                return RedirectToPage("./Index", BuildRouteValues());
+            }
+
+            var importResult = await _productApplicationService.ImportProductsAsync(
+                new ImportProductsCommand
+                {
+                    Rows = conversionResult.Value,
+                    RequestedByUserId = ResolveCurrentUserId()
+                },
+                cancellationToken);
+
+            if (importResult.IsFailure)
+            {
+                StatusErrorMessage = importResult.Error.Message;
+                return RedirectToPage("./Index", BuildRouteValues());
+            }
+
+            SuccessMessage = $"Importación completada correctamente. Productos físicos creados: {importResult.Value.PhysicalProductsCreated}. Productos digitales creados: {importResult.Value.DigitalProductsCreated}.";
+            return RedirectToPage("./Index", BuildRouteValues());
         }
 
         /// <summary>
@@ -365,6 +447,17 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         private static string? Normalize(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        /// <summary>
+        /// Representa el formulario de carga Excel de productos.
+        /// </summary>
+        public sealed class ImportInputModel
+        {
+            /// <summary>
+            /// Archivo Excel suministrado por el administrador.
+            /// </summary>
+            public IFormFile? ImportFile { get; set; }
         }
     }
 }

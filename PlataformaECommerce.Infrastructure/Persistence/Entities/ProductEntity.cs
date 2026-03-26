@@ -89,6 +89,11 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities
         public string? ImagenPrincipalUrl { get; set; }
 
         /// <summary>
+        /// Representación serializada de la galería complementaria del producto.
+        /// </summary>
+        public string? GaleriaImagenesSerializadas { get; set; }
+
+        /// <summary>
         /// Identificador de la categoría principal.
         /// </summary>
         public Guid? CategoriaId { get; set; }

@@ -3,9 +3,11 @@ using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Features.Products.Services;
 using PlataformaECommerce.Application.Features.Products.Validators;
 using PlataformaECommerce.Application.Interfaces.Persistence;
+using PlataformaECommerce.Application.Interfaces.Repositories.Categories;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Domain.Entities.Categories;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -210,6 +212,144 @@ public class ProductApplicationServiceTests
         Assert.That(result.Value.HasNextPage, Is.True);
     }
 
+    [Test]
+    public async Task ImportProductsAsync_FilasValidas_CreaProductosFisicosYDigitales()
+    {
+        FakeProductRepository productRepository = new();
+        FakeCategoryRepository categoryRepository = new();
+        CategoriaProducto tecnologia = CreateCategory("Tecnologia", "tecnologia", isActive: true);
+        CategoriaProducto laptops = CreateCategory("Laptops", "laptops", tecnologia.Id, true);
+        categoryRepository.SetCategories(tecnologia, laptops);
+        ProductApplicationService service = CrearServicio(productRepository, categoryRepository);
+
+        var result = await service.ImportProductsAsync(new ImportProductsCommand
+        {
+            Rows =
+            [
+                new ImportProductRowCommand
+                {
+                    RowNumber = 2,
+                    Name = "Mouse Gamer",
+                    Description = "Mouse de precision.",
+                    Sku = "MOUSE-EXCEL-001",
+                    Price = 100m,
+                    Currency = "COP",
+                    Stock = 5,
+                    IsActive = true,
+                    ProductType = TipoProducto.Fisico,
+                    Slug = "mouse-gamer",
+                    CategoryName = "Tecnologia",
+                    SubcategoryName = "Laptops",
+                    SerializedTags = "gaming,precision",
+                    WeightKg = 0.4m,
+                    HeightCm = 4m,
+                    WidthCm = 6m,
+                    LengthCm = 11m,
+                    RequiresShipping = true
+                },
+                new ImportProductRowCommand
+                {
+                    RowNumber = 3,
+                    Name = "Curso .NET",
+                    Description = "Contenido digital descargable.",
+                    Sku = "DIGI-EXCEL-001",
+                    Price = 200m,
+                    Currency = "COP",
+                    Stock = 50,
+                    IsActive = true,
+                    ProductType = TipoProducto.Digital,
+                    Slug = "curso-dotnet",
+                    CategoryName = "Tecnologia",
+                    FileFormat = "PDF",
+                    FileSizeMb = 25m,
+                    RequiresLicense = false
+                }
+            ]
+        });
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.Value.PhysicalProductsCreated, Is.EqualTo(1));
+        Assert.That(result.Value.DigitalProductsCreated, Is.EqualTo(1));
+        Assert.That(productRepository.GetAllAsync().Result.Count, Is.EqualTo(2));
+    }
+
+    [Test]
+    public async Task ImportProductsAsync_FilaActiva_AplicaEstadoComercialInicialAntesDePersistir()
+    {
+        FakeProductRepository productRepository = new();
+        FakeCategoryRepository categoryRepository = new();
+        CategoriaProducto tecnologia = CreateCategory("Tecnologia", "tecnologia", isActive: true);
+        categoryRepository.SetCategories(tecnologia);
+        ProductApplicationService service = CrearServicio(productRepository, categoryRepository);
+
+        var result = await service.ImportProductsAsync(new ImportProductsCommand
+        {
+            Rows =
+            [
+                new ImportProductRowCommand
+                {
+                    RowNumber = 2,
+                    Name = "Curso .NET",
+                    Description = "Contenido digital descargable.",
+                    Sku = "DIGI-EXCEL-ACTIVE-001",
+                    Price = 200m,
+                    Currency = "COP",
+                    Stock = 50,
+                    IsActive = true,
+                    ProductType = TipoProducto.Digital,
+                    Slug = "curso-dotnet-activo",
+                    CategoryName = "Tecnologia",
+                    FileFormat = "PDF",
+                    FileSizeMb = 25m,
+                    RequiresLicense = false
+                }
+            ]
+        });
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(productRepository.GetAllAsync().Result.Single().Activo, Is.True);
+    }
+
+    [Test]
+    public async Task ImportProductsAsync_SubcategoriaInvalida_RetornaFalloControlado()
+    {
+        FakeProductRepository productRepository = new();
+        FakeCategoryRepository categoryRepository = new();
+        CategoriaProducto tecnologia = CreateCategory("Tecnologia", "tecnologia", isActive: true);
+        categoryRepository.SetCategories(tecnologia);
+        ProductApplicationService service = CrearServicio(productRepository, categoryRepository);
+
+        var result = await service.ImportProductsAsync(new ImportProductsCommand
+        {
+            Rows =
+            [
+                new ImportProductRowCommand
+                {
+                    RowNumber = 2,
+                    Name = "Mouse Gamer",
+                    Description = "Mouse de precision.",
+                    Sku = "MOUSE-EXCEL-001",
+                    Price = 100m,
+                    Currency = "COP",
+                    Stock = 5,
+                    IsActive = true,
+                    ProductType = TipoProducto.Fisico,
+                    Slug = "mouse-gamer",
+                    CategoryName = "Tecnologia",
+                    SubcategoryName = "NoExiste",
+                    WeightKg = 0.4m,
+                    HeightCm = 4m,
+                    WidthCm = 6m,
+                    LengthCm = 11m,
+                    RequiresShipping = true
+                }
+            ]
+        });
+
+        Assert.That(result.IsFailure, Is.True);
+        Assert.That(result.Error.Code, Is.EqualTo("Products.ImportSubcategoryNotFound"));
+    }
+
     private static ProductApplicationService CrearServicio(
         Producto producto,
         FakeAuditTrailService? auditTrailService = null)
@@ -219,10 +359,12 @@ public class ProductApplicationServiceTests
 
         return new ProductApplicationService(
             productRepository,
+            new FakeCategoryRepository(),
             auditTrailService ?? new FakeAuditTrailService(),
             unitOfWork,
             new CreatePhysicalProductCommandValidator(),
             new CreateDigitalProductCommandValidator(),
+            new ImportProductsCommandValidator(),
             new UpdateProductCommandValidator(),
             new UpdateProductStockCommandValidator());
     }
@@ -237,10 +379,29 @@ public class ProductApplicationServiceTests
 
         return new ProductApplicationService(
             productRepository,
+            new FakeCategoryRepository(),
             auditTrailService ?? new FakeAuditTrailService(),
             unitOfWork,
             new CreatePhysicalProductCommandValidator(),
             new CreateDigitalProductCommandValidator(),
+            new ImportProductsCommandValidator(),
+            new UpdateProductCommandValidator(),
+            new UpdateProductStockCommandValidator());
+    }
+
+    private static ProductApplicationService CrearServicio(
+        FakeProductRepository productRepository,
+        FakeCategoryRepository categoryRepository,
+        FakeAuditTrailService? auditTrailService = null)
+    {
+        return new ProductApplicationService(
+            productRepository,
+            categoryRepository,
+            auditTrailService ?? new FakeAuditTrailService(),
+            new FakeUnitOfWork(),
+            new CreatePhysicalProductCommandValidator(),
+            new CreateDigitalProductCommandValidator(),
+            new ImportProductsCommandValidator(),
             new UpdateProductCommandValidator(),
             new UpdateProductStockCommandValidator());
     }
@@ -263,6 +424,17 @@ public class ProductApplicationServiceTests
             7m,
             12m,
             true);
+    }
+
+    private static CategoriaProducto CreateCategory(string name, string slug, Guid? parentCategoryId = null, bool isActive = false)
+    {
+        CategoriaProducto category = new(name, slug, null, parentCategoryId);
+        if (isActive)
+        {
+            category.Activar();
+        }
+
+        return category;
     }
 
     private sealed class FakeProductRepository : IProductRepository
@@ -373,5 +545,33 @@ public class ProductApplicationServiceTests
         {
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class FakeCategoryRepository : ICategoryRepository
+    {
+        private List<CategoriaProducto> _categories = [];
+
+        public void SetCategories(params CategoriaProducto[] categories)
+        {
+            _categories = categories.ToList();
+        }
+
+        public Task<IReadOnlyCollection<CategoriaProducto>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyCollection<CategoriaProducto>>(_categories.ToArray());
+
+        public Task<CategoriaProducto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_categories.FirstOrDefault(category => category.Id == id));
+
+        public Task<IReadOnlyCollection<CategoriaProducto>> GetByParentCategoryIdAsync(Guid? parentCategoryId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyCollection<CategoriaProducto>>(_categories.Where(category => category.ParentCategoryId == parentCategoryId).ToArray());
+
+        public Task<bool> ExistsBySlugAsync(string slug, Guid? excludedCategoryId = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(_categories.Any(category => category.Slug.Equals(slug, StringComparison.OrdinalIgnoreCase)));
+
+        public Task AddAsync(CategoriaProducto categoria, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task UpdateAsync(CategoriaProducto categoria, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

@@ -1,0 +1,102 @@
+@page
+@model PlataformaECommerce.Web.Pages.Admin.Categories.CreateModel
+@{
+    ViewData["Title"] = Model.IsCreatingSubcategory ? "Crear subcategoría" : "Crear categoría";
+    ViewData["Subtitle"] = Model.IsCreatingSubcategory
+        ? "Alta administrativa de una subcategoría del catálogo"
+        : "Alta administrativa de taxonomía";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mb-4" role="alert">
+        @Model.ErrorMessage
+    </div>
+}
+
+<div class="card admin-summary-card border-0">
+    <div class="card-body p-4 p-lg-5">
+        <form method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-lg-8">
+                    <div class="admin-muted-label">@(Model.IsCreatingSubcategory ? "Nueva subcategoría" : "Nueva categoría")</div>
+                    <h2 class="h4 fw-bold mt-2 mb-2">@(Model.IsCreatingSubcategory ? "Registro de subcategoría hija" : "Estructura principal del catálogo")</h2>
+                    <p class="text-muted mb-0">
+                        @(Model.IsCreatingSubcategory
+                            ? "Registre una subcategoría asociada a una categoría principal existente para organizar la taxonomía del catálogo."
+                            : "Registre categorías principales o subcategorías hijas válidas para la clasificación del catálogo.")
+                    </p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="rounded-4 border bg-light p-4 h-100">
+                        <div class="small text-muted">Contexto actual</div>
+                        <div class="fw-semibold mt-2">@(Model.IsCreatingSubcategory ? "Subcategoría" : "Categoría principal")</div>
+                        <div class="small text-muted mt-2">
+                            @(Model.IsCreatingSubcategory && !string.IsNullOrWhiteSpace(Model.SelectedParentCategoryName)
+                                ? $"Categoría padre sugerida: {Model.SelectedParentCategoryName}."
+                                : "En el MVP una subcategoría solo puede depender de una categoría principal.")
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.IsCreatingSubcategory && !string.IsNullOrWhiteSpace(Model.SelectedParentCategoryName))
+            {
+                <div class="alert alert-info" role="alert">
+                    La nueva subcategoría se registrará inicialmente bajo <strong>@Model.SelectedParentCategoryName</strong>. Puede cambiar la categoría principal antes de guardar si lo necesita.
+                </div>
+            }
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Input.Name" class="form-label">Nombre</label>
+                    <input asp-for="Input.Name" class="form-control" />
+                    <span asp-validation-for="Input.Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.Slug" class="form-label">Slug</label>
+                    <input asp-for="Input.Slug" class="form-control" placeholder="tecnologia" />
+                    <span asp-validation-for="Input.Slug" class="text-danger small"></span>
+                </div>
+                <div class="col-12">
+                    <label asp-for="Input.Description" class="form-label">Descripción</label>
+                    <textarea asp-for="Input.Description" class="form-control" rows="4"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.ParentCategoryId" class="form-label">Categoría principal</label>
+                    <select asp-for="Input.ParentCategoryId" class="form-select">
+                        <option value="">Sin padre · Categoría principal</option>
+                        @foreach (var category in Model.ParentCategories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    </select>
+                    <div class="form-text">
+                        @(Model.IsCreatingSubcategory
+                            ? "Seleccione la categoría principal que actuará como padre de la subcategoría."
+                            : "Seleccione una categoría principal solo si desea registrar directamente una subcategoría.")
+                    </div>
+                </div>
+                <div class="col-md-6 form-check mt-md-5 pt-md-2 ms-md-2">
+                    <input asp-for="Input.IsActive" class="form-check-input" />
+                    <label asp-for="Input.IsActive" class="form-check-label">Crear como activa</label>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-5">
+                <button type="submit" class="btn btn-primary">@(Model.IsCreatingSubcategory ? "Crear subcategoría" : "Crear categoría principal")</button>
+                @if (Model.IsCreatingSubcategory)
+                {
+                    <a asp-page="./Create" class="btn btn-outline-dark">Cambiar a categoría principal</a>
+                }
+                <a asp-page="./Index" class="btn btn-outline-secondary">Volver al listado</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

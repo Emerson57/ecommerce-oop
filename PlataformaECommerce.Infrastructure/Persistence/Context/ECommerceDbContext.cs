@@ -29,6 +29,11 @@ public sealed class ECommerceDbContext : DbContext
     #region DbSets
 
     /// <summary>
+    /// Representa la colección persistente de categorías del sistema.
+    /// </summary>
+    public DbSet<CategoryEntity> Categories { get; set; } = null!;
+
+    /// <summary>
     /// Representa la colección persistente de productos del sistema.
     /// </summary>
     public DbSet<ProductEntity> Products { get; set; } = null!;
