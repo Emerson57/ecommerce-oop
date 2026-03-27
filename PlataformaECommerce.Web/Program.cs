@@ -1,4 +1,6 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.FileProviders;
@@ -116,6 +118,23 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(AuthorizationPolicies.ConfigureBackofficePolicies);
 
+CultureInfo[] supportedCultures =
+[
+    CultureInfo.GetCultureInfo("es-CO"),
+    CultureInfo.GetCultureInfo("es"),
+    CultureInfo.GetCultureInfo("en-US")
+];
+
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture("es-CO");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+    options.ApplyCurrentCultureToResponseHeaders = true;
+    options.FallBackToParentCultures = true;
+    options.FallBackToParentUICultures = true;
+});
+
 var app = builder.Build();
 
 await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
@@ -146,6 +165,9 @@ else
 }
 
 app.UseHttpsRedirection();
+
+RequestLocalizationOptions requestLocalizationOptions = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
+app.UseRequestLocalization(requestLocalizationOptions);
 
 ProductImagesOptions productImagesOptions = app.Services.GetRequiredService<IOptions<ProductImagesOptions>>().Value;
 string webRootPath = string.IsNullOrWhiteSpace(app.Environment.WebRootPath)
