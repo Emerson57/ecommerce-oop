@@ -33,10 +33,28 @@ public class CheckoutIndexPageModelTests
 
         Assert.That(result, Is.TypeOf<PageResult>());
         Assert.That(pageModel.Cart.ItemsCount, Is.EqualTo(1));
+        Assert.That(pageModel.Cart.RequiresShippingAddress, Is.True);
     }
 
     [Test]
-    public async Task OnPostPlaceOrderAsync_Confirmado_RedireccionaADetallePedido()
+    public async Task OnGetAsync_CarritoDigitalPuro_NoRequiereEnvioYExponeModalidadDigital()
+    {
+        FakeCartApplicationService cartApplicationService = new()
+        {
+            ProductType = TipoProducto.Digital
+        };
+        IndexModel pageModel = CreatePageModel(cartApplicationService, new FakeOrderApplicationService(), Guid.NewGuid());
+
+        IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(pageModel.Cart.RequiresShippingAddress, Is.False);
+        Assert.That(pageModel.Cart.IsDigitalOnly, Is.True);
+        Assert.That(pageModel.Cart.FulfillmentLabel, Is.EqualTo("Entrega digital"));
+    }
+
+    [Test]
+    public async Task OnPostPlaceOrderAsync_ConfirmadoConDireccion_RedireccionaADetallePedido()
     {
         FakeCartApplicationService cartApplicationService = new();
         FakeOrderApplicationService orderApplicationService = new();
@@ -44,13 +62,70 @@ public class CheckoutIndexPageModelTests
         pageModel.Input = new IndexModel.CheckoutInputModel
         {
             ConfirmOrderCreation = true,
-            Notes = "Entrega prioritaria"
+            Notes = "Entrega prioritaria",
+            ShippingAddress = new IndexModel.ShippingAddressInputModel
+            {
+                Street = "Calle 10 #20-30",
+                City = "Bogotá",
+                Department = "Cundinamarca",
+                Country = "Colombia",
+                PostalCode = "110111"
+            }
         };
 
         IActionResult result = await pageModel.OnPostPlaceOrderAsync(CancellationToken.None);
 
         Assert.That(result, Is.TypeOf<RedirectToPageResult>());
         Assert.That(orderApplicationService.LastCreateOrderCommand?.Notes, Is.EqualTo("Entrega prioritaria"));
+        Assert.That(orderApplicationService.LastCreateOrderCommand?.ShippingStreet, Is.EqualTo("Calle 10 #20-30"));
+        Assert.That(orderApplicationService.LastCreateOrderCommand?.ShippingPostalCode, Is.EqualTo("110111"));
+    }
+
+    [Test]
+    public async Task OnPostPlaceOrderAsync_CarritoFisicoSinDireccion_RetornaPaginaYNoCreaPedido()
+    {
+        FakeCartApplicationService cartApplicationService = new();
+        FakeOrderApplicationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
+        pageModel.Input = new IndexModel.CheckoutInputModel
+        {
+            ConfirmOrderCreation = true
+        };
+
+        IActionResult result = await pageModel.OnPostPlaceOrderAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastCreateOrderCommand, Is.Null);
+        Assert.That(pageModel.ModelState[$"{nameof(IndexModel.Input)}.{nameof(IndexModel.CheckoutInputModel.ShippingAddress)}.{nameof(IndexModel.ShippingAddressInputModel.Street)}"]?.Errors, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task OnPostPlaceOrderAsync_CarritoDigitalPuro_IgnoraDireccionYCreaPedido()
+    {
+        FakeCartApplicationService cartApplicationService = new()
+        {
+            ProductType = TipoProducto.Digital
+        };
+        FakeOrderApplicationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
+        pageModel.Input = new IndexModel.CheckoutInputModel
+        {
+            ConfirmOrderCreation = true,
+            ShippingAddress = new IndexModel.ShippingAddressInputModel
+            {
+                Street = "No aplica",
+                City = "No aplica",
+                Department = "No aplica",
+                Country = "No aplica",
+                PostalCode = "000000"
+            }
+        };
+
+        IActionResult result = await pageModel.OnPostPlaceOrderAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<RedirectToPageResult>());
+        Assert.That(orderApplicationService.LastCreateOrderCommand?.ShippingStreet, Is.Null);
+        Assert.That(orderApplicationService.LastCreateOrderCommand?.ShippingPostalCode, Is.Null);
     }
 
     [Test]
@@ -117,8 +192,10 @@ public class CheckoutIndexPageModelTests
 
     private sealed class FakeCartApplicationService : ICartApplicationService
     {
+        public TipoProducto ProductType { get; set; } = TipoProducto.Fisico;
+
         public Task<Result<CartDto>> CreateCartAsync(CreateCartCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateCart(command.CustomerId)));
+            => Task.FromResult(Result.Success(CreateCart(command.CustomerId, ProductType)));
 
         public Task<Result<CartDto>> AddProductToCartAsync(AddProductToCartCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -133,9 +210,9 @@ public class CheckoutIndexPageModelTests
             => throw new NotSupportedException();
 
         public Task<Result<CartDto>> GetCartByCustomerIdAsync(GetCartByCustomerIdQuery query, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateCart(query.CustomerId)));
+            => Task.FromResult(Result.Success(CreateCart(query.CustomerId, ProductType)));
 
-        private static CartDto CreateCart(Guid customerId)
+        private static CartDto CreateCart(Guid customerId, TipoProducto productType)
         {
             return new CartDto
             {
@@ -150,7 +227,7 @@ public class CheckoutIndexPageModelTests
                         ProductId = Guid.NewGuid(),
                         ProductName = "Producto demo",
                         ProductSku = "SKU-001",
-                        ProductType = TipoProducto.Fisico,
+                        ProductType = productType,
                         Quantity = 1,
                         UnitPrice = 99900m,
                         Currency = "COP",
@@ -181,7 +258,12 @@ public class CheckoutIndexPageModelTests
                 TotalUnits = 1,
                 TotalAmount = 99900m,
                 Currency = "COP",
-                CreatedAtUtc = DateTime.UtcNow
+                CreatedAtUtc = DateTime.UtcNow,
+                ShippingStreet = command.ShippingStreet,
+                ShippingCity = command.ShippingCity,
+                ShippingDepartment = command.ShippingDepartment,
+                ShippingCountry = command.ShippingCountry,
+                ShippingPostalCode = command.ShippingPostalCode
             }));
         }
 

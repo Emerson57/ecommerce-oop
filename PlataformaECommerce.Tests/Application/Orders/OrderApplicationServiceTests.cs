@@ -38,10 +38,71 @@ public class OrderApplicationServiceTests
         {
             CartId = cart.Id,
             CustomerId = customer.Id,
+            ShippingStreet = "Calle 10 #20-30",
+            ShippingCity = "Bogotá",
+            ShippingDepartment = "Cundinamarca",
+            ShippingCountry = "Colombia",
+            ShippingPostalCode = "110111",
             RequestedAtUtc = DateTime.UtcNow
         });
 
         Assert.That(auditTrailService.RegisteredEvents.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task CreateOrderFromCartAsync_CarritoFisicoConDireccion_ProyectaDireccionEnElPedidoCreado()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-cliente-seguro-2026");
+        CarritoCompra cart = CreateCart(customer.Id);
+        OrderApplicationService service = new(
+            new FakeOrderRepository(),
+            new FakeCartRepository(cart),
+            new FakeUserRepository(customer),
+            new FakeUnitOfWork(),
+            new FakeAuditTrailService(),
+            new CreateOrderFromCartCommandValidator(),
+            new CancelOrderCommandValidator());
+
+        var result = await service.CreateOrderFromCartAsync(new CreateOrderFromCartCommand
+        {
+            CartId = cart.Id,
+            CustomerId = customer.Id,
+            ShippingStreet = "Calle 10 #20-30",
+            ShippingCity = "Bogotá",
+            ShippingDepartment = "Cundinamarca",
+            ShippingCountry = "Colombia",
+            ShippingPostalCode = "110111",
+            RequestedAtUtc = DateTime.UtcNow
+        });
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.Value.ShippingStreet, Is.EqualTo("Calle 10 #20-30"));
+        Assert.That(result.Value.ShippingPostalCode, Is.EqualTo("110111"));
+    }
+
+    [Test]
+    public async Task CreateOrderFromCartAsync_CarritoFisicoSinDireccion_RetornaErrorDeValidacion()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-cliente-seguro-2026");
+        CarritoCompra cart = CreateCart(customer.Id);
+        OrderApplicationService service = new(
+            new FakeOrderRepository(),
+            new FakeCartRepository(cart),
+            new FakeUserRepository(customer),
+            new FakeUnitOfWork(),
+            new FakeAuditTrailService(),
+            new CreateOrderFromCartCommandValidator(),
+            new CancelOrderCommandValidator());
+
+        var result = await service.CreateOrderFromCartAsync(new CreateOrderFromCartCommand
+        {
+            CartId = cart.Id,
+            CustomerId = customer.Id,
+            RequestedAtUtc = DateTime.UtcNow
+        });
+
+        Assert.That(result.IsFailure, Is.True);
+        Assert.That(result.Error.Code, Is.EqualTo("Orders.ShippingAddressRequired"));
     }
 
     private static CarritoCompra CreateCart(Guid customerId)

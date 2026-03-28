@@ -74,6 +74,31 @@ public sealed class CreateOrderFromCartCommand
     /// </remarks>
     public string? ExternalReference { get; init; }
 
+    /// <summary>
+    /// Calle o línea principal de la dirección de envío cuando el pedido requiere despacho físico.
+    /// </summary>
+    public string? ShippingStreet { get; init; }
+
+    /// <summary>
+    /// Ciudad asociada a la dirección de envío.
+    /// </summary>
+    public string? ShippingCity { get; init; }
+
+    /// <summary>
+    /// Departamento, provincia o estado asociado a la dirección de envío.
+    /// </summary>
+    public string? ShippingDepartment { get; init; }
+
+    /// <summary>
+    /// País asociado a la dirección de envío.
+    /// </summary>
+    public string? ShippingCountry { get; init; }
+
+    /// <summary>
+    /// Código postal asociado a la dirección de envío.
+    /// </summary>
+    public string? ShippingPostalCode { get; init; }
+
     #endregion
 
     #region Contexto y trazabilidad
@@ -133,6 +158,26 @@ public sealed class CreateOrderFromCartCommand
     {
         return $"CreateOrderFromCartCommand | CartId: {CartId} | CustomerId: {CustomerId} | RequestedByUserId: {RequestedByUserId} | Source: {Source}";
     }
+
+    /// <summary>
+    /// Indica si el comando contiene una dirección de envío completa.
+    /// </summary>
+    public bool HasShippingAddress =>
+        !string.IsNullOrWhiteSpace(ShippingStreet) &&
+        !string.IsNullOrWhiteSpace(ShippingCity) &&
+        !string.IsNullOrWhiteSpace(ShippingDepartment) &&
+        !string.IsNullOrWhiteSpace(ShippingCountry) &&
+        !string.IsNullOrWhiteSpace(ShippingPostalCode);
+
+    /// <summary>
+    /// Indica si el comando contiene al menos un componente de dirección de envío.
+    /// </summary>
+    public bool HasAnyShippingAddressComponent =>
+        !string.IsNullOrWhiteSpace(ShippingStreet) ||
+        !string.IsNullOrWhiteSpace(ShippingCity) ||
+        !string.IsNullOrWhiteSpace(ShippingDepartment) ||
+        !string.IsNullOrWhiteSpace(ShippingCountry) ||
+        !string.IsNullOrWhiteSpace(ShippingPostalCode);
 
     #endregion
 }

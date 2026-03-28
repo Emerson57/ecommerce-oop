@@ -56,6 +56,27 @@
                     <div class="small text-uppercase text-muted fw-semibold">Confirmación</div>
                     <h2 class="h5 fw-bold mt-2 mb-3">Crear pedido</h2>
 
+                    <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                        <div class="small text-uppercase text-muted fw-semibold">Modalidad del pedido</div>
+                        <div class="fw-semibold mt-2">@Model.Cart.FulfillmentLabel</div>
+                        <div class="text-muted small mt-2">@Model.Cart.FulfillmentDescription</div>
+                    </div>
+
+                    @if (Model.Cart.RequiresShippingAddress)
+                    {
+                        <div class="alert alert-info small" role="status">
+                            @(Model.Cart.IsMixedOrder
+                                ? "Tu carrito incluye productos físicos y digitales. Informa una dirección de envío para los artículos físicos."
+                                : "Tu carrito contiene productos físicos. Debes informar una dirección de envío válida para generar el pedido.")
+                        </div>
+                    }
+                    else if (Model.Cart.IsDigitalOnly)
+                    {
+                        <div class="alert alert-secondary small" role="status">
+                            Este pedido es digital puro. No necesitas informar dirección de envío para continuar.
+                        </div>
+                    }
+
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Líneas</span>
                         <span class="fw-semibold">@Model.Cart.ItemsCount</span>
@@ -77,6 +98,42 @@
                             <textarea asp-for="Input.Notes" class="form-control" rows="4" placeholder="Observaciones opcionales para el pedido."></textarea>
                             <span asp-validation-for="Input.Notes" class="text-danger small"></span>
                         </div>
+
+                        @if (Model.Cart.RequiresShippingAddress)
+                        {
+                            <fieldset class="border rounded-3 p-3 mb-3">
+                                <legend class="float-none w-auto px-2 h6 mb-0">Dirección de envío</legend>
+
+                                <div class="mb-3 mt-3">
+                                    <label asp-for="Input.ShippingAddress.Street" class="form-label"></label>
+                                    <input asp-for="Input.ShippingAddress.Street" class="form-control" autocomplete="street-address" />
+                                    <span asp-validation-for="Input.ShippingAddress.Street" class="text-danger small"></span>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingAddress.City" class="form-label"></label>
+                                        <input asp-for="Input.ShippingAddress.City" class="form-control" autocomplete="address-level2" />
+                                        <span asp-validation-for="Input.ShippingAddress.City" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingAddress.Department" class="form-label"></label>
+                                        <input asp-for="Input.ShippingAddress.Department" class="form-control" autocomplete="address-level1" />
+                                        <span asp-validation-for="Input.ShippingAddress.Department" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingAddress.Country" class="form-label"></label>
+                                        <input asp-for="Input.ShippingAddress.Country" class="form-control" autocomplete="country-name" />
+                                        <span asp-validation-for="Input.ShippingAddress.Country" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingAddress.PostalCode" class="form-label"></label>
+                                        <input asp-for="Input.ShippingAddress.PostalCode" class="form-control" autocomplete="postal-code" />
+                                        <span asp-validation-for="Input.ShippingAddress.PostalCode" class="text-danger small"></span>
+                                    </div>
+                                </div>
+                            </fieldset>
+                        }
 
                         <div class="form-check mb-4">
                             <input asp-for="Input.ConfirmOrderCreation" class="form-check-input" />

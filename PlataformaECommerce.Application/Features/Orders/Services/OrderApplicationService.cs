@@ -18,6 +18,7 @@ using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Entities.Orders;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Domain.ValueObjects;
 
 namespace PlataformaECommerce.Application.Features.Orders.Services;
 
@@ -175,6 +176,18 @@ public sealed class OrderApplicationService : IOrderApplicationService
 
             Pedido order = new(cart);
 
+            bool requiresShippingAddress = order.ContieneProductosFisicos();
+            if (requiresShippingAddress && !command.HasShippingAddress)
+            {
+                return Result.Failure<OrderDetailDto>(
+                    Error.Validation("Orders.ShippingAddressRequired", "La dirección de envío es obligatoria cuando el pedido contiene productos físicos."));
+            }
+
+            if (command.HasShippingAddress)
+            {
+                order.AsignarDireccionEnvio(CreateShippingAddress(command));
+            }
+
             await _orderRepository.AddAsync(order, cancellationToken);
 
             cart.VaciarCarrito();
@@ -191,7 +204,8 @@ public sealed class OrderApplicationService : IOrderApplicationService
                     ["cartId"] = cart.Id.ToString(),
                     ["itemsCount"] = order.CantidadDetalles.ToString(),
                     ["totalAmount"] = order.Total.Amount.ToString(CultureInfo.InvariantCulture),
-                    ["currency"] = order.Total.Currency
+                    ["currency"] = order.Total.Currency,
+                    ["hasShippingAddress"] = order.TieneDireccionEnvio().ToString()
                 },
                 cancellationToken);
 
@@ -667,6 +681,21 @@ public sealed class OrderApplicationService : IOrderApplicationService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Construye la dirección de envío asociada al checkout cuando la solicitud la contiene.
+    /// </summary>
+    private static DireccionEnvio CreateShippingAddress(CreateOrderFromCartCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        return new DireccionEnvio(
+            command.ShippingStreet!.Trim(),
+            command.ShippingCity!.Trim(),
+            command.ShippingDepartment!.Trim(),
+            command.ShippingCountry!.Trim(),
+            command.ShippingPostalCode!.Trim());
     }
 
     /// <summary>

@@ -29,6 +29,7 @@ public class OrdersDetailsPageModelTests
 
         Assert.That(result, Is.TypeOf<PageResult>());
         Assert.That(pageModel.Order.Items.Count, Is.EqualTo(1));
+        Assert.That(pageModel.Order.ShippingStreet, Is.EqualTo("Calle 10 #20-30"));
     }
 
     [Test]
@@ -41,6 +42,23 @@ public class OrdersDetailsPageModelTests
 
         Assert.That(result, Is.TypeOf<RedirectToPageResult>());
         Assert.That(pageModel.StatusMessage, Does.Contain("pedido válido"));
+    }
+
+    [Test]
+    public async Task OnGetAsync_PedidoDigitalPuro_ComunicaModalidadSinEnvioFisico()
+    {
+        FakeOrderApplicationService orderApplicationService = new()
+        {
+            ReturnsDigitalOnlyOrder = true
+        };
+        DetailsModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+
+        IActionResult result = await pageModel.OnGetAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(pageModel.Order.HasShippingAddress, Is.False);
+        Assert.That(pageModel.Order.IsDigitalOnly, Is.True);
+        Assert.That(pageModel.Order.FulfillmentLabel, Is.EqualTo("Pedido digital"));
     }
 
     private static DetailsModel CreatePageModel(
@@ -88,6 +106,8 @@ public class OrdersDetailsPageModelTests
 
     private sealed class FakeOrderApplicationService : IOrderApplicationService
     {
+        public bool ReturnsDigitalOnlyOrder { get; set; }
+
         public Task<Result<OrderDetailDto>> CreateOrderFromCartAsync(CreateOrderFromCartCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
@@ -111,6 +131,8 @@ public class OrdersDetailsPageModelTests
 
         public Task<Result<OrderDetailDto>> GetOrderByIdAsync(GetOrderByIdQuery query, CancellationToken cancellationToken = default)
         {
+            TipoProducto productType = ReturnsDigitalOnlyOrder ? TipoProducto.Digital : TipoProducto.Fisico;
+
             return Task.FromResult(Result.Success(new OrderDetailDto
             {
                 Id = query.OrderId,
@@ -123,7 +145,14 @@ public class OrdersDetailsPageModelTests
                 CreatedAtUtc = DateTime.UtcNow.AddDays(-4),
                 ConfirmedAtUtc = DateTime.UtcNow.AddDays(-4),
                 PaidAtUtc = DateTime.UtcNow.AddDays(-4),
-                ShippedAtUtc = DateTime.UtcNow.AddDays(-3),
+                ShippedAtUtc = ReturnsDigitalOnlyOrder ? null : DateTime.UtcNow.AddDays(-3),
+                ShippingStreet = ReturnsDigitalOnlyOrder ? null : "Calle 10 #20-30",
+                ShippingCity = ReturnsDigitalOnlyOrder ? null : "Bogotá",
+                ShippingDepartment = ReturnsDigitalOnlyOrder ? null : "Cundinamarca",
+                ShippingCountry = ReturnsDigitalOnlyOrder ? null : "Colombia",
+                ShippingPostalCode = ReturnsDigitalOnlyOrder ? null : "110111",
+                ContainsPhysicalProducts = !ReturnsDigitalOnlyOrder,
+                ContainsDigitalProducts = ReturnsDigitalOnlyOrder,
                 Items =
                 [
                     new OrderItemDto
@@ -133,7 +162,7 @@ public class OrdersDetailsPageModelTests
                         ProductId = Guid.NewGuid(),
                         ProductName = "Producto demo",
                         ProductSku = "SKU-001",
-                        ProductType = TipoProducto.Fisico,
+                        ProductType = productType,
                         Quantity = 1,
                         UnitPrice = 99900m,
                         Currency = "COP",

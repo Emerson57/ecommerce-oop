@@ -113,6 +113,13 @@ public sealed class DetailsModel : PageModel
             DeliveredAtUtc = order.DeliveredAtUtc,
             CancelledAtUtc = order.CancelledAtUtc,
             CancellationReason = order.CancellationReason,
+            ShippingStreet = order.ShippingStreet,
+            ShippingCity = order.ShippingCity,
+            ShippingDepartment = order.ShippingDepartment,
+            ShippingCountry = order.ShippingCountry,
+            ShippingPostalCode = order.ShippingPostalCode,
+            ContainsPhysicalProducts = order.ContainsPhysicalProducts,
+            ContainsDigitalProducts = order.ContainsDigitalProducts,
             Items = order.Items
                 .Select(item => new OrderItemViewModel
                 {
@@ -162,6 +169,31 @@ public sealed class DetailsModel : PageModel
         public DateTime? DeliveredAtUtc { get; init; }
         public DateTime? CancelledAtUtc { get; init; }
         public string? CancellationReason { get; init; }
+        public string? ShippingStreet { get; init; }
+        public string? ShippingCity { get; init; }
+        public string? ShippingDepartment { get; init; }
+        public string? ShippingCountry { get; init; }
+        public string? ShippingPostalCode { get; init; }
+        public bool ContainsPhysicalProducts { get; init; }
+        public bool ContainsDigitalProducts { get; init; }
+        public bool HasShippingAddress =>
+            !string.IsNullOrWhiteSpace(ShippingStreet) &&
+            !string.IsNullOrWhiteSpace(ShippingCity) &&
+            !string.IsNullOrWhiteSpace(ShippingDepartment) &&
+            !string.IsNullOrWhiteSpace(ShippingCountry) &&
+            !string.IsNullOrWhiteSpace(ShippingPostalCode);
+        public bool IsDigitalOnly => ContainsDigitalProducts && !ContainsPhysicalProducts;
+        public bool IsMixedOrder => ContainsDigitalProducts && ContainsPhysicalProducts;
+        public string FulfillmentLabel => IsDigitalOnly
+            ? "Pedido digital"
+            : IsMixedOrder
+                ? "Pedido mixto"
+                : "Pedido físico";
+        public string FulfillmentDescription => IsDigitalOnly
+            ? "El contenido se entrega por canales digitales y no requiere despacho físico."
+            : IsMixedOrder
+                ? "El pedido combina artículos digitales y físicos. La dirección registrada aplica a los productos físicos."
+                : "El pedido requiere despacho físico hacia la dirección registrada.";
         public IReadOnlyCollection<OrderItemViewModel> Items { get; init; } = Array.Empty<OrderItemViewModel>();
     }
 

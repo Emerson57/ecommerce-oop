@@ -132,6 +132,11 @@ public static class OrderMappings
             DeliveredAtUtc = order.FechaEntregaUtc,
             CancelledAtUtc = order.FechaCancelacionUtc,
             CancellationReason = order.ObservacionCancelacion,
+            ShippingStreet = order.DireccionEnvio?.Calle,
+            ShippingCity = order.DireccionEnvio?.Ciudad,
+            ShippingDepartment = order.DireccionEnvio?.Departamento,
+            ShippingCountry = order.DireccionEnvio?.Pais,
+            ShippingPostalCode = order.DireccionEnvio?.CodigoPostal,
             ContainsPhysicalProducts = order.ContieneProductosFisicos(),
             ContainsDigitalProducts = order.ContieneProductosDigitales()
         };
@@ -169,6 +174,11 @@ public static class OrderMappings
             DeliveredAtUtc = order.FechaEntregaUtc,
             CancelledAtUtc = order.FechaCancelacionUtc,
             CancellationReason = order.ObservacionCancelacion,
+            ShippingStreet = order.DireccionEnvio?.Calle,
+            ShippingCity = order.DireccionEnvio?.Ciudad,
+            ShippingDepartment = order.DireccionEnvio?.Departamento,
+            ShippingCountry = order.DireccionEnvio?.Pais,
+            ShippingPostalCode = order.DireccionEnvio?.CodigoPostal,
             ContainsPhysicalProducts = order.ContieneProductosFisicos(),
             ContainsDigitalProducts = order.ContieneProductosDigitales()
         };

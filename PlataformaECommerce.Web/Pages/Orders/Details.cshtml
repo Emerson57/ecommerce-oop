@@ -79,6 +79,34 @@
         <div class="col-xl-5">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-body p-4">
+                    <div class="small text-uppercase text-muted fw-semibold">Entrega</div>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Información logística</h2>
+
+                    <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                        <div class="small text-uppercase text-muted fw-semibold">Modalidad del pedido</div>
+                        <div class="fw-semibold mt-2">@Model.Order.FulfillmentLabel</div>
+                        <div class="text-muted small mt-2">@Model.Order.FulfillmentDescription</div>
+                    </div>
+
+                    <div class="border rounded-3 p-3 bg-light-subtle mb-4">
+                        @if (Model.Order.HasShippingAddress)
+                        {
+                            <div class="fw-semibold">@Model.Order.ShippingStreet</div>
+                            <div class="text-muted small">@Model.Order.ShippingCity, @Model.Order.ShippingDepartment</div>
+                            <div class="text-muted small">@Model.Order.ShippingCountry · CP @Model.Order.ShippingPostalCode</div>
+                        }
+                        else if (Model.Order.ContainsPhysicalProducts)
+                        {
+                            <div class="fw-semibold">Dirección pendiente</div>
+                            <div class="text-muted small">El pedido contiene productos físicos pero aún no registra una dirección de envío visible.</div>
+                        }
+                        else
+                        {
+                            <div class="fw-semibold">Sin envío físico</div>
+                            <div class="text-muted small">Este pedido no requiere dirección de envío porque solo contiene productos digitales.</div>
+                        }
+                    </div>
+
                     <div class="small text-uppercase text-muted fw-semibold">Trazabilidad principal</div>
                     <h2 class="h5 fw-bold mt-2 mb-3">Hitos del pedido</h2>
 

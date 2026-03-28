@@ -106,12 +106,22 @@ public sealed class IndexModel : PageModel
             return Page();
         }
 
+        if (Cart.RequiresShippingAddress && !ValidateInputModel(Input.ShippingAddress, $"{nameof(Input)}.{nameof(CheckoutInputModel.ShippingAddress)}"))
+        {
+            return Page();
+        }
+
         var result = await _orderApplicationService.CreateOrderFromCartAsync(
             new CreateOrderFromCartCommand
             {
                 CartId = Cart.Id,
                 CustomerId = customerId.Value,
                 Notes = string.IsNullOrWhiteSpace(Input.Notes) ? null : Input.Notes.Trim(),
+                ShippingStreet = Cart.RequiresShippingAddress ? Normalize(Input.ShippingAddress.Street) : null,
+                ShippingCity = Cart.RequiresShippingAddress ? Normalize(Input.ShippingAddress.City) : null,
+                ShippingDepartment = Cart.RequiresShippingAddress ? Normalize(Input.ShippingAddress.Department) : null,
+                ShippingCountry = Cart.RequiresShippingAddress ? Normalize(Input.ShippingAddress.Country) : null,
+                ShippingPostalCode = Cart.RequiresShippingAddress ? Normalize(Input.ShippingAddress.PostalCode) : null,
                 ExternalReference = "Web.Checkout.PlaceOrder",
                 RequestedByUserId = customerId.Value,
                 IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
@@ -244,6 +254,8 @@ public sealed class IndexModel : PageModel
             TotalUnits = cart.TotalUnits,
             TotalAmount = cart.TotalAmount,
             Currency = cart.Currency,
+            RequiresShippingAddress = cart.Items.Any(item => item.IsPhysicalProduct),
+            ContainsDigitalProducts = cart.Items.Any(item => item.IsDigitalProduct),
             Items = cart.Items
                 .Select(item => new CheckoutCartItemViewModel
                 {
@@ -258,6 +270,11 @@ public sealed class IndexModel : PageModel
         };
     }
 
+    private static string? Normalize(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
     /// <summary>
     /// Proyección del carrito utilizada durante el checkout.
     /// </summary>
@@ -269,6 +286,20 @@ public sealed class IndexModel : PageModel
         public int TotalUnits { get; init; }
         public decimal TotalAmount { get; init; }
         public string Currency { get; init; } = string.Empty;
+        public bool RequiresShippingAddress { get; init; }
+        public bool ContainsDigitalProducts { get; init; }
+        public bool IsDigitalOnly => ContainsDigitalProducts && !RequiresShippingAddress;
+        public bool IsMixedOrder => ContainsDigitalProducts && RequiresShippingAddress;
+        public string FulfillmentLabel => IsDigitalOnly
+            ? "Entrega digital"
+            : IsMixedOrder
+                ? "Entrega mixta"
+                : "Entrega física";
+        public string FulfillmentDescription => IsDigitalOnly
+            ? "Este checkout corresponde a productos digitales y no requiere dirección de envío."
+            : IsMixedOrder
+                ? "Tu compra combina productos digitales y físicos. La dirección se aplicará únicamente a los artículos físicos."
+                : "Tu compra requiere despacho físico y necesita una dirección de envío válida.";
     }
 
     /// <summary>
@@ -293,7 +324,43 @@ public sealed class IndexModel : PageModel
         [StringLength(300, ErrorMessage = "Las notas del pedido no pueden superar los 300 caracteres.")]
         public string? Notes { get; set; }
 
+        /// <summary>
+        /// Dirección de envío requerida cuando el carrito contiene productos físicos.
+        /// </summary>
+        public ShippingAddressInputModel ShippingAddress { get; set; } = new();
+
         [Display(Name = "Confirmo que deseo generar el pedido con los productos del carrito")]
         public bool ConfirmOrderCreation { get; set; }
+    }
+
+    /// <summary>
+    /// Captura la dirección de envío requerida para pedidos con productos físicos.
+    /// </summary>
+    public sealed class ShippingAddressInputModel
+    {
+        [Display(Name = "Calle o dirección principal")]
+        [Required(ErrorMessage = "La calle o dirección principal es obligatoria.")]
+        [StringLength(150, ErrorMessage = "La calle o dirección principal no puede superar los 150 caracteres.")]
+        public string Street { get; set; } = string.Empty;
+
+        [Display(Name = "Ciudad")]
+        [Required(ErrorMessage = "La ciudad es obligatoria.")]
+        [StringLength(150, ErrorMessage = "La ciudad no puede superar los 150 caracteres.")]
+        public string City { get; set; } = string.Empty;
+
+        [Display(Name = "Departamento o provincia")]
+        [Required(ErrorMessage = "El departamento o provincia es obligatorio.")]
+        [StringLength(150, ErrorMessage = "El departamento o provincia no puede superar los 150 caracteres.")]
+        public string Department { get; set; } = string.Empty;
+
+        [Display(Name = "País")]
+        [Required(ErrorMessage = "El país es obligatorio.")]
+        [StringLength(150, ErrorMessage = "El país no puede superar los 150 caracteres.")]
+        public string Country { get; set; } = string.Empty;
+
+        [Display(Name = "Código postal")]
+        [Required(ErrorMessage = "El código postal es obligatorio.")]
+        [StringLength(150, ErrorMessage = "El código postal no puede superar los 150 caracteres.")]
+        public string PostalCode { get; set; } = string.Empty;
     }
 }

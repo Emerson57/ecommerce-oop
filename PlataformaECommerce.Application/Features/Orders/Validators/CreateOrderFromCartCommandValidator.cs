@@ -46,6 +46,11 @@ public sealed class CreateOrderFromCartCommandValidator : AbstractValidator<Crea
     /// </summary>
     private const int SourceMaxLength = 50;
 
+    /// <summary>
+    /// Longitud máxima permitida para cada componente de dirección de envío.
+    /// </summary>
+    private const int ShippingFieldMaxLength = 150;
+
     #endregion
 
     #region Constructor
@@ -90,6 +95,59 @@ public sealed class CreateOrderFromCartCommandValidator : AbstractValidator<Crea
             .WithMessage($"La referencia externa no puede superar los {ExternalReferenceMaxLength} caracteres.")
             .Must(BeNullOrContainMeaningfulContent)
             .WithMessage("Si se informa la referencia externa, esta no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingStreet)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"La calle de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa la calle de envío, esta no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingCity)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"La ciudad de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa la ciudad de envío, esta no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingDepartment)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"El departamento de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa el departamento de envío, este no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingCountry)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"El país de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa el país de envío, este no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingPostalCode)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"El código postal de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa el código postal de envío, este no puede contener únicamente espacios en blanco.");
+
+        When(command => command.HasAnyShippingAddressComponent, () =>
+        {
+            RuleFor(command => command.ShippingStreet)
+                .NotEmpty()
+                .WithMessage("La calle de envío es obligatoria cuando se informa una dirección de envío.");
+
+            RuleFor(command => command.ShippingCity)
+                .NotEmpty()
+                .WithMessage("La ciudad de envío es obligatoria cuando se informa una dirección de envío.");
+
+            RuleFor(command => command.ShippingDepartment)
+                .NotEmpty()
+                .WithMessage("El departamento de envío es obligatorio cuando se informa una dirección de envío.");
+
+            RuleFor(command => command.ShippingCountry)
+                .NotEmpty()
+                .WithMessage("El país de envío es obligatorio cuando se informa una dirección de envío.");
+
+            RuleFor(command => command.ShippingPostalCode)
+                .NotEmpty()
+                .WithMessage("El código postal de envío es obligatorio cuando se informa una dirección de envío.");
+        });
     }
 
     /// <summary>
