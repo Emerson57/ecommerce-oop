@@ -32,6 +32,60 @@ public class OrdersIndexPageModelTests
     }
 
     [Test]
+    public async Task OnGetAsync_ConFiltrosAvanzados_PropagaQueryAlServicio()
+    {
+        FakeOrderApplicationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        pageModel.Status = EstadoPedido.Pagado;
+        pageModel.CreatedFrom = new DateOnly(2026, 1, 1);
+        pageModel.CreatedTo = new DateOnly(2026, 1, 31);
+        pageModel.MinTotalAmount = 100m;
+        pageModel.MaxTotalAmount = 500m;
+        pageModel.Condition = IndexModel.OrderConditionFilter.Active;
+
+        IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.Status, Is.EqualTo(EstadoPedido.Pagado));
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.CreatedFromUtc, Is.EqualTo(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.CreatedToUtc, Is.EqualTo(new DateTime(2026, 1, 31, 23, 59, 59, 999, DateTimeKind.Utc).AddTicks(9999)));
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.MinTotalAmount, Is.EqualTo(100m));
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.MaxTotalAmount, Is.EqualTo(500m));
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.OnlyActive, Is.True);
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.OnlyFinalized, Is.Null);
+        Assert.That(pageModel.HasActiveFilters, Is.True);
+    }
+
+    [Test]
+    public async Task OnGetAsync_CondicionFinalizada_PropagaFiltroFinalizado()
+    {
+        FakeOrderApplicationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        pageModel.Condition = IndexModel.OrderConditionFilter.Finalized;
+
+        IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.OnlyFinalized, Is.True);
+        Assert.That(orderApplicationService.LastGetOrdersQuery?.OnlyActive, Is.Null);
+    }
+
+    [Test]
+    public async Task OnGetAsync_RangoInvalido_RetornaPaginaSinConsultarServicio()
+    {
+        FakeOrderApplicationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        pageModel.CreatedFrom = new DateOnly(2026, 2, 1);
+        pageModel.CreatedTo = new DateOnly(2026, 1, 1);
+
+        IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastGetOrdersQuery, Is.Null);
+        Assert.That(pageModel.ModelState[nameof(IndexModel.CreatedFrom)]?.Errors, Has.Count.EqualTo(1));
+    }
+
+    [Test]
     public async Task OnGetAsync_SinIdentificadorAutenticado_RedireccionaALoginYRevocaSesion()
     {
         FakeOrderApplicationService orderApplicationService = new();
@@ -89,6 +143,8 @@ public class OrdersIndexPageModelTests
 
     private sealed class FakeOrderApplicationService : IOrderApplicationService
     {
+        public GetOrdersByCustomerIdQuery? LastGetOrdersQuery { get; private set; }
+
         public Task<Result<OrderDetailDto>> CreateOrderFromCartAsync(CreateOrderFromCartCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
@@ -115,6 +171,8 @@ public class OrdersIndexPageModelTests
 
         public Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersByCustomerIdAsync(GetOrdersByCustomerIdQuery query, CancellationToken cancellationToken = default)
         {
+            LastGetOrdersQuery = query;
+
             IReadOnlyCollection<OrderDto> orders =
             [
                 new OrderDto

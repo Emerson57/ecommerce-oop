@@ -61,6 +61,63 @@ public class OrdersDetailsPageModelTests
         Assert.That(pageModel.Order.FulfillmentLabel, Is.EqualTo("Pedido digital"));
     }
 
+    [Test]
+    public async Task OnPostCancelAsync_PedidoElegible_ConsumeCancelacionYRedirigeAlMismoDetalle()
+    {
+        FakeOrderApplicationService orderApplicationService = new();
+        DetailsModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        Guid orderId = Guid.NewGuid();
+        pageModel.Cancellation = new DetailsModel.CancelOrderInputModel
+        {
+            Reason = "Necesito cambiar la compra"
+        };
+
+        IActionResult result = await pageModel.OnPostCancelAsync(orderId, CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<RedirectToPageResult>());
+        Assert.That(orderApplicationService.LastCancelOrderCommand?.OrderId, Is.EqualTo(orderId));
+        Assert.That(orderApplicationService.LastCancelOrderCommand?.Reason, Is.EqualTo("Necesito cambiar la compra"));
+        Assert.That(orderApplicationService.LastCancelOrderCommand?.RequestedByCustomer, Is.True);
+        Assert.That(pageModel.StatusMessage, Does.Contain("cancelado correctamente"));
+    }
+
+    [Test]
+    public async Task OnPostCancelAsync_MotivoInvalido_NoInvocaCancelacion()
+    {
+        FakeOrderApplicationService orderApplicationService = new();
+        DetailsModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        pageModel.Cancellation = new DetailsModel.CancelOrderInputModel
+        {
+            Reason = "abc"
+        };
+
+        IActionResult result = await pageModel.OnPostCancelAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastCancelOrderCommand, Is.Null);
+        Assert.That(pageModel.ModelState[$"{nameof(DetailsModel.Cancellation)}.{nameof(DetailsModel.CancelOrderInputModel.Reason)}"]?.Errors, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task OnPostCancelAsync_PedidoNoElegible_RetornaPaginaConError()
+    {
+        FakeOrderApplicationService orderApplicationService = new()
+        {
+            CurrentStatus = EstadoPedido.Enviado
+        };
+        DetailsModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        pageModel.Cancellation = new DetailsModel.CancelOrderInputModel
+        {
+            Reason = "Necesito cambiar la compra"
+        };
+
+        IActionResult result = await pageModel.OnPostCancelAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastCancelOrderCommand, Is.Null);
+        Assert.That(pageModel.ErrorMessage, Does.Contain("ya no puede cancelarse"));
+    }
+
     private static DetailsModel CreatePageModel(
         FakeOrderApplicationService orderApplicationService,
         Guid? authenticatedUserId,
@@ -107,6 +164,8 @@ public class OrdersDetailsPageModelTests
     private sealed class FakeOrderApplicationService : IOrderApplicationService
     {
         public bool ReturnsDigitalOnlyOrder { get; set; }
+        public EstadoPedido CurrentStatus { get; set; } = EstadoPedido.EnProceso;
+        public CancelOrderCommand? LastCancelOrderCommand { get; private set; }
 
         public Task<Result<OrderDetailDto>> CreateOrderFromCartAsync(CreateOrderFromCartCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -127,7 +186,42 @@ public class OrdersDetailsPageModelTests
             => throw new NotSupportedException();
 
         public Task<Result<OrderDetailDto>> CancelOrderAsync(CancelOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
+        {
+            LastCancelOrderCommand = command;
+            CurrentStatus = EstadoPedido.Cancelado;
+
+            return Task.FromResult(Result.Success(new OrderDetailDto
+            {
+                Id = command.OrderId,
+                CustomerId = command.RequestedByUserId ?? Guid.NewGuid(),
+                Status = EstadoPedido.Cancelado,
+                ItemsCount = 1,
+                TotalUnits = 1,
+                TotalAmount = 99900m,
+                Currency = "COP",
+                CreatedAtUtc = DateTime.UtcNow.AddDays(-4),
+                CancelledAtUtc = DateTime.UtcNow,
+                CancellationReason = command.Reason.Trim(),
+                ContainsPhysicalProducts = true,
+                Items =
+                [
+                    new OrderItemDto
+                    {
+                        Id = Guid.NewGuid(),
+                        OrderId = command.OrderId,
+                        ProductId = Guid.NewGuid(),
+                        ProductName = "Producto demo",
+                        ProductSku = "SKU-001",
+                        ProductType = TipoProducto.Fisico,
+                        Quantity = 1,
+                        UnitPrice = 99900m,
+                        Currency = "COP",
+                        Subtotal = 99900m,
+                        CreatedAtUtc = DateTime.UtcNow.AddDays(-4)
+                    }
+                ]
+            }));
+        }
 
         public Task<Result<OrderDetailDto>> GetOrderByIdAsync(GetOrderByIdQuery query, CancellationToken cancellationToken = default)
         {
@@ -137,15 +231,17 @@ public class OrdersDetailsPageModelTests
             {
                 Id = query.OrderId,
                 CustomerId = query.ExpectedCustomerId ?? Guid.NewGuid(),
-                Status = EstadoPedido.Enviado,
+                Status = CurrentStatus,
                 ItemsCount = 1,
                 TotalUnits = 1,
                 TotalAmount = 99900m,
                 Currency = "COP",
                 CreatedAtUtc = DateTime.UtcNow.AddDays(-4),
-                ConfirmedAtUtc = DateTime.UtcNow.AddDays(-4),
-                PaidAtUtc = DateTime.UtcNow.AddDays(-4),
-                ShippedAtUtc = ReturnsDigitalOnlyOrder ? null : DateTime.UtcNow.AddDays(-3),
+                ConfirmedAtUtc = CurrentStatus is EstadoPedido.Pendiente ? null : DateTime.UtcNow.AddDays(-4),
+                PaidAtUtc = CurrentStatus is EstadoPedido.Pagado or EstadoPedido.EnProceso or EstadoPedido.Enviado or EstadoPedido.Entregado ? DateTime.UtcNow.AddDays(-4) : null,
+                ShippedAtUtc = ReturnsDigitalOnlyOrder || CurrentStatus is not (EstadoPedido.Enviado or EstadoPedido.Entregado) ? null : DateTime.UtcNow.AddDays(-3),
+                CancelledAtUtc = CurrentStatus == EstadoPedido.Cancelado ? DateTime.UtcNow.AddMinutes(-5) : null,
+                CancellationReason = CurrentStatus == EstadoPedido.Cancelado ? "Cancelado por el cliente" : null,
                 ShippingStreet = ReturnsDigitalOnlyOrder ? null : "Calle 10 #20-30",
                 ShippingCity = ReturnsDigitalOnlyOrder ? null : "Bogotá",
                 ShippingDepartment = ReturnsDigitalOnlyOrder ? null : "Cundinamarca",

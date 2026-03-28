@@ -105,6 +105,63 @@ public class OrderApplicationServiceTests
         Assert.That(result.Error.Code, Is.EqualTo("Orders.ShippingAddressRequired"));
     }
 
+    [Test]
+    public async Task CancelOrderAsync_PedidoCancelable_ActualizaEstadoYMotivo()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-cliente-seguro-2026");
+        Pedido order = CreateOrder(customer.Id);
+        FakeAuditTrailService auditTrailService = new();
+        OrderApplicationService service = new(
+            new FakeOrderRepository(order),
+            new FakeCartRepository(CreateCart(customer.Id)),
+            new FakeUserRepository(customer),
+            new FakeUnitOfWork(),
+            auditTrailService,
+            new CreateOrderFromCartCommandValidator(),
+            new CancelOrderCommandValidator());
+
+        var result = await service.CancelOrderAsync(new CancelOrderCommand
+        {
+            OrderId = order.Id,
+            Reason = "El cliente ya no desea continuar",
+            RequestedByCustomer = true,
+            RequestedByUserId = customer.Id,
+            RequestedAtUtc = DateTime.UtcNow
+        });
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.Value.Status, Is.EqualTo(EstadoPedido.Cancelado));
+        Assert.That(result.Value.CancellationReason, Is.EqualTo("El cliente ya no desea continuar"));
+        Assert.That(auditTrailService.RegisteredEvents, Does.Contain("order.cancelled"));
+    }
+
+    [Test]
+    public async Task CancelOrderAsync_MotivoInvalido_RetornaErrorDeValidacion()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-cliente-seguro-2026");
+        Pedido order = CreateOrder(customer.Id);
+        OrderApplicationService service = new(
+            new FakeOrderRepository(order),
+            new FakeCartRepository(CreateCart(customer.Id)),
+            new FakeUserRepository(customer),
+            new FakeUnitOfWork(),
+            new FakeAuditTrailService(),
+            new CreateOrderFromCartCommandValidator(),
+            new CancelOrderCommandValidator());
+
+        var result = await service.CancelOrderAsync(new CancelOrderCommand
+        {
+            OrderId = order.Id,
+            Reason = "abc",
+            RequestedByCustomer = true,
+            RequestedByUserId = customer.Id,
+            RequestedAtUtc = DateTime.UtcNow
+        });
+
+        Assert.That(result.IsFailure, Is.True);
+        Assert.That(result.Error.Code, Does.StartWith("Orders.Validation"));
+    }
+
     private static CarritoCompra CreateCart(Guid customerId)
     {
         CarritoCompra cart = new(customerId);
@@ -130,9 +187,23 @@ public class OrderApplicationServiceTests
         return cart;
     }
 
+    private static Pedido CreateOrder(Guid customerId)
+    {
+        return new Pedido(CreateCart(customerId));
+    }
+
     private sealed class FakeOrderRepository : IOrderRepository
     {
         private readonly List<Pedido> _orders = new();
+
+        public FakeOrderRepository()
+        {
+        }
+
+        public FakeOrderRepository(params Pedido[] orders)
+        {
+            _orders.AddRange(orders);
+        }
 
         public Task<IReadOnlyCollection<Pedido>> GetAllAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyCollection<Pedido>>(_orders.ToArray());

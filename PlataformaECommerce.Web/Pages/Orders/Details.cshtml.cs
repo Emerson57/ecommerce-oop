@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PlataformaECommerce.Application.Features.Orders.Commands;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 using PlataformaECommerce.Application.Features.Orders.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Orders;
@@ -24,6 +26,7 @@ namespace PlataformaECommerce.Web.Pages.Orders;
 public sealed class DetailsModel : PageModel
 {
     private const string OrderDetailsSource = "Web.Orders.Details";
+    private const string OrderCancellationSource = "Web.Orders.Details.Cancel";
     private readonly IOrderApplicationService _orderApplicationService;
 
     /// <summary>
@@ -40,6 +43,17 @@ public sealed class DetailsModel : PageModel
     public OrderDetailsViewModel Order { get; private set; } = new();
 
     /// <summary>
+    /// Modelo de entrada para la cancelación autoservicio del pedido.
+    /// </summary>
+    [BindProperty]
+    public CancelOrderInputModel Cancellation { get; set; } = new();
+
+    /// <summary>
+    /// Mensaje funcional de error asociado a la operación actual.
+    /// </summary>
+    public string? ErrorMessage { get; private set; }
+
+    /// <summary>
     /// Mensaje funcional publicado cuando el detalle no puede recuperarse.
     /// </summary>
     [TempData]
@@ -50,36 +64,69 @@ public sealed class DetailsModel : PageModel
     /// </summary>
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken cancellationToken)
     {
-        Guid? customerId = GetAuthenticatedCustomerId();
+        Guid? customerId = await TryResolveAuthenticatedCustomerIdAsync().ConfigureAwait(false);
         if (!customerId.HasValue)
         {
-            await InvalidateCustomerSessionAsync().ConfigureAwait(false);
             return RedirectToPage("/Auth/Login");
         }
 
-        if (id == Guid.Empty)
+        if (!await TryLoadOwnedOrderAsync(id, customerId.Value, OrderDetailsSource, cancellationToken).ConfigureAwait(false))
         {
-            StatusMessage = "Debes seleccionar un pedido válido para consultar su detalle.";
             return RedirectToPage("/Orders/Index");
         }
 
-        var result = await _orderApplicationService.GetOrderByIdAsync(
-            new GetOrderByIdQuery(id)
+        return Page();
+    }
+
+    /// <summary>
+    /// Procesa la cancelación autoservicio del pedido cuando el estado actual lo permite.
+    /// </summary>
+    public async Task<IActionResult> OnPostCancelAsync(Guid id, CancellationToken cancellationToken)
+    {
+        Guid? customerId = await TryResolveAuthenticatedCustomerIdAsync().ConfigureAwait(false);
+        if (!customerId.HasValue)
+        {
+            return RedirectToPage("/Auth/Login");
+        }
+
+        if (!await TryLoadOwnedOrderAsync(id, customerId.Value, OrderDetailsSource, cancellationToken).ConfigureAwait(false))
+        {
+            return RedirectToPage("/Orders/Index");
+        }
+
+        if (!Order.CanBeCancelled)
+        {
+            ErrorMessage = "El pedido ya no puede cancelarse desde autoservicio debido a su estado actual.";
+            return Page();
+        }
+
+        if (!ModelState.IsValid || !ValidateInputModel(Cancellation, nameof(Cancellation)))
+        {
+            return Page();
+        }
+
+        var result = await _orderApplicationService.CancelOrderAsync(
+            new CancelOrderCommand
             {
-                ExpectedCustomerId = customerId.Value,
+                OrderId = Order.Id,
+                Reason = Cancellation.Reason.Trim(),
+                RequestedByCustomer = true,
                 RequestedByUserId = customerId.Value,
-                ExternalReference = OrderDetailsSource
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Source = OrderCancellationSource,
+                ExternalReference = OrderCancellationSource,
+                RequestedAtUtc = DateTime.UtcNow
             },
             cancellationToken);
 
         if (result.IsFailure)
         {
-            StatusMessage = result.Error.Message;
-            return RedirectToPage("/Orders/Index");
+            ErrorMessage = result.Error.Message;
+            return Page();
         }
 
-        Order = Map(result.Value);
-        return Page();
+        StatusMessage = "El pedido fue cancelado correctamente.";
+        return RedirectToPage("/Orders/Details", new { id = result.Value.Id });
     }
 
     private Guid? GetAuthenticatedCustomerId()
@@ -93,6 +140,71 @@ public sealed class DetailsModel : PageModel
     private Task InvalidateCustomerSessionAsync()
     {
         return HttpContext.SignOutAsync(AuthorizationPolicies.CustomerCookieScheme);
+    }
+
+    private async Task<Guid?> TryResolveAuthenticatedCustomerIdAsync()
+    {
+        Guid? customerId = GetAuthenticatedCustomerId();
+        if (customerId.HasValue)
+        {
+            return customerId;
+        }
+
+        await InvalidateCustomerSessionAsync().ConfigureAwait(false);
+        return null;
+    }
+
+    private async Task<bool> TryLoadOwnedOrderAsync(Guid id, Guid customerId, string externalReference, CancellationToken cancellationToken)
+    {
+        if (id == Guid.Empty)
+        {
+            StatusMessage = "Debes seleccionar un pedido válido para consultar su detalle.";
+            return false;
+        }
+
+        var result = await _orderApplicationService.GetOrderByIdAsync(
+            new GetOrderByIdQuery(id)
+            {
+                ExpectedCustomerId = customerId,
+                RequestedByUserId = customerId,
+                ExternalReference = externalReference
+            },
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            StatusMessage = result.Error.Message;
+            return false;
+        }
+
+        Order = Map(result.Value);
+        return true;
+    }
+
+    private bool ValidateInputModel(object model, string prefix)
+    {
+        ArgumentNullException.ThrowIfNull(model);
+
+        ValidationContext validationContext = new(model);
+        List<ValidationResult> validationResults = [];
+        bool isValid = Validator.TryValidateObject(model, validationContext, validationResults, validateAllProperties: true);
+
+        foreach (ValidationResult validationResult in validationResults)
+        {
+            if (validationResult.MemberNames.Any())
+            {
+                foreach (string memberName in validationResult.MemberNames)
+                {
+                    ModelState.AddModelError($"{prefix}.{memberName}", validationResult.ErrorMessage ?? "El valor informado no es válido.");
+                }
+
+                continue;
+            }
+
+            ModelState.AddModelError(prefix, validationResult.ErrorMessage ?? "El valor informado no es válido.");
+        }
+
+        return isValid;
     }
 
     private static OrderDetailsViewModel Map(OrderDetailDto order)
@@ -176,6 +288,7 @@ public sealed class DetailsModel : PageModel
         public string? ShippingPostalCode { get; init; }
         public bool ContainsPhysicalProducts { get; init; }
         public bool ContainsDigitalProducts { get; init; }
+        public bool CanBeCancelled => Status is EstadoPedido.Pendiente or EstadoPedido.Confirmado or EstadoPedido.Pagado or EstadoPedido.EnProceso;
         public bool HasShippingAddress =>
             !string.IsNullOrWhiteSpace(ShippingStreet) &&
             !string.IsNullOrWhiteSpace(ShippingCity) &&
@@ -209,5 +322,17 @@ public sealed class DetailsModel : PageModel
         public decimal Subtotal { get; init; }
         public string Currency { get; init; } = string.Empty;
         public bool IsDigitalProduct { get; init; }
+    }
+
+    /// <summary>
+    /// Captura el motivo requerido para cancelar un pedido desde autoservicio.
+    /// </summary>
+    public sealed class CancelOrderInputModel
+    {
+        [Display(Name = "Motivo de cancelación")]
+        [Required(ErrorMessage = "El motivo de cancelación es obligatorio.")]
+        [MinLength(5, ErrorMessage = "El motivo de cancelación debe tener al menos 5 caracteres.")]
+        [StringLength(300, ErrorMessage = "El motivo de cancelación no puede superar los 300 caracteres.")]
+        public string Reason { get; set; } = string.Empty;
     }
 }
