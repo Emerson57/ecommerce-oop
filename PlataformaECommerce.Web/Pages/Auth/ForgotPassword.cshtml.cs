@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PlataformaECommerce.Application.Features.Auth.Commands;
+using PlataformaECommerce.Application.Features.Auth.DTOs;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 
 namespace PlataformaECommerce.Web.Pages.Auth;
@@ -13,6 +15,7 @@ namespace PlataformaECommerce.Web.Pages.Auth;
 [AllowAnonymous]
 public sealed class ForgotPasswordModel : PageModel
 {
+    private const string ForgotPasswordSource = "Web.Auth.ForgotPassword";
     private readonly IAuthApplicationService _authApplicationService;
     private readonly IWebHostEnvironment _environment;
 
@@ -67,11 +70,11 @@ public sealed class ForgotPasswordModel : PageModel
 
         var result = await _authApplicationService.RequestPasswordResetAsync(new RequestPasswordResetCommand
         {
-            Email = Input.Email,
+            Email = Input.Email.Trim(),
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers.UserAgent.ToString(),
-            Source = "Web.Auth.ForgotPassword",
-            ExternalReference = "Web.Auth.ForgotPassword",
+            Source = ForgotPasswordSource,
+            ExternalReference = ForgotPasswordSource,
             RequestedAtUtc = DateTime.UtcNow
         }, cancellationToken);
 
@@ -86,18 +89,23 @@ public sealed class ForgotPasswordModel : PageModel
         return RedirectToPage("/Auth/ForgotPasswordConfirmation");
     }
 
-    private string? BuildDevelopmentResetUrl(PlataformaECommerce.Application.Features.Auth.DTOs.PasswordResetRequestResultDto result)
+    private string? BuildDevelopmentResetUrl(PasswordResetRequestResultDto result)
     {
         if (!_environment.IsDevelopment() || !result.CanPreviewResetLink)
         {
             return null;
         }
 
-        return Url.Page(
-            "/Auth/ResetPassword",
-            pageHandler: null,
-            values: new { userId = result.UserId, token = result.ResetToken },
-            protocol: Request.Scheme);
+        string resetPasswordPath = $"{Request.PathBase}/Auth/ResetPassword";
+        string queryString = QueryString.Create(
+        [
+            new KeyValuePair<string, string?>("userId", result.UserId?.ToString()),
+            new KeyValuePair<string, string?>("token", result.ResetToken)
+        ]).ToUriComponent();
+
+        return Request.Host.HasValue
+            ? $"{Request.Scheme}://{Request.Host}{resetPasswordPath}{queryString}"
+            : $"{resetPasswordPath}{queryString}";
     }
 
     /// <summary>
