@@ -609,8 +609,16 @@ public sealed class OrderApplicationService : IOrderApplicationService
             ? await _orderRepository.GetByCustomerIdAndStatusAsync(query.CustomerId, query.Status.Value, cancellationToken)
             : await _orderRepository.GetByCustomerIdAsync(query.CustomerId, cancellationToken);
 
-        IEnumerable<Pedido> filteredOrders = ApplyOrdersFilter(orders, query);
-        IEnumerable<Pedido> orderedOrders = ApplyOrdersSorting(filteredOrders, query);
+        IEnumerable<Pedido> filteredOrders = ApplyOrdersFilter(
+            orders,
+            query.CreatedFromUtc,
+            query.CreatedToUtc,
+            query.MinTotalAmount,
+            query.MaxTotalAmount,
+            query.Currency,
+            query.OnlyFinalized,
+            query.OnlyActive);
+        IEnumerable<Pedido> orderedOrders = ApplyOrdersSorting(filteredOrders, query.SortBy, query.SortDescending);
 
         IReadOnlyCollection<OrderDto> result = orderedOrders
             .Skip(query.Offset)
@@ -619,6 +627,33 @@ public sealed class OrderApplicationService : IOrderApplicationService
             .ToArray();
 
         return Result.Success(result);
+    }
+
+    /// <summary>
+    /// Obtiene un listado administrativo de pedidos del sistema.
+    /// </summary>
+    public async Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersAsync(
+        GetOrdersQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        IReadOnlyCollection<Pedido> orders = query.Status.HasValue
+            ? await _orderRepository.GetByStatusAsync(query.Status.Value, cancellationToken)
+            : await _orderRepository.GetAllAsync(cancellationToken);
+
+        IEnumerable<Pedido> filteredOrders = ApplyOrdersFilter(
+            orders,
+            query.CreatedFromUtc,
+            query.CreatedToUtc,
+            query.MinTotalAmount,
+            query.MaxTotalAmount,
+            query.Currency,
+            query.OnlyFinalized,
+            query.OnlyActive);
+        IEnumerable<Pedido> orderedOrders = ApplyOrdersSorting(filteredOrders, query.SortBy, query.SortDescending);
+
+        return Result.Success(orderedOrders.ToOrderDtos(query.IncludeItems));
     }
 
     #endregion
@@ -706,42 +741,48 @@ public sealed class OrderApplicationService : IOrderApplicationService
     /// <returns>Colección filtrada de pedidos.</returns>
     private static IEnumerable<Pedido> ApplyOrdersFilter(
         IEnumerable<Pedido> orders,
-        GetOrdersByCustomerIdQuery query)
+        DateTime? createdFromUtc,
+        DateTime? createdToUtc,
+        decimal? minTotalAmount,
+        decimal? maxTotalAmount,
+        string? currency,
+        bool? onlyFinalized,
+        bool? onlyActive)
     {
         IEnumerable<Pedido> filteredOrders = orders;
 
-        if (query.CreatedFromUtc.HasValue)
+        if (createdFromUtc.HasValue)
         {
-            filteredOrders = filteredOrders.Where(order => order.FechaCreacionUtc >= query.CreatedFromUtc.Value);
+            filteredOrders = filteredOrders.Where(order => order.FechaCreacionUtc >= createdFromUtc.Value);
         }
 
-        if (query.CreatedToUtc.HasValue)
+        if (createdToUtc.HasValue)
         {
-            filteredOrders = filteredOrders.Where(order => order.FechaCreacionUtc <= query.CreatedToUtc.Value);
+            filteredOrders = filteredOrders.Where(order => order.FechaCreacionUtc <= createdToUtc.Value);
         }
 
-        if (query.MinTotalAmount.HasValue)
+        if (minTotalAmount.HasValue)
         {
-            filteredOrders = filteredOrders.Where(order => order.Total.Amount >= query.MinTotalAmount.Value);
+            filteredOrders = filteredOrders.Where(order => order.Total.Amount >= minTotalAmount.Value);
         }
 
-        if (query.MaxTotalAmount.HasValue)
+        if (maxTotalAmount.HasValue)
         {
-            filteredOrders = filteredOrders.Where(order => order.Total.Amount <= query.MaxTotalAmount.Value);
+            filteredOrders = filteredOrders.Where(order => order.Total.Amount <= maxTotalAmount.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(query.Currency))
+        if (!string.IsNullOrWhiteSpace(currency))
         {
             filteredOrders = filteredOrders.Where(order =>
-                string.Equals(order.Total.Currency, query.Currency.Trim(), StringComparison.OrdinalIgnoreCase));
+                string.Equals(order.Total.Currency, currency.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
-        if (query.OnlyFinalized == true)
+        if (onlyFinalized == true)
         {
             filteredOrders = filteredOrders.Where(order => order.EstaFinalizado());
         }
 
-        if (query.OnlyActive == true)
+        if (onlyActive == true)
         {
             filteredOrders = filteredOrders.Where(order => !order.EstaFinalizado());
         }
@@ -757,25 +798,26 @@ public sealed class OrderApplicationService : IOrderApplicationService
     /// <returns>Colección ordenada de pedidos.</returns>
     private static IEnumerable<Pedido> ApplyOrdersSorting(
         IEnumerable<Pedido> orders,
-        GetOrdersByCustomerIdQuery query)
+        string? sortBy,
+        bool sortDescending)
     {
-        string sortBy = query.SortBy?.Trim().ToLowerInvariant() ?? "createdat";
+        string normalizedSortBy = sortBy?.Trim().ToLowerInvariant() ?? "createdat";
 
-        return sortBy switch
+        return normalizedSortBy switch
         {
-            "totalamount" or "total" => query.SortDescending
+            "totalamount" or "total" => sortDescending
                 ? orders.OrderByDescending(order => order.Total.Amount).ThenByDescending(order => order.FechaCreacionUtc)
                 : orders.OrderBy(order => order.Total.Amount).ThenBy(order => order.FechaCreacionUtc),
 
-            "status" => query.SortDescending
+            "status" => sortDescending
                 ? orders.OrderByDescending(order => order.Estado).ThenByDescending(order => order.FechaCreacionUtc)
                 : orders.OrderBy(order => order.Estado).ThenBy(order => order.FechaCreacionUtc),
 
-            "updatedat" => query.SortDescending
+            "updatedat" => sortDescending
                 ? orders.OrderByDescending(order => order.FechaActualizacionUtc ?? order.FechaCreacionUtc)
                 : orders.OrderBy(order => order.FechaActualizacionUtc ?? order.FechaCreacionUtc),
 
-            _ => query.SortDescending
+            _ => sortDescending
                 ? orders.OrderByDescending(order => order.FechaCreacionUtc)
                 : orders.OrderBy(order => order.FechaCreacionUtc)
         };

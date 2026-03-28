@@ -271,6 +271,9 @@ public class OrdersDetailsPageModelTests
 
         public Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersByCustomerIdAsync(GetOrdersByCustomerIdQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersAsync(GetOrdersQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 
     private sealed class FakeAuthenticationService : IAuthenticationService

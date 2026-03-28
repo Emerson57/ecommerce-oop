@@ -1,4 +1,5 @@
 using PlataformaECommerce.Application.Features.Orders.Commands;
+using PlataformaECommerce.Application.Features.Orders.Queries;
 using PlataformaECommerce.Application.Features.Orders.Services;
 using PlataformaECommerce.Application.Features.Orders.Validators;
 using PlataformaECommerce.Application.Interfaces.Persistence;
@@ -160,6 +161,39 @@ public class OrderApplicationServiceTests
 
         Assert.That(result.IsFailure, Is.True);
         Assert.That(result.Error.Code, Does.StartWith("Orders.Validation"));
+    }
+
+    [Test]
+    public async Task GetOrdersAsync_FiltrosAdministrativos_RetornaPedidosCoincidentes()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-cliente-seguro-2026");
+        Pedido activeOrder = CreateOrder(customer.Id);
+        activeOrder.Confirmar();
+
+        Pedido finalizedOrder = CreateOrder(customer.Id);
+        finalizedOrder.Confirmar();
+        finalizedOrder.Cancelar("Cancelación operativa de prueba");
+
+        OrderApplicationService service = new(
+            new FakeOrderRepository(activeOrder, finalizedOrder),
+            new FakeCartRepository(CreateCart(customer.Id)),
+            new FakeUserRepository(customer),
+            new FakeUnitOfWork(),
+            new FakeAuditTrailService(),
+            new CreateOrderFromCartCommandValidator(),
+            new CancelOrderCommandValidator());
+
+        var result = await service.GetOrdersAsync(new GetOrdersQuery
+        {
+            OnlyFinalized = true,
+            Status = EstadoPedido.Cancelado,
+            MinTotalAmount = 100m,
+            SortBy = "createdAt"
+        });
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(result.Value.Count, Is.EqualTo(1));
+        Assert.That(result.Value.Single().Status, Is.EqualTo(EstadoPedido.Cancelado));
     }
 
     private static CarritoCompra CreateCart(Guid customerId)

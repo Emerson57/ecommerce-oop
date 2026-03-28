@@ -73,6 +73,13 @@ public interface IOrderApplicationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Obtiene un listado administrativo de pedidos del sistema.
+    /// </summary>
+    Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersAsync(
+        GetOrdersQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Obtiene los pedidos asociados a un cliente específico.
     /// </summary>
     Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersByCustomerIdAsync(

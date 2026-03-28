@@ -281,6 +281,8 @@ public class CheckoutIndexPageModelTests
             => throw new NotSupportedException();
         public Task<Result<OrderDetailDto>> GetOrderByIdAsync(GetOrderByIdQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
+        public Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersAsync(GetOrdersQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
         public Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersByCustomerIdAsync(GetOrdersByCustomerIdQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }

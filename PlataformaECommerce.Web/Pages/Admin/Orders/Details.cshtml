@@ -1,0 +1,326 @@
+@page "{id:guid}"
+@model PlataformaECommerce.Web.Pages.Admin.Orders.DetailsModel
+@{
+    ViewData["Title"] = "Detalle operativo del pedido";
+    ViewData["Subtitle"] = "Gestión administrativa del ciclo de vida del pedido con trazabilidad completa";
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success admin-feedback-alert" role="status" aria-live="polite">
+        @Model.StatusMessage
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger admin-feedback-alert" role="alert" aria-live="assertive">
+        @Model.ErrorMessage
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-4">
+    <div>
+        <div class="admin-muted-label">Operación de pedidos</div>
+        <h2 class="h4 fw-bold mb-1">Pedido @Model.Order.Id</h2>
+        <div class="text-muted small">Cliente: @Model.Order.CustomerId · Modalidad: @Model.Order.FulfillmentLabel</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        @if (!string.IsNullOrWhiteSpace(Model.ReturnUrl) && Url.IsLocalUrl(Model.ReturnUrl))
+        {
+            <a href="@Model.ReturnUrl" class="btn btn-outline-secondary">Volver al listado filtrado</a>
+        }
+        else
+        {
+            <a asp-page="/Admin/Orders/Index" class="btn btn-outline-secondary">Volver al listado</a>
+        }
+        <a asp-page="/Admin/Audit/Index" asp-route-AggregateId="@Model.Order.Id" asp-route-Module="Orders" class="btn btn-outline-dark">Ver auditoría</a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Estado</div>
+                <div class="display-6 fw-bold mt-2">@Model.Order.StatusLabel</div>
+                <div class="text-muted small mt-2">Acciones visibles ajustadas al ciclo de vida actual.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Total</div>
+                <div class="display-6 fw-bold mt-2">@Model.Order.Currency @Model.Order.TotalAmount.ToString("N2")</div>
+                <div class="text-muted small mt-2">@Model.Order.ItemsCount línea(s) · @Model.Order.TotalUnits unidad(es)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Creación</div>
+                <div class="fw-semibold mt-2">@Model.Order.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm 'UTC'")</div>
+                <div class="text-muted small mt-2">Confirmado: @(Model.Order.ConfirmedAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Logística</div>
+                <div class="fw-semibold mt-2">@(Model.Order.HasShippingAddress ? "Dirección disponible" : "Sin dirección visible")</div>
+                <div class="text-muted small mt-2">Pagado: @(Model.Order.PaidAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xl-7">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Contenido del pedido</div>
+                <h3 class="h5 fw-bold mt-2 mb-3">Detalle comercial</h3>
+
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var item in Model.Order.Items)
+                    {
+                        <div class="border rounded-3 p-3 bg-light-subtle">
+                            <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                <div>
+                                    <div class="fw-semibold">@item.ProductName</div>
+                                    <div class="text-muted small">SKU: @item.ProductSku</div>
+                                    <div class="text-muted small">@(item.IsDigitalProduct ? "Producto digital" : "Producto físico")</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-semibold">@item.Currency @item.Subtotal.ToString("N2")</div>
+                                    <div class="text-muted small">@item.Quantity unidad(es) · @item.Currency @item.UnitPrice.ToString("N2") c/u</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Transiciones operativas</div>
+                <h3 class="h5 fw-bold mt-2 mb-3">Acciones disponibles</h3>
+
+                <div class="d-flex flex-column gap-4">
+                    @if (Model.Order.CanConfirm)
+                    {
+                        <form method="post" asp-page-handler="Confirm" asp-route-id="@Model.Order.Id" asp-route-returnUrl="@Model.ReturnUrl" novalidate>
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold mb-3">Confirmar pedido</div>
+                                <div class="mb-3">
+                                    <label asp-for="ConfirmOrder.Notes" class="form-label"></label>
+                                    <textarea asp-for="ConfirmOrder.Notes" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="ConfirmOrder.Notes" class="text-danger small"></span>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Confirmar pedido</button>
+                            </div>
+                        </form>
+                    }
+
+                    @if (Model.Order.CanRegisterPayment)
+                    {
+                        <form method="post" asp-page-handler="RegisterPayment" asp-route-id="@Model.Order.Id" asp-route-returnUrl="@Model.ReturnUrl" novalidate>
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold mb-3">Registrar pago</div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label asp-for="RegisterPayment.PaymentReference" class="form-label"></label>
+                                        <input asp-for="RegisterPayment.PaymentReference" class="form-control" />
+                                        <span asp-validation-for="RegisterPayment.PaymentReference" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="RegisterPayment.PaymentMethod" class="form-label"></label>
+                                        <input asp-for="RegisterPayment.PaymentMethod" class="form-control" />
+                                        <span asp-validation-for="RegisterPayment.PaymentMethod" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label asp-for="RegisterPayment.Amount" class="form-label"></label>
+                                        <input asp-for="RegisterPayment.Amount" class="form-control" type="number" step="0.01" min="0.01" />
+                                        <span asp-validation-for="RegisterPayment.Amount" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label asp-for="RegisterPayment.Currency" class="form-label"></label>
+                                        <input asp-for="RegisterPayment.Currency" class="form-control" />
+                                        <span asp-validation-for="RegisterPayment.Currency" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label asp-for="RegisterPayment.PaymentProvider" class="form-label"></label>
+                                        <input asp-for="RegisterPayment.PaymentProvider" class="form-control" />
+                                        <span asp-validation-for="RegisterPayment.PaymentProvider" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label asp-for="RegisterPayment.Notes" class="form-label"></label>
+                                        <textarea asp-for="RegisterPayment.Notes" class="form-control" rows="3"></textarea>
+                                        <span asp-validation-for="RegisterPayment.Notes" class="text-danger small"></span>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-3">Registrar pago</button>
+                            </div>
+                        </form>
+                    }
+
+                    @if (Model.Order.CanProcess)
+                    {
+                        <form method="post" asp-page-handler="Process" asp-route-id="@Model.Order.Id" asp-route-returnUrl="@Model.ReturnUrl" novalidate>
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold mb-3">Pasar a proceso</div>
+                                <div class="mb-3">
+                                    <label asp-for="ProcessOrder.Reason" class="form-label"></label>
+                                    <input asp-for="ProcessOrder.Reason" class="form-control" />
+                                    <span asp-validation-for="ProcessOrder.Reason" class="text-danger small"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label asp-for="ProcessOrder.Notes" class="form-label"></label>
+                                    <textarea asp-for="ProcessOrder.Notes" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="ProcessOrder.Notes" class="text-danger small"></span>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Iniciar procesamiento</button>
+                            </div>
+                        </form>
+                    }
+
+                    @if (Model.Order.CanShip)
+                    {
+                        <form method="post" asp-page-handler="Ship" asp-route-id="@Model.Order.Id" asp-route-returnUrl="@Model.ReturnUrl" novalidate>
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold mb-3">Despachar pedido</div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label asp-for="ShipOrder.CarrierName" class="form-label"></label>
+                                        <input asp-for="ShipOrder.CarrierName" class="form-control" />
+                                        <span asp-validation-for="ShipOrder.CarrierName" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="ShipOrder.TrackingNumber" class="form-label"></label>
+                                        <input asp-for="ShipOrder.TrackingNumber" class="form-control" />
+                                        <span asp-validation-for="ShipOrder.TrackingNumber" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label asp-for="ShipOrder.TrackingUrl" class="form-label"></label>
+                                        <input asp-for="ShipOrder.TrackingUrl" class="form-control" />
+                                        <span asp-validation-for="ShipOrder.TrackingUrl" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label asp-for="ShipOrder.Notes" class="form-label"></label>
+                                        <textarea asp-for="ShipOrder.Notes" class="form-control" rows="3"></textarea>
+                                        <span asp-validation-for="ShipOrder.Notes" class="text-danger small"></span>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-3">Despachar pedido</button>
+                            </div>
+                        </form>
+                    }
+
+                    @if (Model.Order.CanDeliver)
+                    {
+                        <form method="post" asp-page-handler="Deliver" asp-route-id="@Model.Order.Id" asp-route-returnUrl="@Model.ReturnUrl" novalidate>
+                            <div class="border rounded-3 p-3">
+                                <div class="fw-semibold mb-3">Marcar como entregado</div>
+                                <div class="mb-3">
+                                    <label asp-for="DeliverOrder.ReceivedBy" class="form-label"></label>
+                                    <input asp-for="DeliverOrder.ReceivedBy" class="form-control" />
+                                    <span asp-validation-for="DeliverOrder.ReceivedBy" class="text-danger small"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label asp-for="DeliverOrder.DeliveryEvidence" class="form-label"></label>
+                                    <textarea asp-for="DeliverOrder.DeliveryEvidence" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="DeliverOrder.DeliveryEvidence" class="text-danger small"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label asp-for="DeliverOrder.Notes" class="form-label"></label>
+                                    <textarea asp-for="DeliverOrder.Notes" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="DeliverOrder.Notes" class="text-danger small"></span>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Registrar entrega</button>
+                            </div>
+                        </form>
+                    }
+
+                    @if (Model.Order.CanCancel)
+                    {
+                        <form method="post" asp-page-handler="Cancel" asp-route-id="@Model.Order.Id" asp-route-returnUrl="@Model.ReturnUrl" novalidate>
+                            <div class="border rounded-3 p-3 border-danger-subtle">
+                                <div class="fw-semibold mb-3 text-danger">Cancelar pedido</div>
+                                <div class="mb-3">
+                                    <label asp-for="CancelOrder.Reason" class="form-label"></label>
+                                    <textarea asp-for="CancelOrder.Reason" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="CancelOrder.Reason" class="text-danger small"></span>
+                                </div>
+                                <div class="mb-3">
+                                    <label asp-for="CancelOrder.Notes" class="form-label"></label>
+                                    <textarea asp-for="CancelOrder.Notes" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="CancelOrder.Notes" class="text-danger small"></span>
+                                </div>
+                                <button type="submit" class="btn btn-outline-danger">Cancelar pedido</button>
+                            </div>
+                        </form>
+                    }
+
+                    @if (!Model.Order.CanConfirm && !Model.Order.CanRegisterPayment && !Model.Order.CanProcess && !Model.Order.CanShip && !Model.Order.CanDeliver && !Model.Order.CanCancel)
+                    {
+                        <div class="admin-empty-state">
+                            <div class="fw-semibold mb-1">No hay transiciones manuales disponibles.</div>
+                            <div class="text-muted small">El pedido ya completó su ciclo operativo o se encuentra en un estado final sin acciones administrativas permitidas.</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Trazabilidad operativa</div>
+                <h3 class="h5 fw-bold mt-2 mb-3">Resumen ampliado</h3>
+
+                <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                    <div class="small text-muted">Cliente</div>
+                    <div class="fw-semibold mt-1">@Model.Order.CustomerId</div>
+                </div>
+
+                <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                    <div class="small text-muted">Logística</div>
+                    @if (Model.Order.HasShippingAddress)
+                    {
+                        <div class="fw-semibold mt-1">@Model.Order.ShippingStreet</div>
+                        <div class="text-muted small">@Model.Order.ShippingCity, @Model.Order.ShippingDepartment</div>
+                        <div class="text-muted small">@Model.Order.ShippingCountry · CP @Model.Order.ShippingPostalCode</div>
+                    }
+                    else
+                    {
+                        <div class="text-muted small mt-1">No existe una dirección de envío visible en el pedido actual.</div>
+                    }
+                </div>
+
+                <div class="small text-muted">
+                    Confirmado: @(Model.Order.ConfirmedAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")<br />
+                    Pagado: @(Model.Order.PaidAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")<br />
+                    Enviado: @(Model.Order.ShippedAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")<br />
+                    Entregado: @(Model.Order.DeliveredAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")<br />
+                    Cancelado: @(Model.Order.CancelledAtUtc?.ToString("dd/MM/yyyy HH:mm 'UTC'") ?? "Pendiente")
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Order.CancellationReason))
+                {
+                    <div class="alert alert-warning small mt-3 mb-0" role="status">
+                        Motivo de cancelación: @Model.Order.CancellationReason
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
