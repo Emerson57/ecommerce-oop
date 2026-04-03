@@ -1,6 +1,12 @@
 ﻿using System.Reflection;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using PlataformaECommerce.Application.Features.Admin.Services;
+using PlataformaECommerce.Application.Features.Orders.Services;
+using PlataformaECommerce.Application.Features.Products.Services;
+using PlataformaECommerce.Application.Interfaces.Services.Admin;
+using PlataformaECommerce.Application.Interfaces.Services.Orders;
+using PlataformaECommerce.Application.Interfaces.Services.Products;
 
 namespace PlataformaECommerce.Application.DependencyInjection;
 
@@ -52,6 +58,7 @@ public static class ApplicationServiceRegistration
 
         Assembly applicationAssembly = typeof(ApplicationServiceRegistration).Assembly;
 
+        RegisterSpecializedApplicationServices(services);
         RegisterApplicationServices(services, applicationAssembly);
         RegisterValidators(services, applicationAssembly);
 
@@ -61,6 +68,43 @@ public static class ApplicationServiceRegistration
     #endregion
 
     #region Métodos privados auxiliares
+
+    /// <summary>
+    /// Registra explícitamente los servicios especializados introducidos por la FASE 1.
+    /// </summary>
+    /// <param name="services">Colección de servicios.</param>
+    private static void RegisterSpecializedApplicationServices(IServiceCollection services)
+    {
+        services.AddScoped<IProductCommandService, ProductCommandService>();
+        services.AddScoped<IProductQueryService, ProductQueryService>();
+        services.AddScoped<IProductStockService, ProductStockService>();
+        services.AddScoped<IProductPromotionService, ProductPromotionService>();
+        services.AddScoped<IProductApplicationService>(serviceProvider =>
+            new ProductApplicationService(
+                serviceProvider.GetRequiredService<IProductCommandService>(),
+                serviceProvider.GetRequiredService<IProductQueryService>(),
+                serviceProvider.GetRequiredService<IProductStockService>(),
+                serviceProvider.GetRequiredService<IProductPromotionService>()));
+
+        services.AddScoped<IOrderCreationService, OrderCreationService>();
+        services.AddScoped<IOrderLifecycleService, OrderLifecycleService>();
+        services.AddScoped<IOrderQueryService, OrderQueryService>();
+        services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IOrderApplicationService>(serviceProvider =>
+            new OrderApplicationService(
+                serviceProvider.GetRequiredService<IOrderCreationService>(),
+                serviceProvider.GetRequiredService<IOrderLifecycleService>(),
+                serviceProvider.GetRequiredService<IOrderQueryService>(),
+                serviceProvider.GetRequiredService<IPaymentService>()));
+
+        services.AddScoped<AdminAuthService>();
+        services.AddScoped<IAdminUserService, AdminUserService>();
+        services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+        services.AddScoped<IAdminApplicationService>(serviceProvider =>
+            new AdminApplicationService(
+                serviceProvider.GetRequiredService<IAdminUserService>(),
+                serviceProvider.GetRequiredService<IAdminDashboardService>()));
+    }
 
     /// <summary>
     /// Registra automáticamente los servicios de aplicación concretos del ensamblado.
@@ -73,7 +117,8 @@ public static class ApplicationServiceRegistration
             .GetTypes()
             .Where(type =>
                 type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
-                type.Name.EndsWith("ApplicationService", StringComparison.Ordinal));
+                type.Name.EndsWith("ApplicationService", StringComparison.Ordinal) &&
+                !IsExplicitlyRegisteredFacade(type));
 
         foreach (Type implementationType in serviceTypes)
         {
@@ -139,6 +184,18 @@ public static class ApplicationServiceRegistration
         Type genericTypeDefinition = interfaceType.GetGenericTypeDefinition();
 
         return genericTypeDefinition == typeof(IValidator<>);
+    }
+
+    /// <summary>
+    /// Determina si la implementación corresponde a una fachada registrada manualmente.
+    /// </summary>
+    /// <param name="implementationType">Tipo concreto a evaluar.</param>
+    /// <returns><see langword="true"/> cuando la fachada ya se registra explícitamente.</returns>
+    private static bool IsExplicitlyRegisteredFacade(Type implementationType)
+    {
+        return implementationType == typeof(ProductApplicationService)
+            || implementationType == typeof(OrderApplicationService)
+            || implementationType == typeof(AdminApplicationService);
     }
 
     #endregion

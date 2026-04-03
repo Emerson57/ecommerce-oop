@@ -27,7 +27,7 @@ public class ProductsControllerTests
     [Test]
     public async Task GetAll_ConsultaValida_RetornaOk()
     {
-        FakeProductApplicationService service = new();
+        FakeProductQueryService service = new();
         ProductsController controller = new(service);
 
         ActionResult<ProductQueryResultDto> result = await controller.GetAll(new GetProductsQuery(), CancellationToken.None);
@@ -38,7 +38,7 @@ public class ProductsControllerTests
     [Test]
     public async Task GetById_IdValido_RetornaOk()
     {
-        FakeProductApplicationService service = new();
+        FakeProductQueryService service = new();
         ProductsController controller = new(service);
 
         ActionResult<ProductDetailDto> result = await controller.GetById(Guid.NewGuid(), CancellationToken.None);
@@ -46,41 +46,8 @@ public class ProductsControllerTests
         Assert.That(result.Result, Is.InstanceOf<OkObjectResult>());
     }
 
-    private sealed class FakeProductApplicationService : IProductApplicationService
+    private sealed class FakeProductQueryService : IProductQueryService
     {
-        public Task<Result<Guid>> CreatePhysicalProductAsync(CreatePhysicalProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(Guid.NewGuid()));
-
-        public Task<Result<Guid>> CreateDigitalProductAsync(CreateDigitalProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(Guid.NewGuid()));
-
-        public Task<Result<ProductImportResultDto>> ImportProductsAsync(ImportProductsCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
-        public Task<Result<ProductResponseDto>> UpdateProductStockAsync(UpdateProductStockCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
-        public Task<Result<ProductResponseDto>> ActivateProductAsync(ActivateProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
-        public Task<Result<ProductResponseDto>> DeactivateProductAsync(DeactivateProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
-        public Task<Result<ProductResponseDto>> ApplyProductPromotionAsync(ApplyProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
-        public Task<Result<ProductResponseDto>> RemoveProductPromotionAsync(RemoveProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
-        public Task<Result<ProductResponseDto>> FeatureProductAsync(FeatureProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
-        public Task<Result<ProductResponseDto>> UnfeatureProductAsync(UnfeatureProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(CreateResponse()));
-
         public Task<Result<ProductDetailDto>> GetProductByIdAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default)
             => Task.FromResult(Result.Success(new ProductDetailDto
             {
@@ -124,26 +91,5 @@ public class ProductsControllerTests
                 TotalPages = 1
             }));
 
-        private static ProductResponseDto CreateResponse()
-        {
-            return new ProductResponseDto
-            {
-                Id = Guid.NewGuid(),
-                Name = "Producto prueba",
-                Description = "Producto de prueba.",
-                Sku = "PROD-001",
-                Slug = "producto-prueba",
-                Price = 90m,
-                BasePrice = 100m,
-                PromotionalPrice = 90m,
-                Currency = "COP",
-                Stock = 10,
-                IsActive = true,
-                IsFeatured = false,
-                HasPromotion = true,
-                CurrentDiscountPercentage = 10m,
-                ProductType = TipoProducto.Fisico
-            };
-        }
     }
 }

@@ -116,16 +116,16 @@ public class AdminProductsEditPageModelTests
         }));
     }
 
-    private static EditModel CreatePageModel(IProductApplicationService service, IAuditApplicationService auditApplicationService)
+    private static EditModel CreatePageModel(FakeProductApplicationService service, IAuditApplicationService auditApplicationService)
     {
-        EditModel pageModel = new(service, new FakeCategoryApplicationService(), auditApplicationService, new FakeProductImageStorageService());
+        EditModel pageModel = new(service, service, new FakeCategoryApplicationService(), auditApplicationService, new FakeProductImageStorageService());
         DefaultHttpContext httpContext = new();
         pageModel.PageContext = new PageContext { HttpContext = httpContext };
         pageModel.TempData = new TempDataDictionary(httpContext, new FakeTempDataProvider());
         return pageModel;
     }
 
-    private sealed class FakeProductApplicationService : IProductApplicationService
+    private sealed class FakeProductApplicationService : IProductCommandService, IProductQueryService
     {
         public UpdateProductCommand? LastUpdateCommand { get; private set; }
 
@@ -137,13 +137,6 @@ public class AdminProductsEditPageModelTests
             LastUpdateCommand = command;
             return Task.FromResult(Result.Success(new ProductResponseDto { Id = command.Id, Name = command.Name }));
         }
-        public Task<Result<ProductResponseDto>> UpdateProductStockAsync(UpdateProductStockCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
-        public Task<Result<ProductResponseDto>> ActivateProductAsync(ActivateProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
-        public Task<Result<ProductResponseDto>> DeactivateProductAsync(DeactivateProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
-        public Task<Result<ProductResponseDto>> ApplyProductPromotionAsync(ApplyProductPromotionCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
-        public Task<Result<ProductResponseDto>> RemoveProductPromotionAsync(RemoveProductPromotionCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
-        public Task<Result<ProductResponseDto>> FeatureProductAsync(FeatureProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
-        public Task<Result<ProductResponseDto>> UnfeatureProductAsync(UnfeatureProductCommand command, CancellationToken cancellationToken = default) => Task.FromResult(Result.Success(new ProductResponseDto()));
 
         public Task<Result<ProductDetailDto>> GetProductByIdAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default)
         {

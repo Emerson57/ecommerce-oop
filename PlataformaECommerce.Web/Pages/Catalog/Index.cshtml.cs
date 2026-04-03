@@ -18,14 +18,14 @@ namespace PlataformaECommerce.Web.Pages.Catalog;
 public sealed class IndexModel : PageModel
 {
     private const string CatalogSource = "Web.Catalog.Index";
-    private readonly IProductApplicationService _productApplicationService;
+    private readonly IProductQueryService _productQueryService;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
     /// </summary>
-    public IndexModel(IProductApplicationService productApplicationService)
+    public IndexModel(IProductQueryService productQueryService)
     {
-        _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+        _productQueryService = productQueryService ?? throw new ArgumentNullException(nameof(productQueryService));
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public sealed class IndexModel : PageModel
     /// </summary>
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        var result = await _productApplicationService.GetProductsAsync(
+        var result = await _productQueryService.GetProductsAsync(
             new GetProductsQuery
             {
                 SearchTerm = string.IsNullOrWhiteSpace(SearchTerm) ? null : SearchTerm.Trim(),

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
@@ -25,21 +26,22 @@ namespace PlataformaECommerce.Web.Pages.Admin.Users;
 [Authorize(
     Policy = AuthorizationPolicies.SuperUserOnly,
     AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
 public sealed class IndexModel : PageModel
 {
-    private readonly IAdminApplicationService _adminApplicationService;
+    private readonly IAdminUserService _adminUserService;
     private readonly AdminUsersBackofficeOptions _options;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
     /// </summary>
-    /// <param name="adminApplicationService">Servicio de aplicación del módulo administrativo.</param>
+    /// <param name="adminUserService">Servicio administrativo especializado en usuarios.</param>
     /// <param name="options">Opciones de disponibilidad del módulo de usuarios.</param>
     public IndexModel(
-        IAdminApplicationService adminApplicationService,
+        IAdminUserService adminUserService,
         IOptions<AdminUsersBackofficeOptions> options)
     {
-        _adminApplicationService = adminApplicationService ?? throw new ArgumentNullException(nameof(adminApplicationService));
+        _adminUserService = adminUserService ?? throw new ArgumentNullException(nameof(adminUserService));
         ArgumentNullException.ThrowIfNull(options);
         _options = options.Value;
     }
@@ -108,7 +110,7 @@ public sealed class IndexModel : PageModel
             return Page();
         }
 
-        var result = await _adminApplicationService.ResetUserPasswordAsync(new ResetUserPasswordCommand
+        var result = await _adminUserService.ResetUserPasswordAsync(new ResetUserPasswordCommand
         {
             TargetUserId = ResetPassword.TargetUserId,
             NewPassword = ResetPassword.NewPassword,
@@ -133,7 +135,7 @@ public sealed class IndexModel : PageModel
 
     private async Task LoadUsersAsync(Guid? selectedUserId, CancellationToken cancellationToken)
     {
-        var result = await _adminApplicationService.GetUsersAsync(new GetAdminUsersQuery
+        var result = await _adminUserService.GetUsersAsync(new GetAdminUsersQuery
         {
             OnlyAdministrativeUsers = false,
             RequestedByUserId = GetRequestedByUserId(),

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Features.Auth.Commands;
@@ -11,6 +12,7 @@ using PlataformaECommerce.Application.Features.Auth.DTOs;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Authorization;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.Pages.Auth
 {
@@ -22,6 +24,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
     /// a <c>Application</c>, emitiendo posteriormente la cookie apropiada según el tipo de cuenta autenticada.
     /// </remarks>
     [AllowAnonymous]
+    [EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
     public sealed class LoginModel : PageModel
     {
         private readonly IAuthApplicationService _authApplicationService;

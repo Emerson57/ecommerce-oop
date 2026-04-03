@@ -28,17 +28,17 @@ public sealed class IndexModel : PageModel
 {
     private const string CheckoutSource = "Web.Checkout.Index";
     private readonly ICartApplicationService _cartApplicationService;
-    private readonly IOrderApplicationService _orderApplicationService;
+    private readonly IOrderCreationService _orderCreationService;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
     /// </summary>
     public IndexModel(
         ICartApplicationService cartApplicationService,
-        IOrderApplicationService orderApplicationService)
+        IOrderCreationService orderCreationService)
     {
         _cartApplicationService = cartApplicationService ?? throw new ArgumentNullException(nameof(cartApplicationService));
-        _orderApplicationService = orderApplicationService ?? throw new ArgumentNullException(nameof(orderApplicationService));
+        _orderCreationService = orderCreationService ?? throw new ArgumentNullException(nameof(orderCreationService));
     }
 
     /// <summary>
@@ -106,7 +106,7 @@ public sealed class IndexModel : PageModel
             return Page();
         }
 
-        var result = await _orderApplicationService.CreateOrderFromCartAsync(
+        var result = await _orderCreationService.CreateOrderFromCartAsync(
             new CreateOrderFromCartCommand
             {
                 CartId = Cart.Id,

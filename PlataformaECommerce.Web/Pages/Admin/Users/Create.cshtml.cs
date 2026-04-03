@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -24,21 +25,22 @@ namespace PlataformaECommerce.Web.Pages.Admin.Users;
 [Authorize(
     Policy = AuthorizationPolicies.SuperUserOnly,
     AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
 public sealed class CreateModel : PageModel
 {
-    private readonly IAdminApplicationService _adminApplicationService;
+    private readonly IAdminUserService _adminUserService;
     private readonly AdminUsersBackofficeOptions _options;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="CreateModel"/>.
     /// </summary>
-    /// <param name="adminApplicationService">Servicio de aplicación del módulo administrativo.</param>
+    /// <param name="adminUserService">Servicio administrativo especializado en usuarios.</param>
     /// <param name="options">Opciones de disponibilidad del módulo de usuarios.</param>
     public CreateModel(
-        IAdminApplicationService adminApplicationService,
+        IAdminUserService adminUserService,
         IOptions<AdminUsersBackofficeOptions> options)
     {
-        _adminApplicationService = adminApplicationService ?? throw new ArgumentNullException(nameof(adminApplicationService));
+        _adminUserService = adminUserService ?? throw new ArgumentNullException(nameof(adminUserService));
         ArgumentNullException.ThrowIfNull(options);
         _options = options.Value;
     }
@@ -93,7 +95,7 @@ public sealed class CreateModel : PageModel
             return await LoadDefinitionAndRenderPageAsync(cancellationToken, applyDefaultValues: false);
         }
 
-        var result = await _adminApplicationService.RegisterAdminAsync(
+        var result = await _adminUserService.RegisterAdminAsync(
             CreateRegisterAdminCommand(),
             cancellationToken);
 
@@ -129,7 +131,7 @@ public sealed class CreateModel : PageModel
         CancellationToken cancellationToken,
         bool applyDefaultValues)
     {
-        var result = await _adminApplicationService.GetAdminRegistrationDefinitionAsync(new GetAdminRegistrationDefinitionQuery
+        var result = await _adminUserService.GetAdminRegistrationDefinitionAsync(new GetAdminRegistrationDefinitionQuery
         {
             RequestedByUserId = GetRequestedByUserId(),
             RequestedByUserName = User.Identity?.Name,

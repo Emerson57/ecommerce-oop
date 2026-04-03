@@ -27,7 +27,7 @@ public class CheckoutIndexPageModelTests
     public async Task OnGetAsync_CarritoConItems_RetornaPagina()
     {
         FakeCartApplicationService cartApplicationService = new();
-        IndexModel pageModel = CreatePageModel(cartApplicationService, new FakeOrderApplicationService(), Guid.NewGuid());
+        IndexModel pageModel = CreatePageModel(cartApplicationService, new FakeOrderCreationService(), Guid.NewGuid());
 
         IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
 
@@ -39,7 +39,7 @@ public class CheckoutIndexPageModelTests
     public async Task OnPostPlaceOrderAsync_Confirmado_RedireccionaADetallePedido()
     {
         FakeCartApplicationService cartApplicationService = new();
-        FakeOrderApplicationService orderApplicationService = new();
+        FakeOrderCreationService orderApplicationService = new();
         IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
         pageModel.Input = new IndexModel.CheckoutInputModel
         {
@@ -57,7 +57,7 @@ public class CheckoutIndexPageModelTests
     public async Task OnPostPlaceOrderAsync_SinConfirmacion_RetornaPaginaYNoCreaPedido()
     {
         FakeCartApplicationService cartApplicationService = new();
-        FakeOrderApplicationService orderApplicationService = new();
+        FakeOrderCreationService orderApplicationService = new();
         IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
         pageModel.Input = new IndexModel.CheckoutInputModel
         {
@@ -74,7 +74,7 @@ public class CheckoutIndexPageModelTests
 
     private static IndexModel CreatePageModel(
         FakeCartApplicationService cartApplicationService,
-        FakeOrderApplicationService orderApplicationService,
+        FakeOrderCreationService orderApplicationService,
         Guid? authenticatedUserId)
     {
         FakeAuthenticationService authenticationService = new();
@@ -165,7 +165,7 @@ public class CheckoutIndexPageModelTests
         }
     }
 
-    private sealed class FakeOrderApplicationService : IOrderApplicationService
+    private sealed class FakeOrderCreationService : IOrderCreationService
     {
         public CreateOrderFromCartCommand? LastCreateOrderCommand { get; private set; }
 
@@ -185,22 +185,6 @@ public class CheckoutIndexPageModelTests
             }));
         }
 
-        public Task<Result<OrderDetailDto>> ConfirmOrderAsync(ConfirmOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-        public Task<Result<OrderDetailDto>> RegisterOrderPaymentAsync(RegisterOrderPaymentCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-        public Task<Result<OrderDetailDto>> ProcessOrderAsync(ProcessOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-        public Task<Result<OrderDetailDto>> ShipOrderAsync(ShipOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-        public Task<Result<OrderDetailDto>> DeliverOrderAsync(DeliverOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-        public Task<Result<OrderDetailDto>> CancelOrderAsync(CancelOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-        public Task<Result<OrderDetailDto>> GetOrderByIdAsync(GetOrderByIdQuery query, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-        public Task<Result<IReadOnlyCollection<OrderDto>>> GetOrdersByCustomerIdAsync(GetOrdersByCustomerIdQuery query, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
     }
 
     private sealed class FakeAuthenticationService : IAuthenticationService

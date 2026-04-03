@@ -2,12 +2,14 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Features.Categories.DTOs;
 using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Admin.Products
@@ -19,22 +21,23 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     /// Esta página unifica la captura de datos comunes del catálogo y deriva la creación
     /// hacia el comando físico o digital correspondiente según el tipo seleccionado.
     /// </remarks>
+    [EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
     public sealed class CreateModel : PageModel
     {
-        private readonly IProductApplicationService _productApplicationService;
+        private readonly IProductCommandService _productCommandService;
         private readonly ICategoryApplicationService _categoryApplicationService;
         private readonly IProductImageStorageService _productImageStorageService;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="CreateModel"/>.
         /// </summary>
-        /// <param name="productApplicationService">Servicio de aplicación de productos.</param>
+        /// <param name="productCommandService">Servicio de escritura de productos.</param>
         public CreateModel(
-            IProductApplicationService productApplicationService,
+            IProductCommandService productCommandService,
             ICategoryApplicationService categoryApplicationService,
             IProductImageStorageService productImageStorageService)
         {
-            _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+            _productCommandService = productCommandService ?? throw new ArgumentNullException(nameof(productCommandService));
             _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
             _productImageStorageService = productImageStorageService ?? throw new ArgumentNullException(nameof(productImageStorageService));
         }
@@ -125,7 +128,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
 
         private async Task<IActionResult> CreatePhysicalProductAsync(string? mainImageUrl, CancellationToken cancellationToken)
         {
-            var result = await _productApplicationService.CreatePhysicalProductAsync(
+            var result = await _productCommandService.CreatePhysicalProductAsync(
                 new CreatePhysicalProductCommand
                 {
                     Name = Input.Name,
@@ -164,7 +167,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
 
         private async Task<IActionResult> CreateDigitalProductAsync(string? mainImageUrl, CancellationToken cancellationToken)
         {
-            var result = await _productApplicationService.CreateDigitalProductAsync(
+            var result = await _productCommandService.CreateDigitalProductAsync(
                 new CreateDigitalProductCommand
                 {
                     Name = Input.Name,

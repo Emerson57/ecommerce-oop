@@ -24,7 +24,7 @@ public class AdminProductsIndexPageModelTests
     [Test]
     public async Task OnGetAsync_FiltrosValidos_CargaProductosDelCatalogo()
     {
-        FakeProductApplicationService service = new();
+        FakeAdminProductServices service = new();
         IndexModel pageModel = CreatePageModel(service);
         pageModel.SearchTerm = "teclado";
         pageModel.PageSize = 10;
@@ -37,7 +37,7 @@ public class AdminProductsIndexPageModelTests
     [Test]
     public async Task OnPostActivateAsync_OperacionExitosa_RedireccionaAlListado()
     {
-        FakeProductApplicationService service = new();
+        FakeAdminProductServices service = new();
         IndexModel pageModel = CreatePageModel(service);
 
         IActionResult result = await pageModel.OnPostActivateAsync(Guid.NewGuid(), CancellationToken.None);
@@ -48,7 +48,7 @@ public class AdminProductsIndexPageModelTests
     [Test]
     public async Task OnPostRemovePromotionAsync_OperacionExitosa_RedireccionaAlListado()
     {
-        FakeProductApplicationService service = new();
+        FakeAdminProductServices service = new();
         IndexModel pageModel = CreatePageModel(service);
 
         IActionResult result = await pageModel.OnPostRemovePromotionAsync(Guid.NewGuid(), "Fin de campaña", CancellationToken.None);
@@ -59,7 +59,7 @@ public class AdminProductsIndexPageModelTests
     [Test]
     public async Task OnPostUpdateStockAsync_OperacionExitosa_RedireccionaAlListado()
     {
-        FakeProductApplicationService service = new();
+        FakeAdminProductServices service = new();
         IndexModel pageModel = CreatePageModel(service);
 
         IActionResult result = await pageModel.OnPostUpdateStockAsync(Guid.NewGuid(), StockUpdateType.Increase, 5, "Ajuste manual", CancellationToken.None);
@@ -70,7 +70,7 @@ public class AdminProductsIndexPageModelTests
     [Test]
     public async Task OnPostApplyPromotionAsync_OperacionExitosa_RedireccionaAlListado()
     {
-        FakeProductApplicationService service = new();
+        FakeAdminProductServices service = new();
         IndexModel pageModel = CreatePageModel(service);
 
         IActionResult result = await pageModel.OnPostApplyPromotionAsync(Guid.NewGuid(), 10m, "Campaña", CancellationToken.None);
@@ -81,7 +81,7 @@ public class AdminProductsIndexPageModelTests
     [Test]
     public async Task OnGetDownloadImportTemplateAsync_CategoriasDisponibles_RetornaPlantillaExcel()
     {
-        FakeProductApplicationService productService = new();
+        FakeAdminProductServices productService = new();
         FakeCategoryApplicationService categoryService = new();
         IndexModel pageModel = CreatePageModel(productService, categoryService);
 
@@ -105,7 +105,7 @@ public class AdminProductsIndexPageModelTests
     [Test]
     public async Task OnPostImportAsync_ArchivoExcelValido_InvocaImportacionMasiva()
     {
-        FakeProductApplicationService productService = new();
+        FakeAdminProductServices productService = new();
         productService.ImportResult = Result.Success(new ProductImportResultDto
         {
             PhysicalProductsCreated = 1,
@@ -125,9 +125,9 @@ public class AdminProductsIndexPageModelTests
         Assert.That(pageModel.SuccessMessage, Is.EqualTo("Importación completada correctamente. Productos físicos creados: 1. Productos digitales creados: 1."));
     }
 
-    private static IndexModel CreatePageModel(IProductApplicationService service, ICategoryApplicationService? categoryService = null)
+    private static IndexModel CreatePageModel(FakeAdminProductServices service, ICategoryApplicationService? categoryService = null)
     {
-        IndexModel pageModel = new(service, categoryService ?? new FakeCategoryApplicationService());
+        IndexModel pageModel = new(service, service, service, service, categoryService ?? new FakeCategoryApplicationService());
         DefaultHttpContext httpContext = new();
         pageModel.PageContext = new PageContext { HttpContext = httpContext };
         pageModel.TempData = new TempDataDictionary(httpContext, new FakeTempDataProvider());
@@ -192,7 +192,7 @@ public class AdminProductsIndexPageModelTests
         return row;
     }
 
-    private sealed class FakeProductApplicationService : IProductApplicationService
+    private sealed class FakeAdminProductServices : IProductCommandService, IProductQueryService, IProductStockService, IProductPromotionService
     {
         public Result<ProductImportResultDto> ImportResult { get; set; } = Result.Success(new ProductImportResultDto());
         public ImportProductsCommand? LastImportCommand { get; private set; }

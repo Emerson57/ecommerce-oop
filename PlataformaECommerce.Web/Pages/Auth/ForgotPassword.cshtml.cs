@@ -2,8 +2,10 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.Pages.Auth;
 
@@ -11,6 +13,7 @@ namespace PlataformaECommerce.Web.Pages.Auth;
 /// Gestiona la solicitud interactiva de recuperación de contraseña basada en correo electrónico.
 /// </summary>
 [AllowAnonymous]
+[EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
 public sealed class ForgotPasswordModel : PageModel
 {
     private readonly IAuthApplicationService _authApplicationService;

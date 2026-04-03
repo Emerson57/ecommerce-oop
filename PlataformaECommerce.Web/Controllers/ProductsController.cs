@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.OpenApi;
 
 namespace PlataformaECommerce.Web.Controllers;
@@ -17,17 +19,18 @@ namespace PlataformaECommerce.Web.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [ApiExplorerSettings(GroupName = SwaggerGroups.Public)]
+[EnableRateLimiting(WebRateLimitingOptions.PublicApiPolicyName)]
 public sealed class ProductsController : ControllerBase
 {
-    private readonly IProductApplicationService _productApplicationService;
+    private readonly IProductQueryService _productQueryService;
 
     /// <summary>
     /// Inicializa una nueva instancia del controlador público de productos.
     /// </summary>
-    /// <param name="productApplicationService">Contrato del servicio de aplicación de productos.</param>
-    public ProductsController(IProductApplicationService productApplicationService)
+    /// <param name="productQueryService">Contrato del servicio de consulta de productos.</param>
+    public ProductsController(IProductQueryService productQueryService)
     {
-        _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+        _productQueryService = productQueryService ?? throw new ArgumentNullException(nameof(productQueryService));
     }
 
     /// <summary>
@@ -43,7 +46,7 @@ public sealed class ProductsController : ControllerBase
         [FromQuery] GetProductsQuery query,
         CancellationToken cancellationToken)
     {
-        Result<ProductQueryResultDto> result = await _productApplicationService.GetProductsAsync(query, cancellationToken);
+        Result<ProductQueryResultDto> result = await _productQueryService.GetProductsAsync(query, cancellationToken);
 
         return result.IsSuccess
             ? Ok(result.Value)
@@ -62,7 +65,7 @@ public sealed class ProductsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ProductDetailDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        Result<ProductDetailDto> result = await _productApplicationService.GetProductByIdAsync(
+        Result<ProductDetailDto> result = await _productQueryService.GetProductByIdAsync(
             new GetProductByIdQuery { ProductId = id },
             cancellationToken);
 

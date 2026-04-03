@@ -21,15 +21,15 @@ namespace PlataformaECommerce.Web.Pages.Admin;
     AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
 public sealed class IndexModel : PageModel
 {
-    private readonly IAdminApplicationService _adminApplicationService;
+    private readonly IAdminDashboardService _adminDashboardService;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
     /// </summary>
-    /// <param name="adminApplicationService">Servicio público del módulo administrativo.</param>
-    public IndexModel(IAdminApplicationService adminApplicationService)
+    /// <param name="adminDashboardService">Servicio especializado del dashboard administrativo.</param>
+    public IndexModel(IAdminDashboardService adminDashboardService)
     {
-        _adminApplicationService = adminApplicationService ?? throw new ArgumentNullException(nameof(adminApplicationService));
+        _adminDashboardService = adminDashboardService ?? throw new ArgumentNullException(nameof(adminDashboardService));
     }
 
     /// <summary>
@@ -92,7 +92,7 @@ public sealed class IndexModel : PageModel
             Source = "AdminPortal"
         };
 
-        var result = await _adminApplicationService.GetDashboardAsync(query, cancellationToken);
+        var result = await _adminDashboardService.GetDashboardAsync(query, cancellationToken);
         if (result.IsFailure)
         {
             ErrorMessage = result.Error.Message;

@@ -25,14 +25,14 @@ namespace PlataformaECommerce.Web.Pages.Orders;
 public sealed class IndexModel : PageModel
 {
     private const string OrdersSource = "Web.Orders.Index";
-    private readonly IOrderApplicationService _orderApplicationService;
+    private readonly IOrderQueryService _orderQueryService;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
     /// </summary>
-    public IndexModel(IOrderApplicationService orderApplicationService)
+    public IndexModel(IOrderQueryService orderQueryService)
     {
-        _orderApplicationService = orderApplicationService ?? throw new ArgumentNullException(nameof(orderApplicationService));
+        _orderQueryService = orderQueryService ?? throw new ArgumentNullException(nameof(orderQueryService));
     }
 
     /// <summary>
@@ -69,7 +69,7 @@ public sealed class IndexModel : PageModel
             return RedirectToPage("/Auth/Login");
         }
 
-        var result = await _orderApplicationService.GetOrdersByCustomerIdAsync(
+        var result = await _orderQueryService.GetOrdersByCustomerIdAsync(
             new GetOrdersByCustomerIdQuery(customerId.Value)
             {
                 Status = Status,

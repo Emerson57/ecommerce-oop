@@ -22,7 +22,7 @@ public class OrdersIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ClienteAutenticado_CargaHistorialYRetornaPagina()
     {
-        FakeOrderApplicationService orderApplicationService = new();
+        FakeOrderQueryService orderApplicationService = new();
         IndexModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
 
         IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
@@ -34,7 +34,7 @@ public class OrdersIndexPageModelTests
     [Test]
     public async Task OnGetAsync_SinIdentificadorAutenticado_RedireccionaALoginYRevocaSesion()
     {
-        FakeOrderApplicationService orderApplicationService = new();
+        FakeOrderQueryService orderApplicationService = new();
         FakeAuthenticationService authenticationService = new();
         IndexModel pageModel = CreatePageModel(orderApplicationService, null, authenticationService);
 
@@ -45,7 +45,7 @@ public class OrdersIndexPageModelTests
     }
 
     private static IndexModel CreatePageModel(
-        FakeOrderApplicationService orderApplicationService,
+        FakeOrderQueryService orderApplicationService,
         Guid? authenticatedUserId,
         FakeAuthenticationService? authenticationService = null)
     {
@@ -87,29 +87,8 @@ public class OrdersIndexPageModelTests
         return new ClaimsPrincipal(new ClaimsIdentity(claims, AuthorizationPolicies.CustomerCookieScheme));
     }
 
-    private sealed class FakeOrderApplicationService : IOrderApplicationService
+    private sealed class FakeOrderQueryService : IOrderQueryService
     {
-        public Task<Result<OrderDetailDto>> CreateOrderFromCartAsync(CreateOrderFromCartCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<OrderDetailDto>> ConfirmOrderAsync(ConfirmOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<OrderDetailDto>> RegisterOrderPaymentAsync(RegisterOrderPaymentCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<OrderDetailDto>> ProcessOrderAsync(ProcessOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<OrderDetailDto>> ShipOrderAsync(ShipOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<OrderDetailDto>> DeliverOrderAsync(DeliverOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<OrderDetailDto>> CancelOrderAsync(CancelOrderCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
         public Task<Result<OrderDetailDto>> GetOrderByIdAsync(GetOrderByIdQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

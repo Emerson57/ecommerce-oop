@@ -16,7 +16,7 @@ public class CatalogIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ProductoConGaleria_ProyectaImagenesComplementariasEnCatalogo()
     {
-        FakeProductApplicationService productApplicationService = new(
+        FakeProductQueryService productApplicationService = new(
             new ProductQueryResultDto
             {
                 Items =
@@ -64,7 +64,7 @@ public class CatalogIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ConCategoryId_EnviaFiltroDeCategoriaAlServicio()
     {
-        FakeProductApplicationService productApplicationService = new(new ProductQueryResultDto());
+        FakeProductQueryService productApplicationService = new(new ProductQueryResultDto());
         IndexModel pageModel = CreatePageModel(productApplicationService);
         Guid categoryId = Guid.NewGuid();
         pageModel.CategoryId = categoryId;
@@ -74,7 +74,7 @@ public class CatalogIndexPageModelTests
         Assert.That(productApplicationService.LastQuery?.CategoryId, Is.EqualTo(categoryId));
     }
 
-    private static IndexModel CreatePageModel(FakeProductApplicationService productApplicationService)
+    private static IndexModel CreatePageModel(FakeProductQueryService productApplicationService)
     {
         IndexModel pageModel = new(productApplicationService)
         {
@@ -87,42 +87,9 @@ public class CatalogIndexPageModelTests
         return pageModel;
     }
 
-    private sealed class FakeProductApplicationService(ProductQueryResultDto queryResult) : IProductApplicationService
+    private sealed class FakeProductQueryService(ProductQueryResultDto queryResult) : IProductQueryService
     {
         public GetProductsQuery? LastQuery { get; private set; }
-
-        public Task<Result<Guid>> CreatePhysicalProductAsync(CreatePhysicalProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<Guid>> CreateDigitalProductAsync(CreateDigitalProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductImportResultDto>> ImportProductsAsync(ImportProductsCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UpdateProductStockAsync(UpdateProductStockCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> ActivateProductAsync(ActivateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> DeactivateProductAsync(DeactivateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> ApplyProductPromotionAsync(ApplyProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> RemoveProductPromotionAsync(RemoveProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> FeatureProductAsync(FeatureProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UnfeatureProductAsync(UnfeatureProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
 
         public Task<Result<ProductDetailDto>> GetProductByIdAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();

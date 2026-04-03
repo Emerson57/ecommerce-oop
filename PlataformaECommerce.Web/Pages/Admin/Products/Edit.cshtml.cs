@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Features.Audit.DTOs;
 using PlataformaECommerce.Application.Features.Audit.Queries;
 using PlataformaECommerce.Application.Features.Categories.DTOs;
@@ -14,6 +15,7 @@ using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Admin.Products
@@ -26,11 +28,13 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     /// el caso de uso de actualización ya disponible en la capa Application y mostrar
     /// trazabilidad resumida de las promociones aplicadas sobre el producto.
     /// </remarks>
+    [EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
     public sealed class EditModel : PageModel
     {
         private const int PromotionHistoryPageSize = 10;
         private static readonly string[] PromotionAuditActions = ["product.promotion.applied", "product.promotion.removed"];
-        private readonly IProductApplicationService _productApplicationService;
+        private readonly IProductCommandService _productCommandService;
+        private readonly IProductQueryService _productQueryService;
         private readonly ICategoryApplicationService _categoryApplicationService;
         private readonly IAuditApplicationService _auditApplicationService;
         private readonly IProductImageStorageService _productImageStorageService;
@@ -38,15 +42,18 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="EditModel"/>.
         /// </summary>
-        /// <param name="productApplicationService">Servicio de aplicación de productos.</param>
+        /// <param name="productCommandService">Servicio de escritura de productos.</param>
+        /// <param name="productQueryService">Servicio de consulta de productos.</param>
         /// <param name="auditApplicationService">Servicio público del módulo de auditoría.</param>
         public EditModel(
-            IProductApplicationService productApplicationService,
+            IProductCommandService productCommandService,
+            IProductQueryService productQueryService,
             ICategoryApplicationService categoryApplicationService,
             IAuditApplicationService auditApplicationService,
             IProductImageStorageService productImageStorageService)
         {
-            _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+            _productCommandService = productCommandService ?? throw new ArgumentNullException(nameof(productCommandService));
+            _productQueryService = productQueryService ?? throw new ArgumentNullException(nameof(productQueryService));
             _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
             _auditApplicationService = auditApplicationService ?? throw new ArgumentNullException(nameof(auditApplicationService));
             _productImageStorageService = productImageStorageService ?? throw new ArgumentNullException(nameof(productImageStorageService));
@@ -98,7 +105,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         /// </summary>
         public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken cancellationToken)
         {
-            var result = await _productApplicationService.GetProductByIdAsync(
+            var result = await _productQueryService.GetProductByIdAsync(
                 new GetProductByIdQuery(id),
                 cancellationToken);
 
@@ -145,7 +152,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                 return Page();
             }
 
-            var result = await _productApplicationService.UpdateProductAsync(
+            var result = await _productCommandService.UpdateProductAsync(
                 new UpdateProductCommand
                 {
                     Id = Input.Id,
@@ -271,7 +278,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                 return;
             }
 
-            var result = await _productApplicationService.GetProductByIdAsync(
+            var result = await _productQueryService.GetProductByIdAsync(
                 new GetProductByIdQuery(productId),
                 cancellationToken);
 

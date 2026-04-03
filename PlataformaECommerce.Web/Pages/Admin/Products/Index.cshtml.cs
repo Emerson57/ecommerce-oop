@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Features.Categories.DTOs;
 using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Features.Products.Commands;
@@ -9,6 +10,7 @@ using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Admin.Products
@@ -21,22 +23,35 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     /// acciones rápidas sobre el estado, destacado, inventario y promociones del catálogo
     /// sin abandonar el listado.
     /// </remarks>
+    [EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
     public sealed class IndexModel : PageModel
     {
         private const int MaxVisiblePageLinks = 5;
         private const long MaxImportFileSizeInBytes = 2 * 1024 * 1024;
         private readonly ICategoryApplicationService _categoryApplicationService;
-        private readonly IProductApplicationService _productApplicationService;
+        private readonly IProductCommandService _productCommandService;
+        private readonly IProductPromotionService _productPromotionService;
+        private readonly IProductQueryService _productQueryService;
+        private readonly IProductStockService _productStockService;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
         /// </summary>
-        /// <param name="productApplicationService">Servicio de aplicación de productos.</param>
+        /// <param name="productCommandService">Servicio de escritura de productos.</param>
+        /// <param name="productQueryService">Servicio de consulta de productos.</param>
+        /// <param name="productStockService">Servicio de inventario y disponibilidad.</param>
+        /// <param name="productPromotionService">Servicio promocional y de merchandising.</param>
         public IndexModel(
-            IProductApplicationService productApplicationService,
+            IProductCommandService productCommandService,
+            IProductQueryService productQueryService,
+            IProductStockService productStockService,
+            IProductPromotionService productPromotionService,
             ICategoryApplicationService categoryApplicationService)
         {
-            _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+            _productCommandService = productCommandService ?? throw new ArgumentNullException(nameof(productCommandService));
+            _productQueryService = productQueryService ?? throw new ArgumentNullException(nameof(productQueryService));
+            _productStockService = productStockService ?? throw new ArgumentNullException(nameof(productStockService));
+            _productPromotionService = productPromotionService ?? throw new ArgumentNullException(nameof(productPromotionService));
             _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
         }
 
@@ -150,7 +165,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         /// </summary>
         public async Task OnGetAsync(CancellationToken cancellationToken)
         {
-            var result = await _productApplicationService.GetProductsAsync(
+            var result = await _productQueryService.GetProductsAsync(
                 new GetProductsQuery
                 {
                     SearchTerm = Normalize(SearchTerm),
@@ -231,7 +246,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
                 return RedirectToPage("./Index", BuildRouteValues());
             }
 
-            var importResult = await _productApplicationService.ImportProductsAsync(
+            var importResult = await _productCommandService.ImportProductsAsync(
                 new ImportProductsCommand
                 {
                     Rows = conversionResult.Value,
@@ -255,7 +270,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         public Task<IActionResult> OnPostActivateAsync(Guid productId, CancellationToken cancellationToken)
         {
             return ExecuteCatalogActionAsync(
-                () => _productApplicationService.ActivateProductAsync(
+                () => _productStockService.ActivateProductAsync(
                     new ActivateProductCommand
                     {
                         ProductId = productId,
@@ -272,7 +287,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         public Task<IActionResult> OnPostDeactivateAsync(Guid productId, CancellationToken cancellationToken)
         {
             return ExecuteCatalogActionAsync(
-                () => _productApplicationService.DeactivateProductAsync(
+                () => _productStockService.DeactivateProductAsync(
                     new DeactivateProductCommand
                     {
                         ProductId = productId,
@@ -289,7 +304,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         public Task<IActionResult> OnPostFeatureAsync(Guid productId, CancellationToken cancellationToken)
         {
             return ExecuteCatalogActionAsync(
-                () => _productApplicationService.FeatureProductAsync(
+                () => _productPromotionService.FeatureProductAsync(
                     new FeatureProductCommand
                     {
                         ProductId = productId,
@@ -306,7 +321,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
         public Task<IActionResult> OnPostUnfeatureAsync(Guid productId, CancellationToken cancellationToken)
         {
             return ExecuteCatalogActionAsync(
-                () => _productApplicationService.UnfeatureProductAsync(
+                () => _productPromotionService.UnfeatureProductAsync(
                     new UnfeatureProductCommand
                     {
                         ProductId = productId,
@@ -328,7 +343,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             CancellationToken cancellationToken)
         {
             return ExecuteCatalogActionAsync(
-                () => _productApplicationService.UpdateProductStockAsync(
+                () => _productStockService.UpdateProductStockAsync(
                     new UpdateProductStockCommand
                     {
                         ProductId = productId,
@@ -351,7 +366,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             CancellationToken cancellationToken)
         {
             return ExecuteCatalogActionAsync(
-                () => _productApplicationService.ApplyProductPromotionAsync(
+                () => _productPromotionService.ApplyProductPromotionAsync(
                     new ApplyProductPromotionCommand
                     {
                         ProductId = productId,
@@ -372,7 +387,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
             CancellationToken cancellationToken)
         {
             return ExecuteCatalogActionAsync(
-                () => _productApplicationService.RemoveProductPromotionAsync(
+                () => _productPromotionService.RemoveProductPromotionAsync(
                     new RemoveProductPromotionCommand
                     {
                         ProductId = productId,

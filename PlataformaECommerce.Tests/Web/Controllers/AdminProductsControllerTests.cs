@@ -41,8 +41,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task Activate_ComandoValido_RetornaOk()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
         Guid routeId = Guid.NewGuid();
 
         ActionResult<ProductResponseDto> result = await controller.Activate(
@@ -60,8 +60,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task Activate_ComandoNulo_RetornaBadRequest()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
 
         ActionResult<ProductResponseDto> result = await controller.Activate(Guid.NewGuid(), null!, CancellationToken.None);
 
@@ -71,8 +71,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task Deactivate_ComandoOpcional_RetornaOk()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
         Guid routeId = Guid.NewGuid();
 
         ActionResult<ProductResponseDto> result = await controller.Deactivate(routeId, null, CancellationToken.None);
@@ -84,8 +84,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task Feature_ComandoValido_RetornaOk()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
         Guid routeId = Guid.NewGuid();
 
         ActionResult<ProductResponseDto> result = await controller.Feature(
@@ -103,8 +103,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task Unfeature_ComandoOpcional_RetornaOk()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
         Guid routeId = Guid.NewGuid();
 
         ActionResult<ProductResponseDto> result = await controller.Unfeature(routeId, null, CancellationToken.None);
@@ -116,8 +116,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task UpdateStock_ComandoValido_RetornaOk()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
         Guid routeId = Guid.NewGuid();
 
         ActionResult<ProductResponseDto> result = await controller.UpdateStock(
@@ -137,8 +137,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task UpdateStock_ComandoNulo_RetornaBadRequest()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
 
         ActionResult<ProductResponseDto> result = await controller.UpdateStock(Guid.NewGuid(), null!, CancellationToken.None);
 
@@ -148,8 +148,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task ApplyPromotion_ComandoValido_RetornaOk()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
         Guid routeId = Guid.NewGuid();
 
         ActionResult<ProductResponseDto> result = await controller.ApplyPromotion(
@@ -168,8 +168,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task ApplyPromotion_ComandoNulo_RetornaBadRequest()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
 
         ActionResult<ProductResponseDto> result = await controller.ApplyPromotion(Guid.NewGuid(), null!, CancellationToken.None);
 
@@ -179,8 +179,8 @@ public class AdminProductsControllerTests
     [Test]
     public async Task RemovePromotion_ComandoOpcional_RetornaOk()
     {
-        FakeProductApplicationService service = new();
-        AdminProductsController controller = new(service);
+        FakeAdminProductServices service = new();
+        AdminProductsController controller = new(service, service, service);
         Guid routeId = Guid.NewGuid();
 
         ActionResult<ProductResponseDto> result = await controller.RemovePromotion(routeId, null, CancellationToken.None);
@@ -189,7 +189,7 @@ public class AdminProductsControllerTests
         Assert.That(service.LastRemovePromotionCommand?.ProductId, Is.EqualTo(routeId));
     }
 
-    private sealed class FakeProductApplicationService : IProductApplicationService
+    private sealed class FakeAdminProductServices : IProductCommandService, IProductStockService, IProductPromotionService
     {
         public ActivateProductCommand? LastActivateCommand { get; private set; }
         public DeactivateProductCommand? LastDeactivateCommand { get; private set; }

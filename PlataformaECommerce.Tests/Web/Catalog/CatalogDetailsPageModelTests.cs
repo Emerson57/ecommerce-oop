@@ -17,7 +17,7 @@ public class CatalogDetailsPageModelTests
     [Test]
     public async Task OnGetAsync_ProductoConCategoriaRaiz_ProyectaEtiquetaDeCategoria()
     {
-        FakeProductApplicationService productApplicationService = new(new ProductDetailDto
+        FakeProductQueryService productApplicationService = new(new ProductDetailDto
         {
             Id = Guid.NewGuid(),
             Name = "Teclado mecánico",
@@ -45,7 +45,7 @@ public class CatalogDetailsPageModelTests
     [Test]
     public async Task OnGetAsync_ProductoConSubcategoria_ProyectaEtiquetaDeSubcategoria()
     {
-        FakeProductApplicationService productApplicationService = new(new ProductDetailDto
+        FakeProductQueryService productApplicationService = new(new ProductDetailDto
         {
             Id = Guid.NewGuid(),
             Name = "Mouse inalámbrico",
@@ -74,7 +74,7 @@ public class CatalogDetailsPageModelTests
     [Test]
     public async Task OnGetAsync_ProductoConGaleria_ProyectaTodasLasImagenesVisibles()
     {
-        FakeProductApplicationService productApplicationService = new(new ProductDetailDto
+        FakeProductQueryService productApplicationService = new(new ProductDetailDto
         {
             Id = Guid.NewGuid(),
             Name = "Mouse inalámbrico",
@@ -108,7 +108,7 @@ public class CatalogDetailsPageModelTests
         }));
     }
 
-    private static DetailsModel CreatePageModel(FakeProductApplicationService productApplicationService)
+    private static DetailsModel CreatePageModel(FakeProductQueryService productApplicationService)
     {
         DetailsModel pageModel = new(productApplicationService)
         {
@@ -121,41 +121,8 @@ public class CatalogDetailsPageModelTests
         return pageModel;
     }
 
-    private sealed class FakeProductApplicationService(ProductDetailDto productDetailDto) : IProductApplicationService
+    private sealed class FakeProductQueryService(ProductDetailDto productDetailDto) : IProductQueryService
     {
-        public Task<Result<Guid>> CreatePhysicalProductAsync(CreatePhysicalProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<Guid>> CreateDigitalProductAsync(CreateDigitalProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductImportResultDto>> ImportProductsAsync(ImportProductsCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UpdateProductStockAsync(UpdateProductStockCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> ActivateProductAsync(ActivateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> DeactivateProductAsync(DeactivateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> ApplyProductPromotionAsync(ApplyProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> RemoveProductPromotionAsync(RemoveProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> FeatureProductAsync(FeatureProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UnfeatureProductAsync(UnfeatureProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
         public Task<Result<ProductDetailDto>> GetProductByIdAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default)
             => Task.FromResult(Result.Success(productDetailDto));
 

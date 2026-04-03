@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Users;
 using PlataformaECommerce.Application.Features.Users.Commands;
 using PlataformaECommerce.Application.Features.Users.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Users;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.OnlineValidation;
 
 namespace PlataformaECommerce.Web.Pages.Auth;
@@ -21,6 +23,7 @@ namespace PlataformaECommerce.Web.Pages.Auth;
 /// con validación cliente y verificación online de disponibilidad del correo.
 /// </remarks>
 [AllowAnonymous]
+[EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
 public sealed class RegisterModel : PageModel
 {
     private const string RegisterSource = "Web.Auth.Register";

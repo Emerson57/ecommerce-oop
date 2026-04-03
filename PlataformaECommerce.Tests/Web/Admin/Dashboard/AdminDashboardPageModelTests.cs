@@ -17,7 +17,7 @@ public class AdminDashboardPageModelTests
     [Test]
     public async Task OnGetAsync_UsuarioAutenticado_CargaDatosDelAdministradorYMetricaPrincipal()
     {
-        IndexModel pageModel = new(new FakeAdminApplicationService());
+        IndexModel pageModel = new(new FakeAdminDashboardService());
         ClaimsPrincipal principal = new(new ClaimsIdentity(
         [
             new Claim(ClaimTypes.Name, "Admin Demo"),
@@ -43,18 +43,8 @@ public class AdminDashboardPageModelTests
         Assert.That(pageModel.Dashboard.TotalProducts, Is.EqualTo(12));
     }
 
-    private sealed class FakeAdminApplicationService : IAdminApplicationService
+    private sealed class FakeAdminDashboardService : IAdminDashboardService
     {
-        public Task<Result<AdminDto>> RegisterAdminAsync(RegisterAdminCommand command, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<Result<AdminRegistrationDefinitionDto>> GetAdminRegistrationDefinitionAsync(GetAdminRegistrationDefinitionQuery query, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
         public Task<Result<AdminDashboardDto>> GetDashboardAsync(GetAdminDashboardQuery query, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Result.Success(new AdminDashboardDto
@@ -77,14 +67,5 @@ public class AdminDashboardPageModelTests
             }));
         }
 
-        public Task<Result<AdminUsersBackofficeDto>> GetUsersAsync(GetAdminUsersQuery query, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<Result<AdminBackofficeUserDto>> ResetUserPasswordAsync(ResetUserPasswordCommand command, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
     }
 }

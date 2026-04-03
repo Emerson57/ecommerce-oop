@@ -114,7 +114,7 @@ public class AdminProductsCreatePageModelTests
         Assert.That(service.LastDigitalCreateCommand?.Name, Is.EqualTo("Curso .NET 10"));
     }
 
-    private static CreateModel CreatePageModel(IProductApplicationService service)
+    private static CreateModel CreatePageModel(IProductCommandService service)
     {
         CreateModel pageModel = new(service, new FakeCategoryApplicationService(), new FakeProductImageStorageService());
         DefaultHttpContext httpContext = new();
@@ -123,7 +123,7 @@ public class AdminProductsCreatePageModelTests
         return pageModel;
     }
 
-    private sealed class FakeProductApplicationService : IProductApplicationService
+    private sealed class FakeProductApplicationService : IProductCommandService
     {
         public CreatePhysicalProductCommand? LastPhysicalCreateCommand { get; private set; }
 
@@ -146,33 +146,6 @@ public class AdminProductsCreatePageModelTests
 
         public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default)
             => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductResponseDto>> UpdateProductStockAsync(UpdateProductStockCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductResponseDto>> ActivateProductAsync(ActivateProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductResponseDto>> DeactivateProductAsync(DeactivateProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductResponseDto>> ApplyProductPromotionAsync(ApplyProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductResponseDto>> RemoveProductPromotionAsync(RemoveProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductResponseDto>> FeatureProductAsync(FeatureProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductResponseDto>> UnfeatureProductAsync(UnfeatureProductCommand command, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductResponseDto()));
-
-        public Task<Result<ProductDetailDto>> GetProductByIdAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductDetailDto()));
-
-        public Task<Result<ProductQueryResultDto>> GetProductsAsync(GetProductsQuery query, CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(new ProductQueryResultDto()));
     }
 
     private sealed class FakeProductImageStorageService : IProductImageStorageService

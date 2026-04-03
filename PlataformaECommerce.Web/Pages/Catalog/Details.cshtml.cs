@@ -20,14 +20,14 @@ namespace PlataformaECommerce.Web.Pages.Catalog;
 public sealed class DetailsModel : PageModel
 {
     private const string CatalogDetailsSource = "Web.Catalog.Details";
-    private readonly IProductApplicationService _productApplicationService;
+    private readonly IProductQueryService _productQueryService;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="DetailsModel"/>.
     /// </summary>
-    public DetailsModel(IProductApplicationService productApplicationService)
+    public DetailsModel(IProductQueryService productQueryService)
     {
-        _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+        _productQueryService = productQueryService ?? throw new ArgumentNullException(nameof(productQueryService));
     }
 
     /// <summary>
@@ -61,7 +61,7 @@ public sealed class DetailsModel : PageModel
             return RedirectToPage("/Catalog/Index");
         }
 
-        var result = await _productApplicationService.GetProductByIdAsync(
+        var result = await _productQueryService.GetProductByIdAsync(
             new GetProductByIdQuery(id)
             {
                 RequestedByUserId = GetAuthenticatedUserId(),

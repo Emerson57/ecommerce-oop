@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Web.Authorization;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Contracts.Products;
 using PlataformaECommerce.Web.OpenApi;
 
@@ -24,17 +26,27 @@ namespace PlataformaECommerce.Web.Controllers;
 [Authorize(
     Policy = AuthorizationPolicies.AdminOnly,
     AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
 public sealed class AdminProductsController : ControllerBase
 {
-    private readonly IProductApplicationService _productApplicationService;
+    private readonly IProductCommandService _productCommandService;
+    private readonly IProductPromotionService _productPromotionService;
+    private readonly IProductStockService _productStockService;
 
     /// <summary>
     /// Inicializa una nueva instancia del controlador administrativo de productos.
     /// </summary>
-    /// <param name="productApplicationService">Contrato del servicio de aplicación de productos.</param>
-    public AdminProductsController(IProductApplicationService productApplicationService)
+    /// <param name="productCommandService">Contrato del servicio de escritura de productos.</param>
+    /// <param name="productStockService">Contrato del servicio de inventario y disponibilidad.</param>
+    /// <param name="productPromotionService">Contrato del servicio promocional y de merchandising.</param>
+    public AdminProductsController(
+        IProductCommandService productCommandService,
+        IProductStockService productStockService,
+        IProductPromotionService productPromotionService)
     {
-        _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+        _productCommandService = productCommandService ?? throw new ArgumentNullException(nameof(productCommandService));
+        _productStockService = productStockService ?? throw new ArgumentNullException(nameof(productStockService));
+        _productPromotionService = productPromotionService ?? throw new ArgumentNullException(nameof(productPromotionService));
     }
 
     /// <summary>
@@ -56,7 +68,7 @@ public sealed class AdminProductsController : ControllerBase
             return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        Result<Guid> result = await _productApplicationService.CreatePhysicalProductAsync(
+        Result<Guid> result = await _productCommandService.CreatePhysicalProductAsync(
             new CreatePhysicalProductCommand
             {
                 Name = request.Name,
@@ -107,7 +119,7 @@ public sealed class AdminProductsController : ControllerBase
             return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        Result<Guid> result = await _productApplicationService.CreateDigitalProductAsync(
+        Result<Guid> result = await _productCommandService.CreateDigitalProductAsync(
             new CreateDigitalProductCommand
             {
                 Name = request.Name,
@@ -158,7 +170,7 @@ public sealed class AdminProductsController : ControllerBase
             return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        Result<ProductResponseDto> result = await _productApplicationService.UpdateProductAsync(
+        Result<ProductResponseDto> result = await _productCommandService.UpdateProductAsync(
             new UpdateProductCommand
             {
                 Id = id,
@@ -213,7 +225,7 @@ public sealed class AdminProductsController : ControllerBase
             return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        Result<ProductResponseDto> result = await _productApplicationService.ActivateProductAsync(
+        Result<ProductResponseDto> result = await _productStockService.ActivateProductAsync(
             new ActivateProductCommand
             {
                 ProductId = id,
@@ -245,7 +257,7 @@ public sealed class AdminProductsController : ControllerBase
         [FromBody] DeactivateProductRequest? request,
         CancellationToken cancellationToken)
     {
-        Result<ProductResponseDto> result = await _productApplicationService.DeactivateProductAsync(
+        Result<ProductResponseDto> result = await _productStockService.DeactivateProductAsync(
             new DeactivateProductCommand
             {
                 ProductId = id,
@@ -282,7 +294,7 @@ public sealed class AdminProductsController : ControllerBase
             return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        Result<ProductResponseDto> result = await _productApplicationService.FeatureProductAsync(
+        Result<ProductResponseDto> result = await _productPromotionService.FeatureProductAsync(
             new FeatureProductCommand
             {
                 ProductId = id,
@@ -313,7 +325,7 @@ public sealed class AdminProductsController : ControllerBase
         [FromBody] UnfeatureProductRequest? request,
         CancellationToken cancellationToken)
     {
-        Result<ProductResponseDto> result = await _productApplicationService.UnfeatureProductAsync(
+        Result<ProductResponseDto> result = await _productPromotionService.UnfeatureProductAsync(
             new UnfeatureProductCommand
             {
                 ProductId = id,
@@ -349,7 +361,7 @@ public sealed class AdminProductsController : ControllerBase
             return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        Result<ProductResponseDto> result = await _productApplicationService.UpdateProductStockAsync(
+        Result<ProductResponseDto> result = await _productStockService.UpdateProductStockAsync(
             new UpdateProductStockCommand
             {
                 ProductId = id,
@@ -388,7 +400,7 @@ public sealed class AdminProductsController : ControllerBase
             return BadRequest(CreateProblemDetails("Products.InvalidRequest", "La solicitud no puede ser nula.", StatusCodes.Status400BadRequest));
         }
 
-        Result<ProductResponseDto> result = await _productApplicationService.ApplyProductPromotionAsync(
+        Result<ProductResponseDto> result = await _productPromotionService.ApplyProductPromotionAsync(
             new ApplyProductPromotionCommand
             {
                 ProductId = id,
@@ -420,7 +432,7 @@ public sealed class AdminProductsController : ControllerBase
         [FromBody] RemoveProductPromotionRequest? request,
         CancellationToken cancellationToken)
     {
-        Result<ProductResponseDto> result = await _productApplicationService.RemoveProductPromotionAsync(
+        Result<ProductResponseDto> result = await _productPromotionService.RemoveProductPromotionAsync(
             new RemoveProductPromotionCommand
             {
                 ProductId = id,

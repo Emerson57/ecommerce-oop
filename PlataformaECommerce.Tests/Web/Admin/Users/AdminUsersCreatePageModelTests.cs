@@ -20,7 +20,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnGetAsync_ConsultaExitosa_CargaDefinicionYValoresPorDefecto()
     {
-        CreateModel pageModel = CreatePageModel(new FakeAdminApplicationService(), enableAdministratorCreationUi: true);
+        CreateModel pageModel = CreatePageModel(new FakeAdminUserService(), enableAdministratorCreationUi: true);
 
         IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
 
@@ -34,7 +34,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnPostAsync_FormularioValido_RegistraAdministradorYRedirigeAlListado()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         CreateModel pageModel = CreatePageModel(service, enableAdministratorCreationUi: true);
         pageModel.Input = new CreateModel.InputModel
         {
@@ -58,7 +58,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnPostAsync_FormularioValido_EnviaMetadataDeTrazabilidad()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         Guid requestedByUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         CreateModel pageModel = CreatePageModel(service, enableAdministratorCreationUi: true, requestedByUserId: requestedByUserId, remoteIpAddress: "10.20.30.40");
         pageModel.Input = new CreateModel.InputModel
@@ -82,7 +82,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnPostAsync_FalloAplicacion_PublicaErrorFuncional()
     {
-        CreateModel pageModel = CreatePageModel(new FakeAdminApplicationService
+        CreateModel pageModel = CreatePageModel(new FakeAdminUserService
         {
             RegisterResult = Result.Failure<AdminDto>(Error.Conflict("Admin.EmailAlreadyExists", "Ya existe un usuario registrado con el correo 'admin.nuevo@plataforma.com'."))
         }, enableAdministratorCreationUi: true);
@@ -106,7 +106,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnPostAsync_ModeloInvalido_NoInvocaElCasoDeUso()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         CreateModel pageModel = CreatePageModel(service, enableAdministratorCreationUi: true);
         pageModel.ModelState.AddModelError(nameof(CreateModel.InputModel.Email), "Email inválido.");
 
@@ -119,7 +119,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnPostAsync_FuncionalidadDeshabilitada_RetornaNotFound()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         CreateModel pageModel = CreatePageModel(service, enableAdministratorCreationUi: false);
         pageModel.Input = new CreateModel.InputModel
         {
@@ -139,7 +139,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnGetAsync_ConsultaFallida_PublicaErrorFuncional()
     {
-        CreateModel pageModel = CreatePageModel(new FakeAdminApplicationService
+        CreateModel pageModel = CreatePageModel(new FakeAdminUserService
         {
             DefinitionResult = Result.Failure<AdminRegistrationDefinitionDto>(Error.Unauthorized("Admin.SuperUserRequiredForAdminCreationDefinition", "Solo un super usuario puede consultar la definición funcional de creación de administradores."))
         }, enableAdministratorCreationUi: true);
@@ -153,7 +153,7 @@ public class AdminUsersCreatePageModelTests
     [Test]
     public async Task OnGetAsync_FuncionalidadDeshabilitada_RetornaNotFound()
     {
-        CreateModel pageModel = CreatePageModel(new FakeAdminApplicationService(), enableAdministratorCreationUi: false);
+        CreateModel pageModel = CreatePageModel(new FakeAdminUserService(), enableAdministratorCreationUi: false);
 
         IActionResult result = await pageModel.OnGetAsync(CancellationToken.None);
 
@@ -161,7 +161,7 @@ public class AdminUsersCreatePageModelTests
     }
 
     private static CreateModel CreatePageModel(
-        FakeAdminApplicationService adminApplicationService,
+        FakeAdminUserService adminApplicationService,
         bool enableAdministratorCreationUi,
         Guid? requestedByUserId = null,
         string? remoteIpAddress = null)
@@ -199,7 +199,7 @@ public class AdminUsersCreatePageModelTests
         return pageModel;
     }
 
-    private sealed class FakeAdminApplicationService : IAdminApplicationService
+    private sealed class FakeAdminUserService : IAdminUserService
     {
         public int RegisterCalls { get; private set; }
 
@@ -239,19 +239,10 @@ public class AdminUsersCreatePageModelTests
             return Task.FromResult(DefinitionResult);
         }
 
-        public Task<Result<AdminDashboardDto>> GetDashboardAsync(GetAdminDashboardQuery query, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
         public Task<Result<AdminUsersBackofficeDto>> GetUsersAsync(GetAdminUsersQuery query, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
+            => throw new NotSupportedException();
 
         public Task<Result<AdminBackofficeUserDto>> ResetUserPasswordAsync(ResetUserPasswordCommand command, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
+            => throw new NotSupportedException();
     }
 }

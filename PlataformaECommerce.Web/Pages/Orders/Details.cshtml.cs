@@ -24,14 +24,14 @@ namespace PlataformaECommerce.Web.Pages.Orders;
 public sealed class DetailsModel : PageModel
 {
     private const string OrderDetailsSource = "Web.Orders.Details";
-    private readonly IOrderApplicationService _orderApplicationService;
+    private readonly IOrderQueryService _orderQueryService;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="DetailsModel"/>.
     /// </summary>
-    public DetailsModel(IOrderApplicationService orderApplicationService)
+    public DetailsModel(IOrderQueryService orderQueryService)
     {
-        _orderApplicationService = orderApplicationService ?? throw new ArgumentNullException(nameof(orderApplicationService));
+        _orderQueryService = orderQueryService ?? throw new ArgumentNullException(nameof(orderQueryService));
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public sealed class DetailsModel : PageModel
             return RedirectToPage("/Orders/Index");
         }
 
-        var result = await _orderApplicationService.GetOrderByIdAsync(
+        var result = await _orderQueryService.GetOrderByIdAsync(
             new GetOrderByIdQuery(id)
             {
                 ExpectedCustomerId = customerId.Value,

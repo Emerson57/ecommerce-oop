@@ -19,7 +19,7 @@ public class AdminUsersIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ConsultaExitosa_CargaResumenYUsuariosSeparados()
     {
-        IndexModel pageModel = CreatePageModel(new FakeAdminApplicationService());
+        IndexModel pageModel = CreatePageModel(new FakeAdminUserService());
 
         await pageModel.OnGetAsync(null, CancellationToken.None);
 
@@ -31,7 +31,7 @@ public class AdminUsersIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ModuloAdministrativo_SolicitaTodosLosUsuariosParaOperacionesSensibles()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         IndexModel pageModel = CreatePageModel(service);
 
         await pageModel.OnGetAsync(null, CancellationToken.None);
@@ -42,7 +42,7 @@ public class AdminUsersIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ConsultaExitosa_EnviaMetadataDelActorActual()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         Guid requestedByUserId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         IndexModel pageModel = CreatePageModel(service, requestedByUserId);
 
@@ -55,7 +55,7 @@ public class AdminUsersIndexPageModelTests
     [Test]
     public async Task OnGetAsync_UsuarioSeleccionado_CargaElObjetivoDelRestablecimiento()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         IndexModel pageModel = CreatePageModel(service);
         Guid selectedUserId = service.Result.Value.Users.Last().Id;
 
@@ -68,7 +68,7 @@ public class AdminUsersIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ConsultaFallida_PublicaErrorFuncional()
     {
-        IndexModel pageModel = CreatePageModel(new FakeAdminApplicationService
+        IndexModel pageModel = CreatePageModel(new FakeAdminUserService
         {
             Result = Result.Failure<AdminUsersBackofficeDto>(Error.Unauthorized("Admin.SuperUserRequiredForUsersBackoffice", "Solo un super usuario puede consultar el backoffice de usuarios."))
         });
@@ -81,7 +81,7 @@ public class AdminUsersIndexPageModelTests
     [Test]
     public async Task OnPostResetPasswordAsync_FormularioValido_InvocaCasoDeUsoYRedirige()
     {
-        FakeAdminApplicationService service = new();
+        FakeAdminUserService service = new();
         Guid requestedByUserId = Guid.Parse("33333333-3333-3333-3333-333333333333");
         Guid selectedUserId = service.Result.Value.Users.Last().Id;
         IndexModel pageModel = CreatePageModel(service, requestedByUserId, "10.20.30.40");
@@ -105,7 +105,7 @@ public class AdminUsersIndexPageModelTests
     [Test]
     public async Task OnPostResetPasswordAsync_FalloAplicacion_PublicaErrorFuncionalYMantieneUsuarioSeleccionado()
     {
-        FakeAdminApplicationService service = new()
+        FakeAdminUserService service = new()
         {
             ResetPasswordResult = Result.Failure<AdminBackofficeUserDto>(Error.NotFound("Admin.UserNotFound", "No se encontró el usuario solicitado."))
         };
@@ -125,7 +125,7 @@ public class AdminUsersIndexPageModelTests
         Assert.That(pageModel.SelectedUser?.Id, Is.EqualTo(selectedUserId));
     }
 
-    private static IndexModel CreatePageModel(FakeAdminApplicationService adminApplicationService, Guid? requestedByUserId = null, string? remoteIpAddress = null)
+    private static IndexModel CreatePageModel(FakeAdminUserService adminApplicationService, Guid? requestedByUserId = null, string? remoteIpAddress = null)
     {
         DefaultHttpContext httpContext = new();
 
@@ -160,7 +160,7 @@ public class AdminUsersIndexPageModelTests
         return pageModel;
     }
 
-    private sealed class FakeAdminApplicationService : IAdminApplicationService
+    private sealed class FakeAdminUserService : IAdminUserService
     {
         public Result<AdminUsersBackofficeDto> Result { get; set; } = PlataformaECommerce.Application.Common.Results.Result.Success(new AdminUsersBackofficeDto
         {
@@ -238,19 +238,10 @@ public class AdminUsersIndexPageModelTests
         public ResetUserPasswordCommand? LastResetPasswordCommand { get; private set; }
 
         public Task<Result<AdminDto>> RegisterAdminAsync(RegisterAdminCommand command, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
+            => throw new NotSupportedException();
 
         public Task<Result<AdminRegistrationDefinitionDto>> GetAdminRegistrationDefinitionAsync(GetAdminRegistrationDefinitionQuery query, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
-
-        public Task<Result<AdminDashboardDto>> GetDashboardAsync(GetAdminDashboardQuery query, CancellationToken cancellationToken = default)
-        {
-            throw new NotSupportedException();
-        }
+            => throw new NotSupportedException();
 
         public Task<Result<AdminUsersBackofficeDto>> GetUsersAsync(GetAdminUsersQuery query, CancellationToken cancellationToken = default)
         {
