@@ -108,6 +108,69 @@ public class CatalogDetailsPageModelTests
         }));
     }
 
+    [Test]
+    public async Task OnGetAsync_ProductoConPromocion_ProyectaIndicadoresComerciales()
+    {
+        FakeProductApplicationService productApplicationService = new(new ProductDetailDto
+        {
+            Id = Guid.NewGuid(),
+            Name = "Monitor gamer",
+            Description = "Descripción de prueba.",
+            Sku = "CAT-004",
+            Slug = "monitor-gamer",
+            Price = 799900m,
+            BasePrice = 999900m,
+            PromotionalPrice = 799900m,
+            CurrentDiscountPercentage = 20m,
+            Currency = "COP",
+            Stock = 3,
+            IsActive = true,
+            HasPromotion = true,
+            ProductType = TipoProducto.Fisico
+        });
+
+        DetailsModel pageModel = CreatePageModel(productApplicationService);
+
+        IActionResult result = await pageModel.OnGetAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(pageModel.Product.HasPromotion, Is.True);
+        Assert.That(pageModel.Product.DiscountAmount, Is.EqualTo(200000m));
+        Assert.That(pageModel.Product.CommercialBadge, Is.EqualTo("Promoción activa"));
+    }
+
+    [Test]
+    public async Task OnGetAsync_ProductoDigital_ProyectaAtributosTecnicosYDisponibilidadComercial()
+    {
+        FakeProductApplicationService productApplicationService = new(new ProductDetailDto
+        {
+            Id = Guid.NewGuid(),
+            Name = "Curso .NET",
+            Description = "Descripción de prueba.",
+            Sku = "CAT-005",
+            Slug = "curso-dotnet",
+            Price = 129900m,
+            BasePrice = 129900m,
+            Currency = "COP",
+            Stock = 10,
+            IsActive = true,
+            ProductType = TipoProducto.Digital,
+            FileFormat = "PDF",
+            FileSizeMb = 250m,
+            RequiresLicense = true
+        });
+
+        DetailsModel pageModel = CreatePageModel(productApplicationService);
+
+        IActionResult result = await pageModel.OnGetAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(pageModel.Product.IsDigitalProduct, Is.True);
+        Assert.That(pageModel.Product.FileFormat, Is.EqualTo("PDF"));
+        Assert.That(pageModel.Product.RequiresLicense, Is.True);
+        Assert.That(pageModel.Product.AvailabilityTitle, Is.EqualTo("Disponible para entrega digital"));
+    }
+
     private static DetailsModel CreatePageModel(FakeProductApplicationService productApplicationService)
     {
         DetailsModel pageModel = new(productApplicationService)

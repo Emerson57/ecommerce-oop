@@ -1,9 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using PlataformaECommerce.Application.Features.Products.DTOs;
-using PlataformaECommerce.Application.Features.Products.Queries;
-using PlataformaECommerce.Application.Interfaces.Services.Products;
+using PlataformaECommerce.Application.Features.Catalog.DTOs;
+using PlataformaECommerce.Application.Features.Catalog.Queries;
+using PlataformaECommerce.Application.Interfaces.Services.Catalog;
+using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Pages.Catalog;
@@ -12,20 +13,20 @@ namespace PlataformaECommerce.Web.Pages.Catalog;
 /// Proporciona la vista pública del catálogo de productos del e-commerce.
 /// </summary>
 /// <remarks>
-/// Esta página reutiliza el servicio de aplicación de productos para exponer un catálogo navegable
-/// desde Razor Pages, manteniendo filtros básicos y acceso directo al circuito comercial del cliente.
+/// Esta página utiliza el módulo de catálogo comercial para exponer una experiencia pública
+/// consistente con el backend, aprovechando sus filtros y proyecciones especializadas.
 /// </remarks>
 public sealed class IndexModel : PageModel
 {
     private const string CatalogSource = "Web.Catalog.Index";
-    private readonly IProductApplicationService _productApplicationService;
+    private readonly ICatalogApplicationService _catalogApplicationService;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
     /// </summary>
-    public IndexModel(IProductApplicationService productApplicationService)
+    public IndexModel(ICatalogApplicationService catalogApplicationService)
     {
-        _productApplicationService = productApplicationService ?? throw new ArgumentNullException(nameof(productApplicationService));
+        _catalogApplicationService = catalogApplicationService ?? throw new ArgumentNullException(nameof(catalogApplicationService));
     }
 
     /// <summary>
@@ -39,11 +40,17 @@ public sealed class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public string? SearchTerm { get; set; }
 
-        /// <summary>
-        /// Identificador opcional de la categoría principal a filtrar.
-        /// </summary>
-        [BindProperty(SupportsGet = true)]
-        public Guid? CategoryId { get; set; }
+    /// <summary>
+    /// Identificador opcional de la categoría principal a filtrar.
+    /// </summary>
+    [BindProperty(SupportsGet = true)]
+    public Guid? CategoryId { get; set; }
+
+    /// <summary>
+    /// Tipo de producto aplicado al catálogo cuando el visitante desea segmentar la vitrina.
+    /// </summary>
+    [BindProperty(SupportsGet = true)]
+    public TipoProducto? ProductType { get; set; }
 
     /// <summary>
     /// Mensaje funcional asociado a la consulta del catálogo.
@@ -60,15 +67,17 @@ public sealed class IndexModel : PageModel
     /// </summary>
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        var result = await _productApplicationService.GetProductsAsync(
-            new GetProductsQuery
+        var result = await _catalogApplicationService.GetCatalogProductsAsync(
+            new GetCatalogProductsQuery
             {
                 SearchTerm = string.IsNullOrWhiteSpace(SearchTerm) ? null : SearchTerm.Trim(),
                 CategoryId = CategoryId,
+                ProductType = ProductType,
                 IsActive = true,
-                HasStock = true,
-                SortBy = "createdAt",
+                IsAvailable = true,
+                SortBy = "relevance",
                 SortDescending = true,
+                Source = CatalogSource,
                 RequestedByUserId = GetAuthenticatedUserId(),
                 ExternalReference = CatalogSource
             },
@@ -81,7 +90,7 @@ public sealed class IndexModel : PageModel
             return;
         }
 
-        Products = result.Value.Items
+        Products = result.Value
             .Select(Map)
             .ToArray();
     }
@@ -94,9 +103,9 @@ public sealed class IndexModel : PageModel
             : null;
     }
 
-    private static CatalogProductViewModel Map(ProductDto product)
+    private static CatalogProductViewModel Map(CatalogProductDto product)
     {
-        IReadOnlyCollection<string> imageUrls = ProductImageDefaults.ResolveDisplayGallery(product.MainImageUrl, product.ImageGallery);
+        IReadOnlyCollection<string> imageUrls = ProductImageDefaults.ResolveDisplayGallery(product.MainImageUrl, product.ImageUrls);
 
         return new CatalogProductViewModel
         {
@@ -105,12 +114,14 @@ public sealed class IndexModel : PageModel
             Description = product.Description,
             Price = product.Price,
             Currency = product.Currency,
-            Stock = product.Stock,
+            Stock = product.AvailableStock ?? 0,
             IsFeatured = product.IsFeatured,
-            HasPromotion = product.HasPromotion,
+            HasPromotion = product.IsOnSale,
             MainImageUrl = imageUrls.First(),
             ImageUrls = imageUrls,
-            ProductTypeLabel = product.ProductType == PlataformaECommerce.Domain.Enums.TipoProducto.Digital ? "Digital" : "Físico"
+            ProductTypeLabel = product.ProductType == TipoProducto.Digital ? "Digital" : "Físico",
+            IsAvailable = product.IsAvailable,
+            HasStock = product.HasStock
         };
     }
 
@@ -131,5 +142,14 @@ public sealed class IndexModel : PageModel
         public IReadOnlyCollection<string> ImageUrls { get; init; } = Array.Empty<string>();
         public int AdditionalImageCount => Math.Max(0, ImageUrls.Count - 1);
         public string ProductTypeLabel { get; init; } = string.Empty;
+        public bool IsAvailable { get; init; }
+        public bool HasStock { get; init; }
+        public string AvailabilityLabel => ProductTypeLabel == "Digital"
+            ? "Entrega digital"
+            : HasStock
+                ? $"Stock: {Stock}"
+                : IsAvailable
+                    ? "Disponible"
+                    : "No disponible";
     }
 }

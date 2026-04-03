@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PlataformaECommerce.Application.Common.Results;
-using PlataformaECommerce.Application.Features.Products.Commands;
-using PlataformaECommerce.Application.Features.Products.DTOs;
-using PlataformaECommerce.Application.Features.Products.Queries;
-using PlataformaECommerce.Application.Interfaces.Services.Products;
+using PlataformaECommerce.Application.Features.Catalog.DTOs;
+using PlataformaECommerce.Application.Features.Catalog.Queries;
+using PlataformaECommerce.Application.Interfaces.Services.Catalog;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Pages.Catalog;
 
@@ -16,40 +15,32 @@ public class CatalogIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ProductoConGaleria_ProyectaImagenesComplementariasEnCatalogo()
     {
-        FakeProductApplicationService productApplicationService = new(
-            new ProductQueryResultDto
+        FakeCatalogApplicationService catalogApplicationService = new(
+        [
+            new CatalogProductDto
             {
-                Items =
+                Id = Guid.NewGuid(),
+                Name = "Teclado mecánico",
+                Description = "Descripción de prueba.",
+                Sku = "CAT-100",
+                Slug = "teclado-mecanico",
+                Price = 199900m,
+                Currency = "COP",
+                AvailableStock = 5,
+                IsActive = true,
+                IsAvailable = true,
+                HasStock = true,
+                ProductType = TipoProducto.Fisico,
+                MainImageUrl = "https://cdn.novashop.com/products/teclado-main.webp",
+                ImageUrls =
                 [
-                    new ProductDto
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = "Teclado mecánico",
-                        Description = "Descripción de prueba.",
-                        Sku = "CAT-100",
-                        Slug = "teclado-mecanico",
-                        Price = 199900m,
-                        BasePrice = 199900m,
-                        Currency = "COP",
-                        Stock = 5,
-                        IsActive = true,
-                        ProductType = TipoProducto.Fisico,
-                        MainImageUrl = "https://cdn.novashop.com/products/teclado-main.webp",
-                        ImageGallery =
-                        [
-                            "https://cdn.novashop.com/products/teclado-side.webp",
-                            "/images/products/teclado-box.webp"
-                        ]
-                    }
-                ],
-                TotalCount = 1,
-                ReturnedCount = 1,
-                PageNumber = 1,
-                PageSize = 20,
-                TotalPages = 1
-            });
+                    "https://cdn.novashop.com/products/teclado-side.webp",
+                    "/images/products/teclado-box.webp"
+                ]
+            }
+        ]);
 
-        IndexModel pageModel = CreatePageModel(productApplicationService);
+        IndexModel pageModel = CreatePageModel(catalogApplicationService);
 
         await pageModel.OnGetAsync(CancellationToken.None);
 
@@ -64,19 +55,32 @@ public class CatalogIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ConCategoryId_EnviaFiltroDeCategoriaAlServicio()
     {
-        FakeProductApplicationService productApplicationService = new(new ProductQueryResultDto());
-        IndexModel pageModel = CreatePageModel(productApplicationService);
+        FakeCatalogApplicationService catalogApplicationService = new([]);
+        IndexModel pageModel = CreatePageModel(catalogApplicationService);
         Guid categoryId = Guid.NewGuid();
         pageModel.CategoryId = categoryId;
 
         await pageModel.OnGetAsync(CancellationToken.None);
 
-        Assert.That(productApplicationService.LastQuery?.CategoryId, Is.EqualTo(categoryId));
+        Assert.That(catalogApplicationService.LastQuery?.CategoryId, Is.EqualTo(categoryId));
+        Assert.That(catalogApplicationService.LastQuery?.IsAvailable, Is.True);
     }
 
-    private static IndexModel CreatePageModel(FakeProductApplicationService productApplicationService)
+    [Test]
+    public async Task OnGetAsync_ConProductType_EnviaFiltroPublicoAlServicioDeCatalogo()
     {
-        IndexModel pageModel = new(productApplicationService)
+        FakeCatalogApplicationService catalogApplicationService = new([]);
+        IndexModel pageModel = CreatePageModel(catalogApplicationService);
+        pageModel.ProductType = TipoProducto.Digital;
+
+        await pageModel.OnGetAsync(CancellationToken.None);
+
+        Assert.That(catalogApplicationService.LastQuery?.ProductType, Is.EqualTo(TipoProducto.Digital));
+    }
+
+    private static IndexModel CreatePageModel(FakeCatalogApplicationService catalogApplicationService)
+    {
+        IndexModel pageModel = new(catalogApplicationService)
         {
             PageContext = new PageContext
             {
@@ -87,50 +91,17 @@ public class CatalogIndexPageModelTests
         return pageModel;
     }
 
-    private sealed class FakeProductApplicationService(ProductQueryResultDto queryResult) : IProductApplicationService
+    private sealed class FakeCatalogApplicationService(IReadOnlyCollection<CatalogProductDto> catalogProducts) : ICatalogApplicationService
     {
-        public GetProductsQuery? LastQuery { get; private set; }
+        public GetCatalogProductsQuery? LastQuery { get; private set; }
 
-        public Task<Result<Guid>> CreatePhysicalProductAsync(CreatePhysicalProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<Guid>> CreateDigitalProductAsync(CreateDigitalProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductImportResultDto>> ImportProductsAsync(ImportProductsCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UpdateProductAsync(UpdateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UpdateProductStockAsync(UpdateProductStockCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> ActivateProductAsync(ActivateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> DeactivateProductAsync(DeactivateProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> ApplyProductPromotionAsync(ApplyProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> RemoveProductPromotionAsync(RemoveProductPromotionCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> FeatureProductAsync(FeatureProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductResponseDto>> UnfeatureProductAsync(UnfeatureProductCommand command, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductDetailDto>> GetProductByIdAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductQueryResultDto>> GetProductsAsync(GetProductsQuery query, CancellationToken cancellationToken = default)
+        public Task<Result<IReadOnlyCollection<CatalogProductDto>>> GetCatalogProductsAsync(GetCatalogProductsQuery query, CancellationToken cancellationToken = default)
         {
             LastQuery = query;
-            return Task.FromResult(Result.Success(queryResult));
+            return Task.FromResult(Result.Success(catalogProducts));
         }
+
+        public Task<Result<IReadOnlyCollection<FeaturedProductDto>>> GetFeaturedProductsAsync(GetFeaturedProductsQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 }

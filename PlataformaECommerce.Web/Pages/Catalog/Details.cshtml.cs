@@ -95,6 +95,9 @@ public sealed class DetailsModel : PageModel
     private static ProductDetailsViewModel Map(ProductDetailDto product)
     {
         IReadOnlyCollection<string> imageUrls = ProductImageDefaults.ResolveDisplayGallery(product.MainImageUrl, product.ImageGallery);
+        decimal? discountAmount = product.HasPromotion && product.BasePrice > product.Price
+            ? decimal.Round(product.BasePrice - product.Price, 2, MidpointRounding.AwayFromZero)
+            : null;
 
         return new ProductDetailsViewModel
         {
@@ -103,15 +106,29 @@ public sealed class DetailsModel : PageModel
             Description = product.Description,
             Sku = product.Sku,
             Price = product.Price,
+            BasePrice = product.BasePrice,
+            PromotionalPrice = product.PromotionalPrice,
             Currency = product.Currency,
             Stock = product.Stock,
             MainImageUrl = imageUrls.First(),
             ImageUrls = imageUrls,
             IsAvailable = product.IsAvailable,
             HasPromotion = product.HasPromotion,
+            DiscountPercentage = product.CurrentDiscountPercentage,
+            DiscountAmount = discountAmount,
             ProductTypeLabel = product.ProductType == TipoProducto.Digital ? "Digital" : "Físico",
+            IsDigitalProduct = product.IsDigitalProduct,
+            IsPhysicalProduct = product.IsPhysicalProduct,
             CategoryName = ResolveCategoryLabel(product),
-            Tags = product.Tags
+            Tags = product.Tags,
+            WeightKg = product.WeightKg,
+            HeightCm = product.HeightCm,
+            WidthCm = product.WidthCm,
+            LengthCm = product.LengthCm,
+            RequiresShipping = product.RequiresShipping,
+            FileFormat = product.FileFormat,
+            FileSizeMb = product.FileSizeMb,
+            RequiresLicense = product.RequiresLicense
         };
     }
 
@@ -137,15 +154,50 @@ public sealed class DetailsModel : PageModel
         public string Description { get; init; } = string.Empty;
         public string Sku { get; init; } = string.Empty;
         public decimal Price { get; init; }
+        public decimal BasePrice { get; init; }
+        public decimal? PromotionalPrice { get; init; }
         public string Currency { get; init; } = string.Empty;
         public int Stock { get; init; }
         public string MainImageUrl { get; init; } = ProductImageDefaults.PlaceholderImageUrl;
         public IReadOnlyCollection<string> ImageUrls { get; init; } = Array.Empty<string>();
         public bool IsAvailable { get; init; }
         public bool HasPromotion { get; init; }
+        public decimal? DiscountPercentage { get; init; }
+        public decimal? DiscountAmount { get; init; }
         public string ProductTypeLabel { get; init; } = string.Empty;
+        public bool IsDigitalProduct { get; init; }
+        public bool IsPhysicalProduct { get; init; }
         public string? CategoryName { get; init; }
         public IReadOnlyCollection<string> Tags { get; init; } = Array.Empty<string>();
+        public decimal? WeightKg { get; init; }
+        public decimal? HeightCm { get; init; }
+        public decimal? WidthCm { get; init; }
+        public decimal? LengthCm { get; init; }
+        public bool? RequiresShipping { get; init; }
+        public string? FileFormat { get; init; }
+        public decimal? FileSizeMb { get; init; }
+        public bool? RequiresLicense { get; init; }
+        public string AvailabilityTitle => IsDigitalProduct
+            ? IsAvailable
+                ? "Disponible para entrega digital"
+                : "Entrega digital no disponible"
+            : IsAvailable
+                ? "Disponible para despacho"
+                : "No disponible para envío";
+        public string AvailabilityDescription => IsDigitalProduct
+            ? IsAvailable
+                ? (RequiresLicense == true
+                    ? "La compra se entrega por canal digital y requiere activación con licencia."
+                    : "La compra se entrega por canal digital sin logística física adicional.")
+                : "Este producto digital no puede entregarse comercialmente en este momento."
+            : IsAvailable
+                ? $"Stock actual: {Stock} unidad(es) listas para preparación y envío."
+                : "El producto físico no cuenta con disponibilidad suficiente para iniciar una compra ahora mismo.";
+        public string CommercialBadge => HasPromotion
+            ? "Promoción activa"
+            : IsDigitalProduct
+                ? "Entrega digital"
+                : "Despacho físico";
     }
 
     /// <summary>
