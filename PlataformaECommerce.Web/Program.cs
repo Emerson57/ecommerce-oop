@@ -1,22 +1,27 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Localization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using PlataformaECommerce.Application.DependencyInjection;
 using PlataformaECommerce.Infrastructure.DependencyInjection;
-using PlataformaECommerce.Infrastructure.Persistence.Context;
 using PlataformaECommerce.Web.Authorization;
 using PlataformaECommerce.Web.Configuration;
-using PlataformaECommerce.Web.Initialization;
 using PlataformaECommerce.Web.Middlewares;
 using PlataformaECommerce.Web.OpenApi;
 using PlataformaECommerce.Web.Services.Products;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration
+        .AddUserSecrets<Program>(optional: true, reloadOnChange: true)
+        .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.local.json", optional: true, reloadOnChange: true);
+}
 
 // Add services to the container.
 builder.Services.AddRazorPages(options =>
@@ -73,14 +78,6 @@ builder.Services.AddSwaggerGen(options =>
 
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
-builder.Services
-    .AddOptions<BootstrapSuperUserOptions>()
-    .Bind(builder.Configuration.GetSection(BootstrapSuperUserOptions.SectionName))
-    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Name), "El bootstrap del super usuario requiere un nombre válido.")
-    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Email), "El bootstrap del super usuario requiere un correo electrónico válido.")
-    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Password), "El bootstrap del super usuario requiere una contraseña válida.")
-    .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Area), "El bootstrap del super usuario requiere un área válida.")
-    .ValidateOnStart();
 
 builder.Services
     .AddOptions<AdminUsersBackofficeOptions>()
@@ -99,7 +96,6 @@ builder.Services.AddScoped<AdminCookieSecurityService>();
 builder.Services.AddScoped<AdminCookieAuthenticationEvents>();
 builder.Services.AddScoped<CustomerCookieSecurityService>();
 builder.Services.AddScoped<CustomerCookieAuthenticationEvents>();
-builder.Services.AddScoped<SuperUserBootstrapService>();
 builder.Services.AddScoped<IProductImageStorageService, ProductImageStorageService>();
 
 builder.Services.AddAuthentication(options =>
@@ -136,15 +132,6 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 });
 
 var app = builder.Build();
-
-await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
-{
-    ECommerceDbContext dbContext = scope.ServiceProvider.GetRequiredService<ECommerceDbContext>();
-    await dbContext.Database.MigrateAsync();
-
-    SuperUserBootstrapService bootstrapService = scope.ServiceProvider.GetRequiredService<SuperUserBootstrapService>();
-    await bootstrapService.BootstrapAsync();
-}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

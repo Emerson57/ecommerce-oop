@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Infrastructure.Configurations;
 using PlataformaECommerce.Infrastructure.DependencyInjection;
@@ -21,12 +22,32 @@ public class InfrastructureServiceRegistrationTests
         services.AddInfrastructure(configuration, hostEnvironment);
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
+        DataProtectionKeyManagementSettings dataProtectionSettings = serviceProvider.GetRequiredService<IOptions<DataProtectionKeyManagementSettings>>().Value;
         JwtSettings settings = serviceProvider.GetRequiredService<IOptions<JwtSettings>>().Value;
         ITokenService tokenService = serviceProvider.GetRequiredService<ITokenService>();
 
+        Assert.That(dataProtectionSettings.ApplicationName, Is.EqualTo("PlataformaECommerce.Tests"));
         Assert.That(settings.SigningKey, Is.Not.Null.And.Not.Empty);
         Assert.That(settings.SigningKey.Length, Is.GreaterThanOrEqualTo(32));
         Assert.That(tokenService, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task AddInfrastructure_DevelopmentConMongoDeshabilitado_RegistraAuditoriaNoOperativa()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = BuildConfiguration(signingKey: string.Empty, mongoEnabled: false, mongoConnectionString: null);
+        FakeHostEnvironment hostEnvironment = new(Environments.Development);
+
+        services.AddLogging();
+        services.AddInfrastructure(configuration, hostEnvironment);
+
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+        IAuditRepository auditRepository = serviceProvider.GetRequiredService<IAuditRepository>();
+
+        AuditSearchResult result = await auditRepository.SearchAsync(new AuditSearchFilter());
+
+        Assert.That(result.TotalCount, Is.Zero);
     }
 
     [Test]
@@ -42,12 +63,27 @@ public class InfrastructureServiceRegistrationTests
         Assert.That(exception.Message, Does.Contain("Jwt:SigningKey"));
     }
 
-    private static IConfiguration BuildConfiguration(string signingKey)
+    [Test]
+    public void AddInfrastructure_ProductionConMongoDeshabilitado_LanzaInvalidOperationException()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = BuildConfiguration(signingKey: new string('x', 32), mongoEnabled: false, mongoConnectionString: null);
+        FakeHostEnvironment hostEnvironment = new(Environments.Production);
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+            services.AddInfrastructure(configuration, hostEnvironment))!;
+
+        Assert.That(exception.Message, Does.Contain("auditoría MongoDB solo puede deshabilitarse en Development"));
+    }
+
+    private static IConfiguration BuildConfiguration(string signingKey, bool mongoEnabled = true, string? mongoConnectionString = "mongodb://mongo.integration.internal:27017")
     {
         Dictionary<string, string?> values = new(StringComparer.Ordinal)
         {
-            ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=PlataformaECommerceTests;Trusted_Connection=True;TrustServerCertificate=True;",
-            ["MongoDb:ConnectionString"] = "mongodb://localhost:27017",
+            ["ConnectionStrings:DefaultConnection"] = "Server=tcp:sql.integration.internal,1433;Database=PlataformaECommerceTests;Encrypt=True;TrustServerCertificate=True;",
+            ["DataProtection:ApplicationName"] = "PlataformaECommerce.Tests",
+            ["MongoDb:Enabled"] = mongoEnabled.ToString(),
+            ["MongoDb:ConnectionString"] = mongoConnectionString,
             ["MongoDb:DatabaseName"] = "PlataformaECommerceAuditDb",
             ["MongoDb:AuditCollectionName"] = "audit_trail",
             ["MongoDb:EnsureIndexesOnStartup"] = bool.TrueString,

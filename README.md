@@ -540,7 +540,10 @@ Se aplicaron DataAnnotations en DTOs y validación automática del framework ASP
 1. Clonar el repositorio
 	git clone URL_DEL_REPOSITORIO
 2. Abrir la solución en Visual Studio
-3. Configurar la conexión a SQL Server
+3. Configurar secretos locales de desarrollo
+    - Copiar `PlataformaECommerce.Web/appsettings.Development.local.example.json` a `PlataformaECommerce.Web/appsettings.Development.local.json`.
+    - Completar `ConnectionStrings:DefaultConnection` y `Jwt:SigningKey` con valores reales del entorno local.
+    - Opcionalmente, configurar `MongoDb:ConnectionString` y establecer `MongoDb:Enabled=true` si se desea auditoría MongoDB en desarrollo.
 4. Ejecutar migraciones
 	Update-Database
 5. Ejecutar el proyecto

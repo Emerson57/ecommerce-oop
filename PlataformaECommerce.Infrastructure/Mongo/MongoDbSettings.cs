@@ -20,9 +20,13 @@ public sealed class MongoDbSettings
     public const string SectionName = "MongoDb";
 
     /// <summary>
+    /// Obtiene o establece un valor que indica si la auditoría transversal sobre MongoDB se encuentra habilitada.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
     /// Obtiene o establece la cadena de conexión hacia la instancia de MongoDB.
     /// </summary>
-    [Required(AllowEmptyStrings = false)]
     public string ConnectionString { get; set; } = string.Empty;
 
     /// <summary>

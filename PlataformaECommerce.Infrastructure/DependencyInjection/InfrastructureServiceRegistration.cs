@@ -1,11 +1,13 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
@@ -65,8 +67,8 @@ public static class InfrastructureServiceRegistration
         ArgumentNullException.ThrowIfNull(hostEnvironment);
 
         RegisterOptions(services, configuration, hostEnvironment);
-        RegisterPersistence(services, configuration);
-        RegisterMongo(services);
+        RegisterPersistence(services, configuration, hostEnvironment);
+        RegisterMongo(services, configuration, hostEnvironment);
         RegisterSecurity(services, configuration, hostEnvironment);
 
         return services;
@@ -86,13 +88,19 @@ public static class InfrastructureServiceRegistration
         services
             .AddOptions<MongoDbSettings>()
             .Bind(configuration.GetSection(MongoDbSettings.SectionName))
-            .ValidateDataAnnotations()
+            .Validate(settings => HasValidMongoDbSettings(settings, hostEnvironment), BuildMongoValidationMessage(hostEnvironment))
             .ValidateOnStart();
 
         services
             .AddOptions<JwtSettings>()
             .Bind(configuration.GetSection(JwtSettings.SectionName))
             .Validate(settings => HasValidJwtSettings(settings, hostEnvironment), BuildJwtValidationMessage(hostEnvironment))
+            .ValidateOnStart();
+
+        services
+            .AddOptions<DataProtectionKeyManagementSettings>()
+            .Bind(configuration.GetSection(DataProtectionKeyManagementSettings.SectionName))
+            .ValidateDataAnnotations()
             .ValidateOnStart();
     }
 
@@ -101,10 +109,18 @@ public static class InfrastructureServiceRegistration
     /// </summary>
     /// <param name="services">Colección de servicios.</param>
     /// <param name="configuration">Configuración raíz del entorno.</param>
-    private static void RegisterPersistence(IServiceCollection services, IConfiguration configuration)
+    private static void RegisterPersistence(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
     {
         string connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("No se encontró la cadena de conexión 'DefaultConnection'.");
+            ?? throw new InvalidOperationException($"No se encontró la cadena de conexión 'DefaultConnection'. {BuildSecretSourceGuidance(hostEnvironment)}");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException($"La cadena de conexión 'DefaultConnection' no puede estar vacía. {BuildSecretSourceGuidance(hostEnvironment)}");
+        }
 
         services.AddDbContext<ECommerceDbContext>(options =>
             options.UseSqlServer(connectionString));
@@ -121,8 +137,27 @@ public static class InfrastructureServiceRegistration
     /// Registra la infraestructura documental utilizada para auditoría sobre MongoDB.
     /// </summary>
     /// <param name="services">Colección de servicios.</param>
-    private static void RegisterMongo(IServiceCollection services)
+    private static void RegisterMongo(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment hostEnvironment)
     {
+        MongoDbSettings mongoSettings = configuration
+            .GetSection(MongoDbSettings.SectionName)
+            .Get<MongoDbSettings>()
+            ?? throw new InvalidOperationException("No se encontró la configuración de MongoDB requerida por la solución.");
+
+        if (!mongoSettings.Enabled)
+        {
+            if (!hostEnvironment.IsDevelopment())
+            {
+                throw new InvalidOperationException("La auditoría MongoDB solo puede deshabilitarse en Development. En entornos no locales debe permanecer habilitada.");
+            }
+
+            services.TryAddSingleton<IAuditRepository, NullAuditRepository>();
+            return;
+        }
+
         services.AddSingleton<IMongoClient>(serviceProvider =>
         {
             MongoDbSettings settings = serviceProvider.GetRequiredService<IOptions<MongoDbSettings>>().Value;
@@ -156,6 +191,11 @@ public static class InfrastructureServiceRegistration
             .Get<JwtSettings>()
             ?? throw new InvalidOperationException("No se encontró la configuración JWT requerida por la solución.");
 
+        DataProtectionKeyManagementSettings dataProtectionSettings = configuration
+            .GetSection(DataProtectionKeyManagementSettings.SectionName)
+            .Get<DataProtectionKeyManagementSettings>()
+            ?? throw new InvalidOperationException("No se encontró la configuración de Data Protection requerida por la solución.");
+
         string signingKey = ResolveJwtSigningKey(jwtSettings, hostEnvironment);
 
         services.PostConfigure<JwtSettings>(options =>
@@ -168,7 +208,10 @@ public static class InfrastructureServiceRegistration
 
         byte[] signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
 
-        services.AddDataProtection();
+        services
+            .AddDataProtection()
+            .SetApplicationName(dataProtectionSettings.ApplicationName)
+            .PersistKeysToDbContext<ECommerceDbContext>();
         services.TryAddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.TryAddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();
         services.TryAddSingleton<ITokenService, JwtTokenService>();
@@ -196,6 +239,30 @@ public static class InfrastructureServiceRegistration
                     ClockSkew = TimeSpan.FromMinutes(1)
                 };
             });
+    }
+
+    private static bool HasValidMongoDbSettings(MongoDbSettings settings, IHostEnvironment hostEnvironment)
+    {
+        if (settings is null)
+        {
+            return false;
+        }
+
+        if (!settings.Enabled)
+        {
+            return hostEnvironment.IsDevelopment();
+        }
+
+        return !string.IsNullOrWhiteSpace(settings.ConnectionString)
+            && !string.IsNullOrWhiteSpace(settings.DatabaseName)
+            && !string.IsNullOrWhiteSpace(settings.AuditCollectionName);
+    }
+
+    private static string BuildMongoValidationMessage(IHostEnvironment hostEnvironment)
+    {
+        return hostEnvironment.IsDevelopment()
+            ? "La configuración MongoDB requiere `DatabaseName` y `AuditCollectionName` siempre. Si `MongoDb:Enabled` es true, también requiere `ConnectionString`. En Development puede deshabilitarse estableciendo `MongoDb:Enabled=false`."
+            : "La configuración MongoDB requiere `Enabled=true`, `ConnectionString`, `DatabaseName` y `AuditCollectionName` válidos en entornos no locales.";
     }
 
     private static bool HasValidJwtSettings(JwtSettings settings, IHostEnvironment hostEnvironment)
@@ -243,6 +310,77 @@ public static class InfrastructureServiceRegistration
         }
 
         throw new InvalidOperationException(
-            "La configuración JWT requiere una clave de firma de al menos 32 caracteres. Configure 'Jwt:SigningKey' mediante variables de entorno, User Secrets o un proveedor seguro equivalente.");
+            $"La configuración JWT requiere una clave de firma de al menos 32 caracteres. {BuildSecretSourceGuidance(hostEnvironment, "Configure 'Jwt:SigningKey'")}");
+    }
+
+    private static string BuildSecretSourceGuidance(IHostEnvironment hostEnvironment, string? prefix = null)
+    {
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
+
+        string guidance = hostEnvironment.IsDevelopment()
+            ? "Configure el valor mediante User Secrets, variables de entorno o un archivo local no versionado como 'appsettings.Development.local.json'."
+            : "Configure el valor mediante variables de entorno o un proveedor seguro equivalente del entorno.";
+
+        return string.IsNullOrWhiteSpace(prefix)
+            ? guidance
+            : $"{prefix} mediante User Secrets, variables de entorno{(hostEnvironment.IsDevelopment() ? " o un archivo local no versionado como 'appsettings.Development.local.json'" : " o un proveedor seguro equivalente del entorno")}.";
+    }
+
+    private sealed class NullAuditRepository : IAuditRepository
+    {
+        private static int _warningLogged;
+        private readonly ILogger<NullAuditRepository> _logger;
+
+        public NullAuditRepository(ILogger<NullAuditRepository> logger)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        Task IAuditRepository.RegisterEventAsync(AuditEntry entry, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(entry);
+            LogDisabledAuditWarning();
+            return Task.CompletedTask;
+        }
+
+        Task<IReadOnlyCollection<AuditEntry>> IAuditRepository.GetHistoryAsync(Guid aggregateId, string aggregateType, CancellationToken cancellationToken)
+        {
+            if (aggregateId == Guid.Empty)
+            {
+                throw new ArgumentException("El identificador del agregado auditado es obligatorio.", nameof(aggregateId));
+            }
+
+            if (string.IsNullOrWhiteSpace(aggregateType))
+            {
+                throw new ArgumentException("El tipo de agregado auditado es obligatorio.", nameof(aggregateType));
+            }
+
+            LogDisabledAuditWarning();
+            return Task.FromResult<IReadOnlyCollection<AuditEntry>>(Array.Empty<AuditEntry>());
+        }
+
+        Task<AuditSearchResult> IAuditRepository.SearchAsync(AuditSearchFilter filter, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(filter);
+            LogDisabledAuditWarning();
+
+            return Task.FromResult(new AuditSearchResult
+            {
+                Items = Array.Empty<AuditEntry>(),
+                TotalCount = 0,
+                PageNumber = filter.PageNumber <= 0 ? 1 : filter.PageNumber,
+                PageSize = filter.PageSize <= 0 ? 25 : filter.PageSize
+            });
+        }
+
+        private void LogDisabledAuditWarning()
+        {
+            if (Interlocked.Exchange(ref _warningLogged, 1) == 1)
+            {
+                return;
+            }
+
+            _logger.LogWarning("La auditoría MongoDB está deshabilitada en Development. Los eventos de auditoría no se persistirán hasta configurar `MongoDb:ConnectionString` y habilitar nuevamente el proveedor.");
+        }
     }
 }

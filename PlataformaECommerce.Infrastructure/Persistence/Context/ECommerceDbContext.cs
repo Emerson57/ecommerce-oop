@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PlataformaECommerce.Infrastructure.Persistence.Entities;
 
 namespace PlataformaECommerce.Infrastructure.Persistence.Context;
@@ -11,7 +12,7 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Context;
 /// por SQL Server y actúa como frontera técnica para repositorios, unidad de trabajo y
 /// demás componentes de infraestructura que operan sobre la base de datos relacional.
 /// </remarks>
-public sealed class ECommerceDbContext : DbContext
+public sealed class ECommerceDbContext : DbContext, IDataProtectionKeyContext
 {
     #region Constructor
 
@@ -27,6 +28,11 @@ public sealed class ECommerceDbContext : DbContext
     #endregion
 
     #region DbSets
+
+    /// <summary>
+    /// Representa la colección persistente de claves de Data Protection compartidas por la aplicación.
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
     /// <summary>
     /// Representa la colección persistente de categorías del sistema.
