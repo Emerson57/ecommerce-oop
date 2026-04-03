@@ -26,5 +26,22 @@ public sealed class ExecutionContextAccessor : IExecutionContextAccessor
     }
 
     /// <inheritdoc />
-    public string? CorrelationId => _httpContextAccessor.HttpContext?.TraceIdentifier;
+    public string? CorrelationId
+    {
+        get
+        {
+            HttpContext? httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext is null)
+            {
+                return null;
+            }
+
+            if (httpContext.Items.TryGetValue("RequestCorrelationId", out object? correlationIdValue))
+            {
+                return Convert.ToString(correlationIdValue, System.Globalization.CultureInfo.InvariantCulture) ?? httpContext.TraceIdentifier;
+            }
+
+            return httpContext.TraceIdentifier;
+        }
+    }
 }

@@ -19,9 +19,15 @@ public static class HealthCheckResponseWriter
 
         context.Response.ContentType = "application/json";
 
+        string correlationId = context.Items.TryGetValue(Middlewares.RequestCorrelationMiddleware.CorrelationIdItemKey, out object? correlationIdValue)
+            ? Convert.ToString(correlationIdValue, System.Globalization.CultureInfo.InvariantCulture) ?? context.TraceIdentifier
+            : context.TraceIdentifier;
+
         var payload = new
         {
             status = report.Status.ToString(),
+            traceId = context.TraceIdentifier,
+            correlationId,
             totalDuration = report.TotalDuration.TotalMilliseconds,
             results = report.Entries.ToDictionary(
                 entry => entry.Key,

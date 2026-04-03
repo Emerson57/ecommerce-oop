@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using PlataformaECommerce.Application.Common.Results;
@@ -104,6 +106,56 @@ public class LoginPageModelTests
         Assert.That(pageModel.ErrorMessage, Does.Contain("seguridad"));
     }
 
+    [Test]
+    public async Task OnPostAsync_ReturnUrlLocal_RedireccionaLocalmente()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-seguro-cliente-2026");
+        customer.ConfirmarCorreoElectronico();
+        FakeAuthenticationService authenticationService = new();
+        LoginModel pageModel = CreatePageModel(customer, authenticationService);
+        pageModel.Input.Email = "cliente@plataforma.com";
+        pageModel.Input.Password = "Password#2026";
+        pageModel.ReturnUrl = "/Orders/Index";
+
+        var result = await pageModel.OnPostAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<Microsoft.AspNetCore.Mvc.LocalRedirectResult>());
+    }
+
+    [Test]
+    public async Task OnPostAsync_ReturnUrlExterna_IgnoraDestinoNoConfiable()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-seguro-cliente-2026");
+        customer.ConfirmarCorreoElectronico();
+        FakeAuthenticationService authenticationService = new();
+        LoginModel pageModel = CreatePageModel(customer, authenticationService);
+        pageModel.Input.Email = "cliente@plataforma.com";
+        pageModel.Input.Password = "Password#2026";
+        pageModel.ReturnUrl = "https://malicioso.example/callback";
+
+        var result = await pageModel.OnPostAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<Microsoft.AspNetCore.Mvc.RedirectToPageResult>());
+        Assert.That(((Microsoft.AspNetCore.Mvc.RedirectToPageResult)result).PageName, Is.EqualTo("/Index"));
+    }
+
+    [Test]
+    public async Task OnPostAsync_CredencialesInvalidas_NoEmiteCookie()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-seguro-cliente-2026");
+        customer.ConfirmarCorreoElectronico();
+        FakeAuthenticationService authenticationService = new();
+        LoginModel pageModel = CreatePageModel(customer, authenticationService);
+        pageModel.Input.Email = "cliente@plataforma.com";
+        pageModel.Input.Password = "Password-invalido";
+
+        var result = await pageModel.OnPostAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(authenticationService.SignedInPrincipal, Is.Null);
+        Assert.That(pageModel.ErrorMessage, Does.Contain("no son válidos"));
+    }
+
     private static LoginModel CreatePageModel(Usuario user, FakeAuthenticationService authenticationService)
     {
         FakeAuthApplicationService authApplicationService = new(user);
@@ -125,8 +177,20 @@ public class LoginPageModelTests
         {
             HttpContext = httpContext
         };
+        pageModel.Url = new FakeUrlHelper();
 
         return pageModel;
+    }
+
+    private sealed class FakeUrlHelper : IUrlHelper
+    {
+        public Microsoft.AspNetCore.Mvc.ActionContext ActionContext { get; } = new();
+
+        public string? Action(Microsoft.AspNetCore.Mvc.Routing.UrlActionContext actionContext) => null;
+        public string? Content(string? contentPath) => contentPath;
+        public bool IsLocalUrl(string? url) => !string.IsNullOrWhiteSpace(url) && url.StartsWith("/", StringComparison.Ordinal) && !url.StartsWith("//", StringComparison.Ordinal);
+        public string? Link(string? routeName, object? values) => null;
+        public string? RouteUrl(UrlRouteContext routeContext) => null;
     }
 
     private sealed class FakeAuthApplicationService : IAuthApplicationService

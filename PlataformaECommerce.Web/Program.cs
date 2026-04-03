@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.FileProviders;
@@ -33,6 +34,20 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
         .Enrich.WithProperty("Application", "PlataformaECommerce.Web");
 });
 
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        string correlationId = context.HttpContext.Items.TryGetValue(RequestCorrelationMiddleware.CorrelationIdItemKey, out object? correlationIdValue)
+            ? Convert.ToString(correlationIdValue, CultureInfo.InvariantCulture) ?? context.HttpContext.TraceIdentifier
+            : context.HttpContext.TraceIdentifier;
+
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+        context.ProblemDetails.Extensions["correlationId"] = correlationId;
+        context.ProblemDetails.Extensions["timestampUtc"] = DateTime.UtcNow;
+    };
+});
+
 if (builder.Environment.IsDevelopment())
 {
     builder.Configuration
@@ -53,20 +68,27 @@ builder.Services.AddControllers()
     {
         options.InvalidModelStateResponseFactory = context =>
         {
-            var errores = context.ModelState
-                .Where(x => x.Value?.Errors.Count > 0)
-                .ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
-                );
+            ProblemDetailsFactory problemDetailsFactory = context.HttpContext.RequestServices.GetRequiredService<ProblemDetailsFactory>();
+            ValidationProblemDetails problemDetails = problemDetailsFactory.CreateValidationProblemDetails(
+                context.HttpContext,
+                context.ModelState,
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "La solicitud contiene errores de validación.",
+                detail: "Corrige los campos indicados e inténtalo nuevamente.",
+                instance: context.HttpContext.Request.Path);
 
-            var respuesta = new
+            string correlationId = context.HttpContext.Items.TryGetValue(RequestCorrelationMiddleware.CorrelationIdItemKey, out object? correlationIdValue)
+                ? Convert.ToString(correlationIdValue, CultureInfo.InvariantCulture) ?? context.HttpContext.TraceIdentifier
+                : context.HttpContext.TraceIdentifier;
+
+            problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+            problemDetails.Extensions["correlationId"] = correlationId;
+            problemDetails.Extensions["timestampUtc"] = DateTime.UtcNow;
+
+            return new BadRequestObjectResult(problemDetails)
             {
-                mensaje = "La solicitud contiene errores de validación.",
-                errores
+                ContentTypes = { "application/problem+json" }
             };
-
-            return new BadRequestObjectResult(respuesta);
         };
     });
 
@@ -138,6 +160,13 @@ builder.Services
     .AddOptions<WebRateLimitingOptions>()
     .Bind(builder.Configuration.GetSection(WebRateLimitingOptions.SectionName))
     .Validate(options => AreValidRateLimitingOptions(options), "La configuración de rate limiting contiene valores inválidos.")
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<RequestCorrelationOptions>()
+    .Bind(builder.Configuration.GetSection(RequestCorrelationOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(options => !string.IsNullOrWhiteSpace(options.CorrelationHeaderName), "La configuración de observabilidad requiere un header de correlación válido.")
     .ValidateOnStart();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -248,11 +277,13 @@ else
 
 app.UseForwardedHeaders();
 app.UseHttpsRedirection();
+app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseSerilogRequestLogging(options =>
 {
     options.EnrichDiagnosticContext = static (diagnosticContext, httpContext) =>
     {
         diagnosticContext.Set("TraceIdentifier", httpContext.TraceIdentifier);
+        diagnosticContext.Set("CorrelationId", httpContext.Items.TryGetValue(RequestCorrelationMiddleware.CorrelationIdItemKey, out object? correlationId) ? correlationId : httpContext.TraceIdentifier);
         diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
         diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
         diagnosticContext.Set("RemoteIp", httpContext.Connection.RemoteIpAddress?.ToString());

@@ -2,9 +2,13 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Web.Pages.Admin.Users;
 using PlataformaECommerce.Web.Authorization;
+using PlataformaECommerce.Web.Configuration;
+using PlataformaECommerce.Web.Controllers;
+using PlataformaECommerce.Web.Pages.Auth;
 
 namespace PlataformaECommerce.Tests.Web.Authorization;
 
@@ -77,6 +81,39 @@ public class AuthorizationPoliciesTests
 
         Assert.That(attribute?.Policy, Is.EqualTo(AuthorizationPolicies.SuperUserOnly));
         Assert.That(attribute?.AuthenticationSchemes, Is.EqualTo(AuthorizationPolicies.AdminCookieScheme));
+    }
+
+    [Test]
+    public void LoginModel_PaginaPublica_UsaRateLimitingDeAuthFlow()
+    {
+        EnableRateLimitingAttribute? attribute = typeof(LoginModel)
+            .GetCustomAttributes(typeof(EnableRateLimitingAttribute), inherit: true)
+            .OfType<EnableRateLimitingAttribute>()
+            .SingleOrDefault();
+
+        Assert.That(attribute?.PolicyName, Is.EqualTo(WebRateLimitingOptions.AuthFlowPolicyName));
+    }
+
+    [Test]
+    public void AdminProductsController_ControladorSensitivo_UsaRateLimitingAdministrativo()
+    {
+        EnableRateLimitingAttribute? attribute = typeof(AdminProductsController)
+            .GetCustomAttributes(typeof(EnableRateLimitingAttribute), inherit: true)
+            .OfType<EnableRateLimitingAttribute>()
+            .SingleOrDefault();
+
+        Assert.That(attribute?.PolicyName, Is.EqualTo(WebRateLimitingOptions.SensitiveApiPolicyName));
+    }
+
+    [Test]
+    public void ProductsController_ControladorPublico_UsaRateLimitingPublico()
+    {
+        EnableRateLimitingAttribute? attribute = typeof(ProductsController)
+            .GetCustomAttributes(typeof(EnableRateLimitingAttribute), inherit: true)
+            .OfType<EnableRateLimitingAttribute>()
+            .SingleOrDefault();
+
+        Assert.That(attribute?.PolicyName, Is.EqualTo(WebRateLimitingOptions.PublicApiPolicyName));
     }
 
     [Test]

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Routing;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Web.Configuration;
@@ -18,14 +19,16 @@ public sealed class ForgotPasswordModel : PageModel
 {
     private readonly IAuthApplicationService _authApplicationService;
     private readonly IWebHostEnvironment _environment;
+    private readonly LinkGenerator _linkGenerator;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="ForgotPasswordModel"/>.
     /// </summary>
-    public ForgotPasswordModel(IAuthApplicationService authApplicationService, IWebHostEnvironment environment)
+    public ForgotPasswordModel(IAuthApplicationService authApplicationService, IWebHostEnvironment environment, LinkGenerator linkGenerator)
     {
         _authApplicationService = authApplicationService ?? throw new ArgumentNullException(nameof(authApplicationService));
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
+        _linkGenerator = linkGenerator ?? throw new ArgumentNullException(nameof(linkGenerator));
     }
 
     /// <summary>
@@ -96,11 +99,12 @@ public sealed class ForgotPasswordModel : PageModel
             return null;
         }
 
-        return Url.Page(
-            "/Auth/ResetPassword",
-            pageHandler: null,
+        return _linkGenerator.GetUriByPage(
+            HttpContext,
+            page: "/Auth/ResetPassword",
+            handler: null,
             values: new { userId = result.UserId, token = result.ResetToken },
-            protocol: Request.Scheme);
+            scheme: Request.Scheme);
     }
 
     /// <summary>
