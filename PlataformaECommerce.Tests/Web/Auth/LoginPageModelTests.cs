@@ -156,6 +156,22 @@ public class LoginPageModelTests
         Assert.That(pageModel.ErrorMessage, Does.Contain("no son válidos"));
     }
 
+    [Test]
+    public async Task OnPostAsync_CorreoNoConfirmado_HabilitaReenvioDeConfirmacion()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-seguro-cliente-2026");
+        FakeAuthenticationService authenticationService = new();
+        LoginModel pageModel = CreatePageModel(customer, authenticationService);
+        pageModel.Input.Email = "cliente@plataforma.com";
+        pageModel.Input.Password = "Password#2026";
+
+        var result = await pageModel.OnPostAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(pageModel.CanResendEmailConfirmation, Is.True);
+        Assert.That(pageModel.PendingEmailConfirmationAddress, Is.EqualTo("cliente@plataforma.com"));
+    }
+
     private static LoginModel CreatePageModel(Usuario user, FakeAuthenticationService authenticationService)
     {
         FakeAuthApplicationService authApplicationService = new(user);
@@ -211,6 +227,12 @@ public class LoginPageModelTests
             {
                 return Task.FromResult(Result.Failure<AuthResponseDto>(
                     Error.Unauthorized("Auth.InvalidCredentials", "Las credenciales suministradas no son válidas.")));
+            }
+
+            if (!_user.CorreoConfirmado)
+            {
+                return Task.FromResult(Result.Failure<AuthResponseDto>(
+                    Error.Unauthorized("Auth.EmailNotConfirmed", "La cuenta del usuario requiere confirmación de correo para iniciar sesión.")));
             }
 
             CurrentUserDto currentUser = LoginUserOverride ?? new CurrentUserDto

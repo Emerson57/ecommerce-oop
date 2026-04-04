@@ -92,7 +92,13 @@
                                 <td>@order.ItemsCount línea(s) · @order.TotalUnits unidad(es)</td>
                                 <td class="fw-semibold">@order.Currency @order.TotalAmount.ToString("N2")</td>
                                 <td class="text-end">
-                                    <a asp-page="./Details" asp-route-id="@order.Id" class="btn btn-sm btn-outline-dark">Ver detalle</a>
+                                    <div class="d-inline-flex gap-2 flex-wrap justify-content-end">
+                                        @if (order.CanStartOnlinePayment)
+                                        {
+                                            <a asp-page="/Payments/Start" asp-route-orderId="@order.Id" class="btn btn-sm btn-primary">Pagar</a>
+                                        }
+                                        <a asp-page="./Details" asp-route-id="@order.Id" class="btn btn-sm btn-outline-dark">Ver detalle</a>
+                                    </div>
                                 </td>
                             </tr>
                         }

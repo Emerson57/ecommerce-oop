@@ -125,6 +125,36 @@ public sealed class OrderDetailDto
     /// </summary>
     public string? CancellationReason { get; init; }
 
+    /// <summary>
+    /// Método de pago seleccionado durante el checkout.
+    /// </summary>
+    public MetodoPagoPedido? PaymentMethod { get; init; }
+
+    /// <summary>
+    /// Línea principal de dirección de envío cuando el pedido la requiere.
+    /// </summary>
+    public string? ShippingStreet { get; init; }
+
+    /// <summary>
+    /// Ciudad de la dirección de envío.
+    /// </summary>
+    public string? ShippingCity { get; init; }
+
+    /// <summary>
+    /// Departamento o región de la dirección de envío.
+    /// </summary>
+    public string? ShippingRegion { get; init; }
+
+    /// <summary>
+    /// País de la dirección de envío.
+    /// </summary>
+    public string? ShippingCountry { get; init; }
+
+    /// <summary>
+    /// Código postal de la dirección de envío.
+    /// </summary>
+    public string? ShippingPostalCode { get; init; }
+
     #endregion
 
     #region Metadatos adicionales
@@ -172,6 +202,11 @@ public sealed class OrderDetailDto
     /// Indica si el pedido se encuentra en un estado final.
     /// </summary>
     public bool IsFinalized => Status is EstadoPedido.Entregado or EstadoPedido.Cancelado;
+
+    /// <summary>
+    /// Indica si el pedido tiene dirección de envío asociada.
+    /// </summary>
+    public bool HasShippingAddress => !string.IsNullOrWhiteSpace(ShippingStreet);
 
     #endregion
 

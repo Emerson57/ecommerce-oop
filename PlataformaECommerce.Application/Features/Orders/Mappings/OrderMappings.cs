@@ -61,7 +61,8 @@ public static class OrderMappings
             ShippedAtUtc = order.FechaEnvioUtc,
             DeliveredAtUtc = order.FechaEntregaUtc,
             CancelledAtUtc = order.FechaCancelacionUtc,
-            CancellationReason = order.ObservacionCancelacion
+            CancellationReason = order.ObservacionCancelacion,
+            PaymentMethod = order.MetodoPagoSeleccionado
         };
     }
 
@@ -95,7 +96,8 @@ public static class OrderMappings
             ShippedAtUtc = order.FechaEnvioUtc,
             DeliveredAtUtc = order.FechaEntregaUtc,
             CancelledAtUtc = order.FechaCancelacionUtc,
-            CancellationReason = order.ObservacionCancelacion
+            CancellationReason = order.ObservacionCancelacion,
+            PaymentMethod = order.MetodoPagoSeleccionado
         };
     }
 
@@ -132,6 +134,12 @@ public static class OrderMappings
             DeliveredAtUtc = order.FechaEntregaUtc,
             CancelledAtUtc = order.FechaCancelacionUtc,
             CancellationReason = order.ObservacionCancelacion,
+            PaymentMethod = order.MetodoPagoSeleccionado,
+            ShippingStreet = order.DireccionEnvio?.Calle,
+            ShippingCity = order.DireccionEnvio?.Ciudad,
+            ShippingRegion = order.DireccionEnvio?.Departamento,
+            ShippingCountry = order.DireccionEnvio?.Pais,
+            ShippingPostalCode = order.DireccionEnvio?.CodigoPostal,
             ContainsPhysicalProducts = order.ContieneProductosFisicos(),
             ContainsDigitalProducts = order.ContieneProductosDigitales()
         };
@@ -169,6 +177,12 @@ public static class OrderMappings
             DeliveredAtUtc = order.FechaEntregaUtc,
             CancelledAtUtc = order.FechaCancelacionUtc,
             CancellationReason = order.ObservacionCancelacion,
+            PaymentMethod = order.MetodoPagoSeleccionado,
+            ShippingStreet = order.DireccionEnvio?.Calle,
+            ShippingCity = order.DireccionEnvio?.Ciudad,
+            ShippingRegion = order.DireccionEnvio?.Departamento,
+            ShippingCountry = order.DireccionEnvio?.Pais,
+            ShippingPostalCode = order.DireccionEnvio?.CodigoPostal,
             ContainsPhysicalProducts = order.ContieneProductosFisicos(),
             ContainsDigitalProducts = order.ContieneProductosDigitales()
         };

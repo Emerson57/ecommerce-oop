@@ -45,6 +45,22 @@ public class OrderRepositoryTests
     }
 
     [Test]
+    public async Task GetByIdAsync_PedidoPersistido_RetornaMetodoPagoRehidratado()
+    {
+        await using ECommerceDbContext context = CreateContext();
+        OrderRepository repository = new(context);
+        (Pedido order, _) = CreateOrderWithPhysicalItem(Guid.NewGuid());
+        order.SeleccionarMetodoPago(MetodoPagoPedido.Tarjeta);
+
+        await repository.AddAsync(order);
+        await context.SaveChangesAsync();
+
+        Pedido? result = await repository.GetByIdAsync(order.Id);
+
+        Assert.That(result?.MetodoPagoSeleccionado, Is.EqualTo(MetodoPagoPedido.Tarjeta));
+    }
+
+    [Test]
     public async Task GetByIdAsync_PedidoPersistido_RetornaDetalleRehidratado()
     {
         await using ECommerceDbContext context = CreateContext();

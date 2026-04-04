@@ -1,9 +1,15 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.Extensions.Options
+@using PlataformaECommerce.Web.Configuration
+@inject IOptions<ClientExperienceOptions> ClientExperienceOptionsAccessor
+@{
+    ClientExperienceOptions clientExperience = ClientExperienceOptionsAccessor.Value;
+}
+<!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - NovaShop</title>
+    <title>@ViewData["Title"] - @clientExperience.StorefrontName</title>
 
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +20,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/PlataformaECommerce.Web.styles.css" asp-append-version="true" />
 </head>
-<body>
+<body style="--primary:@clientExperience.PrimaryColor; --accent:@clientExperience.AccentColor; --accent-hover:@clientExperience.AccentColor;">
     @{
         bool isAuthenticated = User.Identity?.IsAuthenticated == true;
         bool isAdminAuthenticated = isAuthenticated && (User.IsInRole("Administrador") || User.IsInRole("SuperUsuario"));
@@ -27,8 +33,8 @@
                 <div class="container">
                     <div class="top-header-content">
                         <a class="store-logo" asp-area="" asp-page="/Index">
-                            <span class="logo-mark">N</span>
-                            <span class="logo-text">NovaShop</span>
+                            <span class="logo-mark">@clientExperience.LogoGlyph</span>
+                            <span class="logo-text">@clientExperience.StorefrontName</span>
                         </a>
 
                         <form class="header-search" role="search" method="get" asp-page="/Catalog/Index">
@@ -101,7 +107,8 @@
                 </div>
 
                 <div class="footer-bottom">
-                    <span>© @DateTime.UtcNow.Year NovaShop. Todos los derechos reservados.</span>
+                    <span>© @DateTime.UtcNow.Year @clientExperience.LegalCompanyName. Todos los derechos reservados.</span>
+                    <span class="small text-muted">Soporte: @clientExperience.SupportEmail · @clientExperience.SupportPhone</span>
                 </div>
             </div>
         </footer>

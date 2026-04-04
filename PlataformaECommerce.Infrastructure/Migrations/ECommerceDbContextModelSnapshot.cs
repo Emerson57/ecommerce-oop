@@ -225,6 +225,10 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                     b.Property<DateTime?>("FechaPagoUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("MetodoPagoSeleccionado")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("ObservacionCancelacion")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");

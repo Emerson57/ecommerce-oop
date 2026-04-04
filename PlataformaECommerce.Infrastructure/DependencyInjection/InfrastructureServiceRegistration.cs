@@ -20,6 +20,8 @@ using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Interfaces.Services.Orders;
+using PlataformaECommerce.Application.Interfaces.Services.Users;
 using PlataformaECommerce.Infrastructure.Configurations;
 using PlataformaECommerce.Infrastructure.Mongo;
 using PlataformaECommerce.Infrastructure.Mongo.Repositories;
@@ -32,6 +34,8 @@ using PlataformaECommerce.Infrastructure.Repositories.Products;
 using PlataformaECommerce.Infrastructure.Repositories.Users;
 using PlataformaECommerce.Infrastructure.Services.Auth;
 using PlataformaECommerce.Infrastructure.Services.Common;
+using PlataformaECommerce.Infrastructure.Services.Orders;
+using PlataformaECommerce.Infrastructure.Services.Users;
 
 namespace PlataformaECommerce.Infrastructure.DependencyInjection;
 
@@ -70,6 +74,7 @@ public static class InfrastructureServiceRegistration
         RegisterPersistence(services, configuration, hostEnvironment);
         RegisterMongo(services, configuration, hostEnvironment);
         RegisterSecurity(services, configuration, hostEnvironment);
+        RegisterPayments(services, configuration);
 
         return services;
     }
@@ -101,6 +106,18 @@ public static class InfrastructureServiceRegistration
             .AddOptions<DataProtectionKeyManagementSettings>()
             .Bind(configuration.GetSection(DataProtectionKeyManagementSettings.SectionName))
             .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
+            .AddOptions<SmtpEmailSettings>()
+            .Bind(configuration.GetSection(SmtpEmailSettings.SectionName))
+            .Validate(settings => HasValidSmtpSettings(settings), "La configuración SMTP contiene valores inválidos para la entrega de notificaciones por correo.")
+            .ValidateOnStart();
+
+        services
+            .AddOptions<WompiPaymentGatewaySettings>()
+            .Bind(configuration.GetSection(WompiPaymentGatewaySettings.SectionName))
+            .Validate(settings => HasValidWompiSettings(settings), "La configuración de pagos Wompi contiene valores inválidos para el entorno actual.")
             .ValidateOnStart();
     }
 
@@ -214,8 +231,10 @@ public static class InfrastructureServiceRegistration
             .PersistKeysToDbContext<ECommerceDbContext>();
         services.TryAddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.TryAddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();
+        services.TryAddSingleton<IEmailConfirmationTokenService, EmailConfirmationTokenService>();
         services.TryAddSingleton<ITokenService, JwtTokenService>();
         services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
+        services.TryAddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
         services.TryAddScoped<IExecutionContextAccessor, ExecutionContextAccessor>();
         services.TryAddScoped<ICurrentUserService, CurrentUserService>();
         services.TryAddSingleton<Microsoft.AspNetCore.Http.IHttpContextAccessor, Microsoft.AspNetCore.Http.HttpContextAccessor>();
@@ -324,6 +343,50 @@ public static class InfrastructureServiceRegistration
         return string.IsNullOrWhiteSpace(prefix)
             ? guidance
             : $"{prefix} mediante User Secrets, variables de entorno{(hostEnvironment.IsDevelopment() ? " o un archivo local no versionado como 'appsettings.Development.local.json'" : " o un proveedor seguro equivalente del entorno")}.";
+    }
+
+    private static void RegisterPayments(
+        IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddHttpClient<IPaymentGateway, WompiPaymentGateway>((serviceProvider, httpClient) =>
+        {
+            WompiPaymentGatewaySettings settings = serviceProvider.GetRequiredService<IOptions<WompiPaymentGatewaySettings>>().Value;
+            httpClient.BaseAddress = new Uri(settings.TransactionsApiBaseUrl, UriKind.Absolute);
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
+        });
+    }
+
+    private static bool HasValidWompiSettings(WompiPaymentGatewaySettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        if (!settings.Enabled)
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(settings.ProviderName)
+            && Uri.TryCreate(settings.CheckoutBaseUrl, UriKind.Absolute, out Uri? checkoutUri)
+            && checkoutUri.Scheme == Uri.UriSchemeHttps
+            && Uri.TryCreate(settings.TransactionsApiBaseUrl, UriKind.Absolute, out Uri? transactionsUri)
+            && transactionsUri.Scheme == Uri.UriSchemeHttps
+            && !string.IsNullOrWhiteSpace(settings.PublicKey)
+            && !string.IsNullOrWhiteSpace(settings.IntegritySecret);
+    }
+
+    private static bool HasValidSmtpSettings(SmtpEmailSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        if (!settings.Enabled)
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(settings.Host)
+            && settings.Port is >= 1 and <= 65535
+            && !string.IsNullOrWhiteSpace(settings.FromAddress);
     }
 
     private sealed class NullAuditRepository : IAuditRepository

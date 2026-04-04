@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Features.Categories.DTOs;
 using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Categories;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.ViewComponents;
 
@@ -13,14 +15,18 @@ public sealed class StoreFooterViewComponent : ViewComponent
 {
     private const int MaxFooterCategories = 4;
     private readonly ICategoryApplicationService _categoryApplicationService;
+    private readonly ClientExperienceOptions _clientExperienceOptions;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="StoreFooterViewComponent"/>.
     /// </summary>
     /// <param name="categoryApplicationService">Servicio de aplicación de categorías.</param>
-    public StoreFooterViewComponent(ICategoryApplicationService categoryApplicationService)
+    public StoreFooterViewComponent(ICategoryApplicationService categoryApplicationService, IOptions<ClientExperienceOptions> clientExperienceOptions)
     {
+        ArgumentNullException.ThrowIfNull(clientExperienceOptions);
+
         _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
+        _clientExperienceOptions = clientExperienceOptions.Value;
     }
 
     /// <summary>
@@ -33,7 +39,12 @@ public sealed class StoreFooterViewComponent : ViewComponent
 
         StoreFooterViewModel model = new()
         {
+            BrandName = _clientExperienceOptions.StorefrontName,
+            BrandTagline = _clientExperienceOptions.StorefrontTagline,
             CurrentYear = DateTime.UtcNow.Year,
+            SupportEmail = _clientExperienceOptions.SupportEmail,
+            SupportPhone = _clientExperienceOptions.SupportPhone,
+            SupportHours = _clientExperienceOptions.SupportHours,
             ExploreLinks = BuildExploreLinks(),
             CategoryLinks = categoryLinks,
             AccessLinks = BuildAccessLinks()
@@ -125,9 +136,34 @@ public sealed class StoreFooterViewComponent : ViewComponent
     public sealed class StoreFooterViewModel
     {
         /// <summary>
+        /// Nombre visible de la marca configurada para la tienda.
+        /// </summary>
+        public string BrandName { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Propuesta de valor corta visible en el footer comercial.
+        /// </summary>
+        public string BrandTagline { get; init; } = string.Empty;
+
+        /// <summary>
         /// Año visible del footer.
         /// </summary>
         public int CurrentYear { get; init; }
+
+        /// <summary>
+        /// Correo principal de soporte.
+        /// </summary>
+        public string SupportEmail { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Teléfono principal de soporte.
+        /// </summary>
+        public string SupportPhone { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Horario operativo de soporte.
+        /// </summary>
+        public string SupportHours { get; init; } = string.Empty;
 
         /// <summary>
         /// Enlaces de navegación pública principal.

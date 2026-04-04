@@ -36,6 +36,11 @@ public sealed class RequestPasswordResetCommand
     public string? ExternalReference { get; init; }
 
     /// <summary>
+    /// URL absoluta del restablecimiento que se enviará al usuario por correo.
+    /// </summary>
+    public string? ResetPasswordUrl { get; init; }
+
+    /// <summary>
     /// Fecha UTC en la que la capa superior registró la solicitud.
     /// </summary>
     public DateTime? RequestedAtUtc { get; init; }

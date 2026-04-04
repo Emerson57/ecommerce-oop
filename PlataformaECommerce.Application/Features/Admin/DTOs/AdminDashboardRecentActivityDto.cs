@@ -34,4 +34,14 @@ public sealed record AdminDashboardRecentActivityDto
     /// Obtiene o establece el actor visible responsable del evento.
     /// </summary>
     public string PerformedBy { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Obtiene o establece el identificador de correlación asociado al evento cuando esté disponible.
+    /// </summary>
+    public string? CorrelationId { get; init; }
+
+    /// <summary>
+    /// Obtiene o establece el origen funcional o técnico del evento cuando esté disponible.
+    /// </summary>
+    public string? Source { get; init; }
 }

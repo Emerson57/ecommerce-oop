@@ -1,6 +1,7 @@
 using System.Globalization;
 using FluentValidation;
 using PlataformaECommerce.Application.Common.Results;
+using PlataformaECommerce.Application.Common.Notifications;
 using PlataformaECommerce.Application.Features.Orders.Commands;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 using PlataformaECommerce.Application.Features.Orders.Mappings;
@@ -9,10 +10,12 @@ using PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Application.Interfaces.Services.Orders;
 using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Entities.Orders;
 using PlataformaECommerce.Domain.Entities.Users;
+using PlataformaECommerce.Domain.ValueObjects;
 
 namespace PlataformaECommerce.Application.Features.Orders.Services;
 
@@ -26,6 +29,7 @@ public sealed class OrderCreationService : IOrderCreationService
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuditTrailService _auditTrailService;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly IValidator<CreateOrderFromCartCommand> _createOrderFromCartCommandValidator;
 
     /// <summary>
@@ -37,6 +41,7 @@ public sealed class OrderCreationService : IOrderCreationService
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
         IAuditTrailService auditTrailService,
+        IEmailNotificationService emailNotificationService,
         IValidator<CreateOrderFromCartCommand> createOrderFromCartCommandValidator)
     {
         _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
@@ -44,6 +49,7 @@ public sealed class OrderCreationService : IOrderCreationService
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
+        _emailNotificationService = emailNotificationService ?? throw new ArgumentNullException(nameof(emailNotificationService));
         _createOrderFromCartCommandValidator = createOrderFromCartCommandValidator ?? throw new ArgumentNullException(nameof(createOrderFromCartCommandValidator));
     }
 
@@ -96,10 +102,41 @@ public sealed class OrderCreationService : IOrderCreationService
 
             Pedido order = new(cart);
 
-            await _orderRepository.AddAsync(order, cancellationToken);
-            cart.VaciarCarrito();
-            await _cartRepository.UpdateAsync(cart, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (order.ContieneProductosFisicos())
+            {
+                if (!command.HasShippingAddress)
+                {
+                    return Result.Failure<OrderDetailDto>(
+                        Error.Validation("Orders.ShippingAddressRequired", "Debes informar una dirección de envío para pedidos con productos físicos."));
+                }
+
+                order.AsignarDireccionEnvio(new DireccionEnvio(
+                    command.ShippingStreet!,
+                    command.ShippingCity!,
+                    command.ShippingRegion!,
+                    command.ShippingCountry!,
+                    command.ShippingPostalCode!));
+            }
+
+            order.SeleccionarMetodoPago(command.PaymentMethod!.Value);
+            order.Confirmar();
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                await _orderRepository.AddAsync(order, cancellationToken);
+                cart.VaciarCarrito();
+                await _cartRepository.UpdateAsync(cart, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
             await OrderServiceSupport.AuditOrderEventAsync(
                 _auditTrailService,
                 order,
@@ -111,9 +148,65 @@ public sealed class OrderCreationService : IOrderCreationService
                     ["cartId"] = cart.Id.ToString(),
                     ["itemsCount"] = order.CantidadDetalles.ToString(),
                     ["totalAmount"] = order.Total.Amount.ToString(CultureInfo.InvariantCulture),
-                    ["currency"] = order.Total.Currency
+                    ["currency"] = order.Total.Currency,
+                    ["paymentMethod"] = order.MetodoPagoSeleccionado?.ToString() ?? string.Empty,
+                    ["hasShippingAddress"] = order.TieneDireccionEnvio().ToString()
                 },
                 cancellationToken);
+
+            Result emailResult = await _emailNotificationService.SendOrderConfirmationEmailAsync(
+                new OrderConfirmationEmailNotification
+                {
+                    ToEmail = customer.CorreoElectronico.Value,
+                    RecipientName = customer.Nombre,
+                    OrderId = order.Id,
+                    TotalAmount = order.Total.Amount,
+                    Currency = order.Total.Currency,
+                    PaymentMethod = order.MetodoPagoSeleccionado,
+                    ShippingAddressSummary = order.DireccionEnvio is null
+                        ? null
+                        : $"{order.DireccionEnvio.Calle}, {order.DireccionEnvio.Ciudad}, {order.DireccionEnvio.Departamento}, {order.DireccionEnvio.Pais}, {order.DireccionEnvio.CodigoPostal}",
+                    Items = order.Detalles
+                        .Select(detail => new OrderConfirmationEmailItem
+                        {
+                            ProductName = detail.NombreProducto,
+                            ProductSku = detail.SkuProducto.Value,
+                            Quantity = detail.Cantidad,
+                            Subtotal = detail.Subtotal.Amount,
+                            Currency = detail.Subtotal.Currency
+                        })
+                        .ToArray()
+                },
+                cancellationToken);
+
+            if (emailResult.IsFailure)
+            {
+                await OrderServiceSupport.AuditOrderEventAsync(
+                    _auditTrailService,
+                    order,
+                    "order.confirmation-email.failed",
+                    $"No fue posible entregar el correo de confirmación del pedido '{order.Id}'.",
+                    new Dictionary<string, string>
+                    {
+                        ["email"] = customer.CorreoElectronico.Value,
+                        ["errorCode"] = emailResult.Error.Code
+                    },
+                    cancellationToken);
+            }
+            else
+            {
+                await OrderServiceSupport.AuditOrderEventAsync(
+                    _auditTrailService,
+                    order,
+                    "order.confirmation-email.sent",
+                    $"Se envió el correo de confirmación del pedido '{order.Id}'.",
+                    new Dictionary<string, string>
+                    {
+                        ["email"] = customer.CorreoElectronico.Value,
+                        ["paymentMethod"] = order.MetodoPagoSeleccionado?.ToString() ?? string.Empty
+                    },
+                    cancellationToken);
+            }
 
             return Result.Success(order.ToOrderDetailDto());
         }, "Orders.Domain");

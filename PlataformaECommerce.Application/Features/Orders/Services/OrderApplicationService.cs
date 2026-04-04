@@ -9,8 +9,10 @@ using FluentValidation;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
+using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Application.Interfaces.Services.Orders;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -47,10 +49,12 @@ public sealed class OrderApplicationService : IOrderApplicationService
     /// </summary>
     public OrderApplicationService(
         IOrderRepository orderRepository,
+        IProductRepository productRepository,
         ICartRepository cartRepository,
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
         IAuditTrailService auditTrailService,
+        IEmailNotificationService emailNotificationService,
         IValidator<CreateOrderFromCartCommand> createOrderFromCartCommandValidator,
         IValidator<CancelOrderCommand> cancelOrderCommandValidator)
         : this(
@@ -60,10 +64,11 @@ public sealed class OrderApplicationService : IOrderApplicationService
                 userRepository,
                 unitOfWork,
                 auditTrailService,
+                emailNotificationService,
                 createOrderFromCartCommandValidator),
-            new OrderLifecycleService(orderRepository, unitOfWork, auditTrailService, cancelOrderCommandValidator),
+            new OrderLifecycleService(orderRepository, productRepository, unitOfWork, auditTrailService, cancelOrderCommandValidator),
             new OrderQueryService(orderRepository, userRepository),
-            new PaymentService(orderRepository, unitOfWork, auditTrailService))
+            new PaymentService(orderRepository, productRepository, unitOfWork, auditTrailService))
     {
     }
 

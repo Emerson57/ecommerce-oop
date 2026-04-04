@@ -14,6 +14,7 @@ public sealed class RequestPasswordResetCommandValidator : AbstractValidator<Req
     private const int UserAgentMaxLength = 512;
     private const int SourceMaxLength = 50;
     private const int ExternalReferenceMaxLength = 150;
+    private const int ResetPasswordUrlMaxLength = 2000;
 
     /// <summary>
     /// Inicializa una nueva instancia del validador.
@@ -51,6 +52,12 @@ public sealed class RequestPasswordResetCommandValidator : AbstractValidator<Req
                 .WithMessage($"La referencia externa no puede superar los {ExternalReferenceMaxLength} caracteres.")
             .Must(BeNullOrContainMeaningfulContent)
                 .WithMessage("Si se informa la referencia externa, esta no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ResetPasswordUrl)
+            .MaximumLength(ResetPasswordUrlMaxLength)
+            .WithMessage($"La URL de recuperación no puede superar los {ResetPasswordUrlMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa la URL de recuperación, esta no puede contener únicamente espacios en blanco.");
 
         RuleFor(command => command.RequestedAtUtc)
             .Must(BeNullOrUtcDate)

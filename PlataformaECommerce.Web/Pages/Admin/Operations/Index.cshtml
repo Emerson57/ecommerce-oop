@@ -1,0 +1,123 @@
+@page
+@model PlataformaECommerce.Web.Pages.Admin.Operations.IndexModel
+@{
+    ViewData["Title"] = "Operación y soporte";
+    ViewData["Subtitle"] = "Configuración del cliente activo, trazabilidad y material operativo";
+}
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-xl-7">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Cliente activo</div>
+                <h2 class="h4 fw-bold mt-2 mb-3">@Model.StorefrontName</h2>
+                <p class="text-muted mb-4">
+                    Esta instancia opera en modalidad monocliente configurable: el branding, los datos de soporte y la experiencia del backoffice
+                    se parametrizan sin introducir multi-tenant completo ni duplicar lógica de negocio.
+                </p>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Client Id</div>
+                            <div class="fw-semibold">@Model.ClientId</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Backoffice</div>
+                            <div class="fw-semibold">@Model.BackofficeName</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Ambiente</div>
+                            <div class="fw-semibold">@Model.EnvironmentName</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Versión desplegada</div>
+                            <div class="fw-semibold">@Model.ApplicationVersion</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Canales de soporte</div>
+                <h2 class="h5 fw-semibold mt-2">Atención comercial y técnica</h2>
+                <ul class="list-unstyled text-muted small mt-3 mb-0 d-grid gap-2">
+                    <li><strong>Correo:</strong> @Model.SupportEmail</li>
+                    <li><strong>Teléfono:</strong> @Model.SupportPhone</li>
+                    <li><strong>Horario:</strong> @Model.SupportHours</li>
+                    <li><strong>SLA base:</strong> @Model.SupportSla</li>
+                    <li><strong>Consulta generada:</strong> @Model.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-xl-7">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Trazabilidad</div>
+                <h2 class="h5 fw-semibold mt-2">Checklist para soporte técnico</h2>
+                <div class="rounded-4 border bg-light p-3 mt-3 mb-4">
+                    <div class="small text-muted">Header de correlación</div>
+                    <div class="fw-semibold"><code>@Model.CorrelationHeaderName</code></div>
+                    <div class="small text-muted mt-2">Id actual de la solicitud</div>
+                    <div class="fw-semibold"><code>@Model.CurrentCorrelationId</code></div>
+                </div>
+
+                <ol class="text-muted small mb-0 ps-3 d-grid gap-2">
+                    <li>Solicita al operador el <strong>Client Id</strong>, la <strong>versión</strong> y el <strong>Correlation Id</strong>.</li>
+                    <li>Filtra el módulo y la correlación en <a asp-page="/Admin/Audit/Index">Auditoría administrativa</a>.</li>
+                    <li>Confirma si el incidente impacta catálogo, usuarios, pedidos, pagos o seguridad.</li>
+                    <li>Usa los endpoints <code>/health/live</code> y <code>/health/ready</code> para validar disponibilidad antes de escalar.</li>
+                    <li>Documenta el resultado contra la versión vigente y actualiza el changelog si el incidente deriva en release.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Acciones rápidas</div>
+                <h2 class="h5 fw-semibold mt-2">Operación diaria</h2>
+                <div class="d-grid gap-2 mt-3">
+                    <a asp-page="/Admin/Index" class="btn btn-outline-primary btn-sm">Volver al dashboard</a>
+                    <a asp-page="/Admin/Audit/Index" class="btn btn-outline-dark btn-sm">Abrir auditoría</a>
+                    <a href="/health/live" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener">Health live</a>
+                    <a href="/health/ready" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener">Health ready</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card admin-summary-card border-0">
+    <div class="card-body p-4">
+        <div class="admin-muted-label">Documentación operativa</div>
+        <h2 class="h5 fw-semibold mt-2">Manuales disponibles en el repositorio</h2>
+        <div class="row g-3 mt-1">
+            @foreach (var document in Model.SupportDocuments)
+            {
+                <div class="col-md-6 col-xl-3">
+                    <div class="rounded-4 border bg-light p-3 h-100">
+                        <div class="fw-semibold">@document.Title</div>
+                        <div class="small text-muted mt-2">@document.Description</div>
+                        <div class="small mt-3"><code>@document.RepositoryPath</code></div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using PlataformaECommerce.Application.Common.Results;
-using PlataformaECommerce.Application.Features.Products.Commands;
-using PlataformaECommerce.Application.Features.Products.DTOs;
-using PlataformaECommerce.Application.Features.Products.Queries;
-using PlataformaECommerce.Application.Interfaces.Services.Products;
+using PlataformaECommerce.Application.Features.Catalog.DTOs;
+using PlataformaECommerce.Application.Features.Catalog.Queries;
+using PlataformaECommerce.Application.Interfaces.Services.Catalog;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Pages.Catalog;
 
@@ -16,12 +16,12 @@ public class CatalogIndexPageModelTests
     [Test]
     public async Task OnGetAsync_ProductoConGaleria_ProyectaImagenesComplementariasEnCatalogo()
     {
-        FakeProductQueryService productApplicationService = new(
-            new ProductQueryResultDto
+        FakeCatalogApplicationService catalogApplicationService = new(
+            new CatalogQueryResultDto
             {
                 Items =
                 [
-                    new ProductDto
+                    new CatalogProductDto
                     {
                         Id = Guid.NewGuid(),
                         Name = "Teclado mecánico",
@@ -29,13 +29,13 @@ public class CatalogIndexPageModelTests
                         Sku = "CAT-100",
                         Slug = "teclado-mecanico",
                         Price = 199900m,
-                        BasePrice = 199900m,
                         Currency = "COP",
-                        Stock = 5,
+                        AvailableStock = 5,
                         IsActive = true,
+                        IsAvailable = true,
                         ProductType = TipoProducto.Fisico,
                         MainImageUrl = "https://cdn.novashop.com/products/teclado-main.webp",
-                        ImageGallery =
+                        ImageUrls =
                         [
                             "https://cdn.novashop.com/products/teclado-side.webp",
                             "/images/products/teclado-box.webp"
@@ -45,11 +45,11 @@ public class CatalogIndexPageModelTests
                 TotalCount = 1,
                 ReturnedCount = 1,
                 PageNumber = 1,
-                PageSize = 20,
+                PageSize = 12,
                 TotalPages = 1
             });
 
-        IndexModel pageModel = CreatePageModel(productApplicationService);
+        IndexModel pageModel = CreatePageModel(catalogApplicationService);
 
         await pageModel.OnGetAsync(CancellationToken.None);
 
@@ -62,42 +62,109 @@ public class CatalogIndexPageModelTests
     }
 
     [Test]
-    public async Task OnGetAsync_ConCategoryId_EnviaFiltroDeCategoriaAlServicio()
+    public async Task OnGetAsync_ConCategoryName_EnviaFiltroDeCategoriaAlServicio()
     {
-        FakeProductQueryService productApplicationService = new(new ProductQueryResultDto());
-        IndexModel pageModel = CreatePageModel(productApplicationService);
-        Guid categoryId = Guid.NewGuid();
-        pageModel.CategoryId = categoryId;
+        FakeCatalogApplicationService catalogApplicationService = new(new CatalogQueryResultDto());
+        IndexModel pageModel = CreatePageModel(catalogApplicationService);
+        pageModel.CategoryName = "Tecnología";
 
         await pageModel.OnGetAsync(CancellationToken.None);
 
-        Assert.That(productApplicationService.LastQuery?.CategoryId, Is.EqualTo(categoryId));
+        Assert.That(catalogApplicationService.LastQuery?.CategoryName, Is.EqualTo("Tecnología"));
     }
 
-    private static IndexModel CreatePageModel(FakeProductQueryService productApplicationService)
+    [Test]
+    public async Task OnGetAsync_ResultadoPaginado_ProyectaMetadatosDeNavegacion()
     {
-        IndexModel pageModel = new(productApplicationService)
+        FakeCatalogApplicationService catalogApplicationService = new(new CatalogQueryResultDto
+        {
+            TotalCount = 30,
+            ReturnedCount = 12,
+            PageNumber = 2,
+            PageSize = 12,
+            TotalPages = 3,
+            HasPreviousPage = true,
+            HasNextPage = true
+        });
+        IndexModel pageModel = CreatePageModel(catalogApplicationService);
+        pageModel.PageNumber = 2;
+        pageModel.PageSize = 12;
+
+        await pageModel.OnGetAsync(CancellationToken.None);
+
+        Assert.That(pageModel.TotalPages, Is.EqualTo(3));
+        Assert.That(pageModel.HasPreviousPage, Is.True);
+        Assert.That(pageModel.HasNextPage, Is.True);
+    }
+
+    [Test]
+    public void BuildPageUrl_ConFiltros_ConservaEstadoDeConsulta()
+    {
+        FakeCatalogApplicationService catalogApplicationService = new(new CatalogQueryResultDto());
+        IndexModel pageModel = CreatePageModel(catalogApplicationService);
+        pageModel.SearchTerm = "teclado";
+        pageModel.Brand = "Nova";
+        pageModel.PageSize = 24;
+
+        string url = pageModel.BuildPageUrl(3);
+
+        Assert.That(url, Does.Contain("pageNumber=3"));
+        Assert.That(url, Does.Contain("pageSize=24"));
+        Assert.That(url, Does.Contain("searchTerm=teclado"));
+    }
+
+    private static IndexModel CreatePageModel(FakeCatalogApplicationService catalogApplicationService)
+    {
+        DefaultHttpContext httpContext = new();
+        IndexModel pageModel = new(catalogApplicationService)
         {
             PageContext = new PageContext
             {
-                HttpContext = new DefaultHttpContext()
-            }
+                HttpContext = httpContext
+            },
+            Url = new FakeUrlHelper()
         };
 
+        pageModel.TempData = new TempDataDictionary(httpContext, new FakeTempDataProvider());
         return pageModel;
     }
 
-    private sealed class FakeProductQueryService(ProductQueryResultDto queryResult) : IProductQueryService
+    private sealed class FakeCatalogApplicationService(CatalogQueryResultDto queryResult) : ICatalogApplicationService
     {
-        public GetProductsQuery? LastQuery { get; private set; }
+        public GetCatalogProductsQuery? LastQuery { get; private set; }
 
-        public Task<Result<ProductDetailDto>> GetProductByIdAsync(GetProductByIdQuery query, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
-
-        public Task<Result<ProductQueryResultDto>> GetProductsAsync(GetProductsQuery query, CancellationToken cancellationToken = default)
+        public Task<Result<CatalogQueryResultDto>> GetCatalogProductsAsync(GetCatalogProductsQuery query, CancellationToken cancellationToken = default)
         {
             LastQuery = query;
             return Task.FromResult(Result.Success(queryResult));
         }
+
+        public Task<Result<IReadOnlyCollection<FeaturedProductDto>>> GetFeaturedProductsAsync(GetFeaturedProductsQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class FakeUrlHelper : Microsoft.AspNetCore.Mvc.IUrlHelper
+    {
+        public Microsoft.AspNetCore.Mvc.ActionContext ActionContext { get; } = new();
+
+        public string? Action(Microsoft.AspNetCore.Mvc.Routing.UrlActionContext actionContext) => null;
+        public string? Content(string? contentPath) => contentPath;
+        public bool IsLocalUrl(string? url) => !string.IsNullOrWhiteSpace(url) && url.StartsWith("/", StringComparison.Ordinal);
+        public string? Link(string? routeName, object? values) => null;
+
+        public string? RouteUrl(Microsoft.AspNetCore.Mvc.Routing.UrlRouteContext routeContext)
+        {
+            Microsoft.AspNetCore.Routing.RouteValueDictionary routeValues = new(routeContext.Values);
+            return "/Catalog/Index?"
+                + string.Join("&", routeValues
+                    .Where(kvp => kvp.Value is not null)
+                    .Select(kvp => $"{kvp.Key}={Uri.EscapeDataString(kvp.Value!.ToString()!)}"));
+        }
+    }
+
+    private sealed class FakeTempDataProvider : ITempDataProvider
+    {
+        public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();
+        public void SaveTempData(HttpContext context, IDictionary<string, object> values) { }
     }
 }

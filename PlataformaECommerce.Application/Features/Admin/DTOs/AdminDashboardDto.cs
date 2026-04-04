@@ -365,6 +365,16 @@ public sealed class AdminDashboardDto
             ? 0m
             : decimal.Round(OrdersAmountInWindow / NewOrdersInWindow, 2, MidpointRounding.AwayFromZero);
 
+    /// <summary>
+    /// Obtiene la cantidad de usuarios pendientes de confirmar correo electrónico.
+    /// </summary>
+    public int PendingEmailConfirmationUsers => Math.Max(0, TotalUsers - EmailConfirmedUsers);
+
+    /// <summary>
+    /// Obtiene la cantidad de pedidos que siguen requiriendo seguimiento operativo activo.
+    /// </summary>
+    public int OrdersRequiringAttention => PendingOrders + ConfirmedOrders + PaidOrders + ProcessingOrders + ShippedOrders;
+
     #endregion
 
     #region Representación textual

@@ -18,7 +18,7 @@ public interface ICatalogApplicationService
     /// <summary>
     /// Obtiene la colección de productos del catálogo aplicando filtros y paginación.
     /// </summary>
-    Task<Result<IReadOnlyCollection<CatalogProductDto>>> GetCatalogProductsAsync(
+    Task<Result<CatalogQueryResultDto>> GetCatalogProductsAsync(
         GetCatalogProductsQuery query,
         CancellationToken cancellationToken = default);
 

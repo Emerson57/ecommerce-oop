@@ -119,6 +119,11 @@ public sealed class RegisterCustomerCommand
     /// </remarks>
     public string? ExternalReference { get; init; }
 
+    /// <summary>
+    /// URL absoluta base que se utilizará para confirmar el correo del nuevo usuario.
+    /// </summary>
+    public string? EmailConfirmationUrl { get; init; }
+
     #endregion
 
     #region Representación textual

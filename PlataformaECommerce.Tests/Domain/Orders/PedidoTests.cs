@@ -38,6 +38,24 @@ public class PedidoTests
     }
 
     [Test]
+    public void SeleccionarMetodoPago_Tarjeta_ActualizaMetodoSeleccionado()
+    {
+        Pedido pedido = CrearPedidoConDetalle();
+
+        pedido.SeleccionarMetodoPago(MetodoPagoPedido.Tarjeta);
+
+        Assert.That(pedido.MetodoPagoSeleccionado, Is.EqualTo(MetodoPagoPedido.Tarjeta));
+    }
+
+    [Test]
+    public void SeleccionarMetodoPago_ContraEntregaConProductoDigital_LanzaDomainException()
+    {
+        Pedido pedido = CrearPedidoConDetalle(TipoProducto.Digital);
+
+        Assert.Throws<DomainException>(() => pedido.SeleccionarMetodoPago(MetodoPagoPedido.ContraEntrega));
+    }
+
+    [Test]
     public void ContieneProductosFisicos_ConDetalleFisico_RetornaTrue()
     {
         Pedido pedido = CrearPedidoConDetalle(TipoProducto.Fisico);

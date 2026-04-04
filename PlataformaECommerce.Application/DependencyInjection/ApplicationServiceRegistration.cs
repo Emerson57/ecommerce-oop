@@ -90,6 +90,7 @@ public static class ApplicationServiceRegistration
         services.AddScoped<IOrderLifecycleService, OrderLifecycleService>();
         services.AddScoped<IOrderQueryService, OrderQueryService>();
         services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IOrderPaymentCheckoutService, OrderPaymentCheckoutService>();
         services.AddScoped<IOrderApplicationService>(serviceProvider =>
             new OrderApplicationService(
                 serviceProvider.GetRequiredService<IOrderCreationService>(),

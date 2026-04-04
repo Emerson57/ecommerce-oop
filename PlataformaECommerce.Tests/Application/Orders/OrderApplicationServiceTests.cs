@@ -1,12 +1,15 @@
+using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.Commands;
 using PlataformaECommerce.Application.Features.Orders.Services;
 using PlataformaECommerce.Application.Features.Orders.Validators;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Cart;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
+using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Common.Notifications;
 using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Domain.Entities.Orders;
 using PlataformaECommerce.Domain.Entities.Products;
@@ -27,10 +30,12 @@ public class OrderApplicationServiceTests
         FakeAuditTrailService auditTrailService = new();
         OrderApplicationService service = new(
             new FakeOrderRepository(),
+            new FakeProductRepository(),
             new FakeCartRepository(cart),
             new FakeUserRepository(customer),
             new FakeUnitOfWork(),
             auditTrailService,
+            new FakeEmailNotificationService(),
             new CreateOrderFromCartCommandValidator(),
             new CancelOrderCommandValidator());
 
@@ -38,10 +43,57 @@ public class OrderApplicationServiceTests
         {
             CartId = cart.Id,
             CustomerId = customer.Id,
+            PaymentMethod = MetodoPagoPedido.ContraEntrega,
+            ShippingStreet = "Calle 123",
+            ShippingCity = "Bogotá",
+            ShippingRegion = "Cundinamarca",
+            ShippingCountry = "Colombia",
+            ShippingPostalCode = "110111",
             RequestedAtUtc = DateTime.UtcNow
         });
 
-        Assert.That(auditTrailService.RegisteredEvents.Count, Is.EqualTo(1));
+        Assert.That(auditTrailService.RegisteredEvents, Does.Contain("order.created"));
+        Assert.That(auditTrailService.RegisteredEvents, Does.Contain("order.confirmation-email.sent"));
+    }
+
+    private sealed class FakeProductRepository : IProductRepository
+    {
+        public Task<IReadOnlyCollection<Producto>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyCollection<Producto>>(Array.Empty<Producto>());
+
+        public Task<Producto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Producto?>(null);
+
+        public Task<Producto?> GetBySkuAsync(string sku, CancellationToken cancellationToken = default)
+            => Task.FromResult<Producto?>(null);
+
+        public Task<IReadOnlyCollection<Producto>> GetActiveProductsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyCollection<Producto>>(Array.Empty<Producto>());
+
+        public Task<IReadOnlyCollection<Producto>> GetFeaturedProductsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyCollection<Producto>>(Array.Empty<Producto>());
+
+        public Task<bool> ExistsByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> ExistsBySkuAsync(string sku, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task AddAsync(Producto producto, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task UpdateAsync(Producto producto, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RemoveAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakeEmailNotificationService : IEmailNotificationService
+    {
+        public Task<Result> SendAccountEmailConfirmationAsync(AccountEmailConfirmationNotification notification, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Success());
+
+        public Task<Result> SendPasswordResetEmailAsync(PasswordResetEmailNotification notification, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Success());
+
+        public Task<Result> SendOrderConfirmationEmailAsync(OrderConfirmationEmailNotification notification, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Success());
     }
 
     private static CarritoCompra CreateCart(Guid customerId)

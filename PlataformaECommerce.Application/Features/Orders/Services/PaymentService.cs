@@ -5,9 +5,11 @@ using PlataformaECommerce.Application.Features.Orders.DTOs;
 using PlataformaECommerce.Application.Features.Orders.Mappings;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
+using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Orders;
 using PlataformaECommerce.Domain.Entities.Orders;
+using PlataformaECommerce.Domain.Entities.Products;
 
 namespace PlataformaECommerce.Application.Features.Orders.Services;
 
@@ -17,6 +19,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Services;
 public sealed class PaymentService : IPaymentService
 {
     private readonly IOrderRepository _orderRepository;
+    private readonly IProductRepository _productRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuditTrailService _auditTrailService;
 
@@ -25,10 +28,12 @@ public sealed class PaymentService : IPaymentService
     /// </summary>
     public PaymentService(
         IOrderRepository orderRepository,
+        IProductRepository productRepository,
         IUnitOfWork unitOfWork,
         IAuditTrailService auditTrailService)
     {
         _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
+        _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
     }
@@ -71,10 +76,32 @@ public sealed class PaymentService : IPaymentService
                         $"El valor pagado '{command.Amount:N2}' no coincide con el total del pedido '{order.Total.Amount:N2}'."));
             }
 
-            order.RegistrarPago();
+            IReadOnlyDictionary<Guid, int> orderedProductQuantities = OrderServiceSupport.BuildOrderedProductQuantities(order);
+            List<Producto> productsToUpdate = await GetProductsForStockAdjustmentAsync(orderedProductQuantities, cancellationToken);
 
-            await _orderRepository.UpdateAsync(order, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                foreach (Producto product in productsToUpdate)
+                {
+                    int orderedQuantity = orderedProductQuantities[product.Id];
+                    product.DisminuirStock(orderedQuantity);
+                    await _productRepository.UpdateAsync(product, cancellationToken);
+                }
+
+                order.RegistrarPago();
+
+                await _orderRepository.UpdateAsync(order, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
             await OrderServiceSupport.AuditOrderEventAsync(
                 _auditTrailService,
                 order,
@@ -86,11 +113,51 @@ public sealed class PaymentService : IPaymentService
                     ["paymentMethod"] = command.PaymentMethod.Trim(),
                     ["amount"] = command.Amount.ToString(CultureInfo.InvariantCulture),
                     ["currency"] = command.Currency.Trim().ToUpperInvariant(),
-                    ["status"] = order.Estado.ToString()
+                    ["status"] = order.Estado.ToString(),
+                    ["adjustedStockProducts"] = productsToUpdate.Count.ToString(CultureInfo.InvariantCulture)
                 },
                 cancellationToken);
 
+            foreach (Producto product in productsToUpdate)
+            {
+                int orderedQuantity = orderedProductQuantities[product.Id];
+                await _auditTrailService.RegisterAsync(
+                    product.Id,
+                    nameof(Producto),
+                    "Products",
+                    "product.stock.decreased.for-order-payment",
+                    $"Se descontó inventario del producto '{product.Sku.Value}' por el pago del pedido '{order.Id}'.",
+                    new Dictionary<string, string>
+                    {
+                        ["orderId"] = order.Id.ToString(),
+                        ["quantity"] = orderedQuantity.ToString(CultureInfo.InvariantCulture),
+                        ["resultingStock"] = product.Stock.ToString(CultureInfo.InvariantCulture),
+                        ["sku"] = product.Sku.Value
+                    },
+                    cancellationToken);
+            }
+
             return Result.Success(order.ToOrderDetailDto());
         }, "Orders.Domain");
+    }
+
+    private async Task<List<Producto>> GetProductsForStockAdjustmentAsync(
+        IReadOnlyDictionary<Guid, int> orderedProductQuantities,
+        CancellationToken cancellationToken)
+    {
+        List<Producto> products = [];
+
+        foreach (KeyValuePair<Guid, int> orderedProduct in orderedProductQuantities)
+        {
+            Producto? product = await _productRepository.GetByIdAsync(orderedProduct.Key, cancellationToken);
+            if (product is null)
+            {
+                throw new InvalidOperationException($"No se encontró el producto '{orderedProduct.Key}' requerido para registrar el pago del pedido.");
+            }
+
+            products.Add(product);
+        }
+
+        return products;
     }
 }

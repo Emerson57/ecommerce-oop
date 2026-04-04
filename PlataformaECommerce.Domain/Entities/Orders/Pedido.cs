@@ -183,6 +183,11 @@ public sealed class Pedido : AggregateRoot
     /// </summary>
     public DireccionEnvio? DireccionEnvio { get; private set; }
 
+    /// <summary>
+    /// Método de pago seleccionado durante el checkout comercial.
+    /// </summary>
+    public MetodoPagoPedido? MetodoPagoSeleccionado { get; private set; }
+
     #endregion
 
     #region Métodos de negocio
@@ -347,6 +352,21 @@ public sealed class Pedido : AggregateRoot
         ArgumentNullException.ThrowIfNull(direccionEnvio);
 
         DireccionEnvio = direccionEnvio;
+        MarcarActualizacion();
+    }
+
+    /// <summary>
+    /// Selecciona el método de pago operativo del pedido.
+    /// </summary>
+    /// <param name="metodoPago">Método de pago elegido por el cliente.</param>
+    public void SeleccionarMetodoPago(MetodoPagoPedido metodoPago)
+    {
+        if (metodoPago == MetodoPagoPedido.ContraEntrega && ContieneProductosDigitales())
+        {
+            throw new DomainException("No es posible usar contra entrega en pedidos que contienen productos digitales.");
+        }
+
+        MetodoPagoSeleccionado = metodoPago;
         MarcarActualizacion();
     }
 

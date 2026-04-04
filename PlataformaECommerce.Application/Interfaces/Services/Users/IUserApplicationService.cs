@@ -38,6 +38,13 @@ public interface IUserApplicationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Reenvía el correo de confirmación para una cuenta no confirmada.
+    /// </summary>
+    Task<Result> ResendUserEmailConfirmationAsync(
+        ResendUserEmailConfirmationCommand command,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Activa un usuario existente dentro del sistema.
     /// </summary>
     Task<Result<UserDto>> ActivateUserAsync(

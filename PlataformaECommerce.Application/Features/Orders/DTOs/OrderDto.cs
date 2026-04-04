@@ -129,6 +129,11 @@ public sealed class OrderDto
     /// </summary>
     public string? CancellationReason { get; init; }
 
+    /// <summary>
+    /// Método de pago seleccionado durante el checkout.
+    /// </summary>
+    public MetodoPagoPedido? PaymentMethod { get; init; }
+
     #endregion
 
     #region Propiedades calculadas

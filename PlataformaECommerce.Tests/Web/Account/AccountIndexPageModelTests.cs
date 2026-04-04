@@ -218,6 +218,9 @@ public class AccountIndexPageModelTests
         public Task<Result<UserDto>> ConfirmUserEmailAsync(ConfirmUserEmailCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public Task<Result> ResendUserEmailConfirmationAsync(ResendUserEmailConfirmationCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
         public Task<Result<UserDto>> ActivateUserAsync(ActivateUserCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

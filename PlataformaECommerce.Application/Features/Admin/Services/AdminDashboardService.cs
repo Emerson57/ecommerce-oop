@@ -147,7 +147,9 @@ public sealed class AdminDashboardService : IAdminDashboardService
                             Module = entry.Module,
                             Action = entry.Action,
                             Detail = entry.Detail,
-                            PerformedBy = entry.PerformedBy
+                            PerformedBy = entry.PerformedBy,
+                            CorrelationId = entry.CorrelationId,
+                            Source = entry.Source
                         })
                         .ToArray()
                     : Array.Empty<AdminDashboardRecentActivityDto>()

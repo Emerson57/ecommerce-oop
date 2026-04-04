@@ -65,6 +65,16 @@ namespace PlataformaECommerce.Web.Pages.Auth
         public string? StatusMessage { get; set; }
 
         /// <summary>
+        /// Indica si la interfaz debe ofrecer el reenvío de confirmación de correo.
+        /// </summary>
+        public bool CanResendEmailConfirmation { get; private set; }
+
+        /// <summary>
+        /// Correo electrónico asociado a una cuenta pendiente de confirmación.
+        /// </summary>
+        public string? PendingEmailConfirmationAddress { get; private set; }
+
+        /// <summary>
         /// Inicializa la página de autenticación.
         /// </summary>
         public void OnGet()
@@ -95,6 +105,8 @@ namespace PlataformaECommerce.Web.Pages.Auth
                     HttpContext.Connection.RemoteIpAddress?.ToString(),
                     result.Error.Code);
 
+                CanResendEmailConfirmation = string.Equals(result.Error.Code, "Auth.EmailNotConfirmed", StringComparison.Ordinal);
+                PendingEmailConfirmationAddress = CanResendEmailConfirmation ? Input.Email?.Trim() : null;
                 ErrorMessage = "El correo electrónico o la contraseña no son válidos, o la cuenta no está habilitada.";
                 return Page();
             }

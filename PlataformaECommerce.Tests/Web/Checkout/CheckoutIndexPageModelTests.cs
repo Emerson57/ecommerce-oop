@@ -36,21 +36,57 @@ public class CheckoutIndexPageModelTests
     }
 
     [Test]
-    public async Task OnPostPlaceOrderAsync_Confirmado_RedireccionaADetallePedido()
+    public async Task OnPostPlaceOrderAsync_ConfirmadoConPagoEnLinea_RedireccionaAInicioDePago()
     {
         FakeCartApplicationService cartApplicationService = new();
         FakeOrderCreationService orderApplicationService = new();
         IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
         pageModel.Input = new IndexModel.CheckoutInputModel
         {
+            PaymentMethod = MetodoPagoPedido.Tarjeta,
+            ShippingStreet = "Calle 123 #45-67",
+            ShippingCity = "Bogotá",
+            ShippingRegion = "Cundinamarca",
+            ShippingCountry = "Colombia",
+            ShippingPostalCode = "110111",
             ConfirmOrderCreation = true,
             Notes = "Entrega prioritaria"
         };
 
         IActionResult result = await pageModel.OnPostPlaceOrderAsync(CancellationToken.None);
 
-        Assert.That(result, Is.TypeOf<RedirectToPageResult>());
+        RedirectToPageResult redirectResult = result as RedirectToPageResult
+            ?? throw new AssertionException("Se esperaba una redirección a Razor Page.");
+
+        Assert.That(redirectResult.PageName, Is.EqualTo("/Payments/Start"));
         Assert.That(orderApplicationService.LastCreateOrderCommand?.Notes, Is.EqualTo("Entrega prioritaria"));
+        Assert.That(orderApplicationService.LastCreateOrderCommand?.PaymentMethod, Is.EqualTo(MetodoPagoPedido.Tarjeta));
+        Assert.That(orderApplicationService.LastCreateOrderCommand?.ShippingCity, Is.EqualTo("Bogotá"));
+    }
+
+    [Test]
+    public async Task OnPostPlaceOrderAsync_ContraEntrega_RedireccionaADetallePedido()
+    {
+        FakeCartApplicationService cartApplicationService = new();
+        FakeOrderCreationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
+        pageModel.Input = new IndexModel.CheckoutInputModel
+        {
+            PaymentMethod = MetodoPagoPedido.ContraEntrega,
+            ShippingStreet = "Calle 123 #45-67",
+            ShippingCity = "Bogotá",
+            ShippingRegion = "Cundinamarca",
+            ShippingCountry = "Colombia",
+            ShippingPostalCode = "110111",
+            ConfirmOrderCreation = true
+        };
+
+        IActionResult result = await pageModel.OnPostPlaceOrderAsync(CancellationToken.None);
+
+        RedirectToPageResult redirectResult = result as RedirectToPageResult
+            ?? throw new AssertionException("Se esperaba una redirección a Razor Page.");
+
+        Assert.That(redirectResult.PageName, Is.EqualTo("/Orders/Details"));
     }
 
     [Test]
@@ -61,6 +97,7 @@ public class CheckoutIndexPageModelTests
         IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
         pageModel.Input = new IndexModel.CheckoutInputModel
         {
+            PaymentMethod = MetodoPagoPedido.Tarjeta,
             ConfirmOrderCreation = false,
             Notes = "Entrega prioritaria"
         };
@@ -70,6 +107,26 @@ public class CheckoutIndexPageModelTests
         Assert.That(result, Is.TypeOf<PageResult>());
         Assert.That(orderApplicationService.LastCreateOrderCommand, Is.Null);
         Assert.That(pageModel.ModelState[$"{nameof(IndexModel.Input)}.{nameof(IndexModel.CheckoutInputModel.ConfirmOrderCreation)}"]?.Errors, Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public async Task OnPostPlaceOrderAsync_CarritoFisicoSinDireccion_RetornaPaginaYNoCreaPedido()
+    {
+        FakeCartApplicationService cartApplicationService = new();
+        FakeOrderCreationService orderApplicationService = new();
+        IndexModel pageModel = CreatePageModel(cartApplicationService, orderApplicationService, Guid.NewGuid());
+        pageModel.Input = new IndexModel.CheckoutInputModel
+        {
+            PaymentMethod = MetodoPagoPedido.Tarjeta,
+            ConfirmOrderCreation = true,
+            Notes = "Entrega estándar"
+        };
+
+        IActionResult result = await pageModel.OnPostPlaceOrderAsync(CancellationToken.None);
+
+        Assert.That(result, Is.TypeOf<PageResult>());
+        Assert.That(orderApplicationService.LastCreateOrderCommand, Is.Null);
+        Assert.That(pageModel.ModelState[$"{nameof(IndexModel.Input)}.{nameof(IndexModel.CheckoutInputModel.ShippingStreet)}"]?.Errors, Has.Count.EqualTo(1));
     }
 
     private static IndexModel CreatePageModel(

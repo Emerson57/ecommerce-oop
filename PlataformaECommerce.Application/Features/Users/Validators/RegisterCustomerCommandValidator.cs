@@ -156,6 +156,10 @@ public sealed class RegisterCustomerCommandValidator : AbstractValidator<Registe
         RuleFor(x => x.ExternalReference)
             .MaximumLength(CustomerRegistrationPolicies.MaxExternalReferenceLength)
                 .WithMessage($"La referencia externa no puede superar los {CustomerRegistrationPolicies.MaxExternalReferenceLength} caracteres.");
+
+        RuleFor(x => x.EmailConfirmationUrl)
+            .MaximumLength(2000)
+                .WithMessage("La URL de confirmación de correo supera la longitud permitida.");
     }
 
     #endregion

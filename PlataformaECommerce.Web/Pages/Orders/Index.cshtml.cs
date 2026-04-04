@@ -119,7 +119,8 @@ public sealed class IndexModel : PageModel
             CreatedAtUtc = order.CreatedAtUtc,
             UpdatedAtUtc = order.UpdatedAtUtc,
             IsFinalized = order.IsFinalized,
-            StatusLabel = ResolveStatusLabel(order.Status)
+            StatusLabel = ResolveStatusLabel(order.Status),
+            PaymentMethod = order.PaymentMethod
         };
     }
 
@@ -153,5 +154,7 @@ public sealed class IndexModel : PageModel
         public DateTime CreatedAtUtc { get; init; }
         public DateTime? UpdatedAtUtc { get; init; }
         public bool IsFinalized { get; init; }
+        public MetodoPagoPedido? PaymentMethod { get; init; }
+        public bool CanStartOnlinePayment => Status == EstadoPedido.Confirmado && PaymentMethod is MetodoPagoPedido.Tarjeta or MetodoPagoPedido.Pse or MetodoPagoPedido.TransferenciaBancaria;
     }
 }

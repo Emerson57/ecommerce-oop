@@ -8,6 +8,8 @@ using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Common.Notifications;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -41,7 +43,8 @@ public class AuthApplicationServiceTests
             new ChangePasswordCommandValidator(),
             new ResetPasswordCommandValidator(),
             new FakePasswordResetTokenService(),
-            new FakeAuditTrailService());
+            new FakeAuditTrailService(),
+            new FakeEmailNotificationService());
 
         Result<AuthResponseDto> result = await service.LoginAsync(new LoginCommand
         {
@@ -79,7 +82,8 @@ public class AuthApplicationServiceTests
             new ChangePasswordCommandValidator(),
             new ResetPasswordCommandValidator(),
             new FakePasswordResetTokenService(),
-            new FakeAuditTrailService());
+            new FakeAuditTrailService(),
+            new FakeEmailNotificationService());
 
         Result<AuthResponseDto> result = await service.LoginAsync(new LoginCommand
         {
@@ -103,6 +107,7 @@ public class AuthApplicationServiceTests
         await userRepository.AddAsync(customer);
         FakeUnitOfWork unitOfWork = new();
         FakeAuditTrailService auditTrailService = new();
+        FakeEmailNotificationService emailNotificationService = new();
 
         AuthApplicationService service = new(
             userRepository,
@@ -114,7 +119,8 @@ public class AuthApplicationServiceTests
             new ChangePasswordCommandValidator(),
             new ResetPasswordCommandValidator(),
             new FakePasswordResetTokenService(),
-            auditTrailService);
+            auditTrailService,
+            emailNotificationService);
 
         Result result = await service.ChangePasswordAsync(new ChangePasswordCommand
         {
@@ -152,7 +158,8 @@ public class AuthApplicationServiceTests
             new ChangePasswordCommandValidator(),
             new ResetPasswordCommandValidator(),
             new FakePasswordResetTokenService(),
-            new FakeAuditTrailService());
+            new FakeAuditTrailService(),
+            new FakeEmailNotificationService());
 
         Result result = await service.ChangePasswordAsync(new ChangePasswordCommand
         {
@@ -165,6 +172,44 @@ public class AuthApplicationServiceTests
 
         Assert.That(result.IsFailure, Is.True);
         Assert.That(result.Error.Code, Is.EqualTo("Auth.InvalidCurrentPassword"));
+    }
+
+    [Test]
+    public async Task RequestPasswordResetAsync_UsuarioHabilitado_EnviaCorreoDeRecuperacion()
+    {
+        FakeUserRepository userRepository = new();
+        Cliente customer = new(
+            "Cliente Seguro",
+            new Email("cliente.seguro@plataforma.com"),
+            FakePasswordHasher.Hash("Password#2026"));
+        customer.ConfirmarCorreoElectronico();
+        await userRepository.AddAsync(customer);
+        FakeEmailNotificationService emailNotificationService = new();
+
+        AuthApplicationService service = new(
+            userRepository,
+            new FakePasswordHasher(),
+            new FakeTokenService(),
+            new FakeUnitOfWork(),
+            new LoginCommandValidator(),
+            new RequestPasswordResetCommandValidator(),
+            new ChangePasswordCommandValidator(),
+            new ResetPasswordCommandValidator(),
+            new FakePasswordResetTokenService(),
+            new FakeAuditTrailService(),
+            emailNotificationService);
+
+        Result<PasswordResetRequestResultDto> result = await service.RequestPasswordResetAsync(new RequestPasswordResetCommand
+        {
+            Email = customer.CorreoElectronico.Value,
+            ResetPasswordUrl = "https://shop.example.com/Auth/ResetPassword?userId={userId}&token={token}",
+            Source = "Tests.Auth.ForgotPassword",
+            RequestedAtUtc = DateTime.UtcNow
+        });
+
+        Assert.That(result.IsSuccess, Is.True);
+        Assert.That(emailNotificationService.LastPasswordResetNotification?.ToEmail, Is.EqualTo(customer.CorreoElectronico.Value));
+        Assert.That(emailNotificationService.LastPasswordResetNotification?.ResetUrl, Does.Contain(customer.Id.ToString()));
     }
 
     private sealed class FakeUserRepository : IUserRepository
@@ -302,5 +347,22 @@ public class AuthApplicationServiceTests
             RegisteredActions.Add(action);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeEmailNotificationService : IEmailNotificationService
+    {
+        public PasswordResetEmailNotification? LastPasswordResetNotification { get; private set; }
+
+        public Task<Result> SendAccountEmailConfirmationAsync(AccountEmailConfirmationNotification notification, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Success());
+
+        public Task<Result> SendPasswordResetEmailAsync(PasswordResetEmailNotification notification, CancellationToken cancellationToken = default)
+        {
+            LastPasswordResetNotification = notification;
+            return Task.FromResult(Result.Success());
+        }
+
+        public Task<Result> SendOrderConfirmationEmailAsync(OrderConfirmationEmailNotification notification, CancellationToken cancellationToken = default)
+            => Task.FromResult(Result.Success());
     }
 }

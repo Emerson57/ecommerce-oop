@@ -12,6 +12,7 @@ using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Application.Interfaces.Services.Users;
 using PlataformaECommerce.Application.Features.Users.Mappings;
+using PlataformaECommerce.Application.Common.Notifications;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.ValueObjects;
 
@@ -38,6 +39,8 @@ namespace PlataformaECommerce.Application.Features.Users.Services;
 /// </remarks>
 public sealed class UserApplicationService : IUserApplicationService
 {
+    private static readonly TimeSpan EmailConfirmationTokenLifetime = TimeSpan.FromHours(24);
+
     #region Campos privados
 
     /// <summary>
@@ -59,9 +62,12 @@ public sealed class UserApplicationService : IUserApplicationService
     /// Servicio transversal de auditoría.
     /// </summary>
     private readonly IAuditTrailService _auditTrailService;
+    private readonly IEmailConfirmationTokenService _emailConfirmationTokenService;
+    private readonly IEmailNotificationService _emailNotificationService;
 
     private readonly IValidator<RegisterCustomerCommand> _registerCustomerCommandValidator;
     private readonly IValidator<UpdateUserBasicDataCommand> _updateUserBasicDataCommandValidator;
+    private readonly IValidator<ResendUserEmailConfirmationCommand> _resendUserEmailConfirmationCommandValidator;
 
     #endregion
 
@@ -79,15 +85,21 @@ public sealed class UserApplicationService : IUserApplicationService
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
         IAuditTrailService auditTrailService,
+        IEmailConfirmationTokenService emailConfirmationTokenService,
+        IEmailNotificationService emailNotificationService,
         IValidator<RegisterCustomerCommand> registerCustomerCommandValidator,
-        IValidator<UpdateUserBasicDataCommand> updateUserBasicDataCommandValidator)
+        IValidator<UpdateUserBasicDataCommand> updateUserBasicDataCommandValidator,
+        IValidator<ResendUserEmailConfirmationCommand> resendUserEmailConfirmationCommandValidator)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
         _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
+        _emailConfirmationTokenService = emailConfirmationTokenService ?? throw new ArgumentNullException(nameof(emailConfirmationTokenService));
+        _emailNotificationService = emailNotificationService ?? throw new ArgumentNullException(nameof(emailNotificationService));
         _registerCustomerCommandValidator = registerCustomerCommandValidator ?? throw new ArgumentNullException(nameof(registerCustomerCommandValidator));
         _updateUserBasicDataCommandValidator = updateUserBasicDataCommandValidator ?? throw new ArgumentNullException(nameof(updateUserBasicDataCommandValidator));
+        _resendUserEmailConfirmationCommandValidator = resendUserEmailConfirmationCommandValidator ?? throw new ArgumentNullException(nameof(resendUserEmailConfirmationCommandValidator));
     }
 
     #endregion
@@ -132,6 +144,12 @@ public sealed class UserApplicationService : IUserApplicationService
                 email,
                 passwordHash);
 
+            if (string.IsNullOrWhiteSpace(command.EmailConfirmationUrl))
+            {
+                return Result.Failure<CustomerDto>(
+                    Error.Validation("Users.EmailConfirmationUrlRequired", "La URL de confirmación de correo es obligatoria para completar el registro."));
+            }
+
             foreach (string preference in command.Preferences
                          .Where(value => !string.IsNullOrWhiteSpace(value))
                          .Select(value => value.Trim())
@@ -154,6 +172,8 @@ public sealed class UserApplicationService : IUserApplicationService
                     ["preferencesCount"] = customer.Preferencias.Count.ToString()
                 },
                 cancellationToken);
+
+            Result emailResult = await SendEmailConfirmationNotificationAsync(customer, command.EmailConfirmationUrl, cancellationToken);
 
             return Result.Success(customer.ToCustomerDto());
         }, "Users.Domain");
@@ -222,6 +242,43 @@ public sealed class UserApplicationService : IUserApplicationService
     }
 
     /// <summary>
+    /// Reenvía el correo de confirmación para una cuenta no confirmada.
+    /// </summary>
+    /// <param name="command">Comando de reenvío de confirmación.</param>
+    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
+    /// <returns>Resultado de la operación.</returns>
+    public async Task<Result> ResendUserEmailConfirmationAsync(
+        ResendUserEmailConfirmationCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        Error? validationError = await ValidateAsync(command, _resendUserEmailConfirmationCommandValidator, cancellationToken);
+        if (validationError is not null)
+        {
+            return Result.Failure(validationError);
+        }
+
+        return await ExecuteAsync(async () =>
+        {
+            Email email = CreateEmail(command.Email);
+            Usuario? user = await _userRepository.GetByEmailAsync(email, cancellationToken);
+
+            if (user is null)
+            {
+                return Result.Success();
+            }
+
+            if (user.CorreoConfirmado)
+            {
+                return Result.Success();
+            }
+
+            return await SendEmailConfirmationNotificationAsync(user, command.EmailConfirmationUrl, cancellationToken);
+        }, "Users.Domain");
+    }
+
+    /// <summary>
     /// Confirma el correo electrónico de un usuario existente.
     /// </summary>
     /// <param name="command">Comando de confirmación de correo.</param>
@@ -255,6 +312,13 @@ public sealed class UserApplicationService : IUserApplicationService
             {
                 return Result.Failure<UserDto>(
                     Error.NotFound("Users.NotFound", $"No se encontró un usuario con identificador '{command.UserId}'."));
+            }
+
+            EmailConfirmationTokenValidationDto? tokenData = _emailConfirmationTokenService.ValidateToken(command.ConfirmationToken);
+            if (!IsEmailConfirmationTokenValid(user, tokenData))
+            {
+                return Result.Failure<UserDto>(
+                    Error.Unauthorized("Users.InvalidEmailConfirmationToken", "El enlace de confirmación no es válido o ya expiró."));
             }
 
             user.ConfirmarCorreoElectronico();
@@ -479,6 +543,31 @@ public sealed class UserApplicationService : IUserApplicationService
         return ApplicationExecution.ExecuteAsync(operation, errorCode, errorFactory);
     }
 
+    private static Task<Result> ExecuteAsync(
+        Func<Task<Result>> operation,
+        string errorCode,
+        Func<string, string, Error>? errorFactory = null)
+    {
+        return ApplicationExecution.ExecuteAsync(operation, errorCode, errorFactory);
+    }
+
+    private static bool IsEmailConfirmationTokenValid(Usuario user, EmailConfirmationTokenValidationDto? tokenData)
+    {
+        if (tokenData is null)
+        {
+            return false;
+        }
+
+        return tokenData.UserId == user.Id
+            && string.Equals(tokenData.Email, user.CorreoElectronico.Value, StringComparison.OrdinalIgnoreCase)
+            && tokenData.UserVersionTicks == ResolveUserVersionTicks(user);
+    }
+
+    private static long ResolveUserVersionTicks(Usuario user)
+    {
+        return (user.FechaActualizacionUtc ?? user.FechaCreacionUtc).Ticks;
+    }
+
     /// <summary>
     /// Registra un evento de auditoría asociado a una operación exitosa sobre usuarios.
     /// </summary>
@@ -506,6 +595,47 @@ public sealed class UserApplicationService : IUserApplicationService
             detail,
             metadata,
             cancellationToken);
+    }
+
+    private async Task<Result> SendEmailConfirmationNotificationAsync(
+        Usuario user,
+        string emailConfirmationUrl,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+
+        string confirmationToken = _emailConfirmationTokenService.GenerateToken(user, EmailConfirmationTokenLifetime);
+        string confirmationUrl = emailConfirmationUrl
+            .Replace("%7BuserId%7D", Uri.EscapeDataString(user.Id.ToString()), StringComparison.OrdinalIgnoreCase)
+            .Replace("{userId}", Uri.EscapeDataString(user.Id.ToString()), StringComparison.Ordinal)
+            .Replace("%7Btoken%7D", Uri.EscapeDataString(confirmationToken), StringComparison.OrdinalIgnoreCase)
+            .Replace("{token}", Uri.EscapeDataString(confirmationToken), StringComparison.Ordinal);
+
+        Result emailResult = await _emailNotificationService.SendAccountEmailConfirmationAsync(
+            new AccountEmailConfirmationNotification
+            {
+                ToEmail = user.CorreoElectronico.Value,
+                RecipientName = user.Nombre,
+                ConfirmationUrl = confirmationUrl
+            },
+            cancellationToken);
+
+        await AuditUserEventAsync(
+            user,
+            "Users",
+            emailResult.IsSuccess ? "user.email-confirmation.sent" : "user.email-confirmation.failed",
+            emailResult.IsSuccess
+                ? $"Se envió el correo de confirmación para el usuario '{user.CorreoElectronico.Value}'."
+                : $"No fue posible entregar el correo de confirmación para el usuario '{user.CorreoElectronico.Value}'.",
+            new Dictionary<string, string>
+            {
+                ["email"] = user.CorreoElectronico.Value,
+                ["deliveryStatus"] = emailResult.IsSuccess ? "sent" : "failed",
+                ["errorCode"] = emailResult.IsSuccess ? string.Empty : emailResult.Error.Code
+            },
+            cancellationToken);
+
+        return emailResult;
     }
 
     #endregion

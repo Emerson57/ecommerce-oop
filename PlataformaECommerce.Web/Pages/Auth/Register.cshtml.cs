@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Routing;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Users;
 using PlataformaECommerce.Application.Features.Users.Commands;
@@ -28,14 +29,16 @@ public sealed class RegisterModel : PageModel
 {
     private const string RegisterSource = "Web.Auth.Register";
     private readonly IUserApplicationService _userApplicationService;
+    private readonly LinkGenerator _linkGenerator;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="RegisterModel"/>.
     /// </summary>
     /// <param name="userApplicationService">Servicio de aplicación del módulo de usuarios.</param>
-    public RegisterModel(IUserApplicationService userApplicationService)
+    public RegisterModel(IUserApplicationService userApplicationService, LinkGenerator linkGenerator)
     {
         _userApplicationService = userApplicationService ?? throw new ArgumentNullException(nameof(userApplicationService));
+        _linkGenerator = linkGenerator ?? throw new ArgumentNullException(nameof(linkGenerator));
     }
 
     /// <summary>
@@ -54,6 +57,12 @@ public sealed class RegisterModel : PageModel
     /// </summary>
     [TempData]
     public string? StatusMessage { get; set; }
+
+    /// <summary>
+    /// Correo electrónico registrado mostrado en la confirmación posterior al alta.
+    /// </summary>
+    [TempData]
+    public string? RegisteredEmail { get; set; }
 
     /// <summary>
     /// Inicializa la página de registro público.
@@ -136,8 +145,9 @@ public sealed class RegisterModel : PageModel
             return Page();
         }
 
-        StatusMessage = "La cuenta fue creada correctamente. Conserva tu correo electrónico y contraseña para continuar cuando tu acceso se encuentre habilitado.";
-        return RedirectToPage("/Auth/Login");
+        StatusMessage = "La cuenta fue creada correctamente. Revisa tu correo electrónico para confirmar la activación antes de iniciar sesión.";
+        RegisteredEmail = Input.Email;
+        return RedirectToPage("/Auth/RegisterConfirmation");
     }
 
     private RegisterCustomerCommand CreateRegisterCustomerCommand()
@@ -154,8 +164,19 @@ public sealed class RegisterModel : PageModel
             AcceptMarketingCommunications = Input.AcceptMarketingCommunications,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             Source = RegisterSource,
-            ExternalReference = RegisterSource
+            ExternalReference = RegisterSource,
+            EmailConfirmationUrl = BuildEmailConfirmationUrl()
         };
+    }
+
+    private string BuildEmailConfirmationUrl()
+    {
+        return _linkGenerator.GetUriByPage(
+            HttpContext,
+            page: "/Auth/ConfirmEmail",
+            handler: null,
+            values: new { userId = "{userId}", token = "{token}" },
+            scheme: Request.Scheme) ?? string.Empty;
     }
 
     private void ValidateRequiredConsents()

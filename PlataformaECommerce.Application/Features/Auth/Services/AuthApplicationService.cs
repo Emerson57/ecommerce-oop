@@ -9,6 +9,8 @@ using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Common.Notifications;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.Exceptions;
@@ -68,6 +70,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     private readonly IValidator<ResetPasswordCommand> _resetPasswordCommandValidator;
     private readonly IPasswordResetTokenService _passwordResetTokenService;
     private readonly IAuditTrailService _auditTrailService;
+    private readonly IEmailNotificationService _emailNotificationService;
 
     #endregion
 
@@ -90,7 +93,8 @@ public sealed class AuthApplicationService : IAuthApplicationService
         IValidator<ChangePasswordCommand> changePasswordCommandValidator,
         IValidator<ResetPasswordCommand> resetPasswordCommandValidator,
         IPasswordResetTokenService passwordResetTokenService,
-        IAuditTrailService auditTrailService)
+        IAuditTrailService auditTrailService,
+        IEmailNotificationService emailNotificationService)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
@@ -102,6 +106,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         _resetPasswordCommandValidator = resetPasswordCommandValidator ?? throw new ArgumentNullException(nameof(resetPasswordCommandValidator));
         _passwordResetTokenService = passwordResetTokenService ?? throw new ArgumentNullException(nameof(passwordResetTokenService));
         _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
+        _emailNotificationService = emailNotificationService ?? throw new ArgumentNullException(nameof(emailNotificationService));
     }
 
     #endregion
@@ -206,8 +211,34 @@ public sealed class AuthApplicationService : IAuthApplicationService
                 return Result.Success(new PasswordResetRequestResultDto());
             }
 
+            if (string.IsNullOrWhiteSpace(command.ResetPasswordUrl))
+            {
+                return Result.Failure<PasswordResetRequestResultDto>(
+                    Error.Validation("Auth.PasswordResetUrlRequired", "La URL de restablecimiento es obligatoria para enviar el correo de recuperación."));
+            }
+
             string token = _passwordResetTokenService.GenerateToken(user, PasswordResetTokenLifetime);
             DateTime expiresAtUtc = DateTime.UtcNow.Add(PasswordResetTokenLifetime);
+            string resetUrl = command.ResetPasswordUrl
+                .Replace("%7BuserId%7D", Uri.EscapeDataString(user.Id.ToString()), StringComparison.OrdinalIgnoreCase)
+                .Replace("{userId}", Uri.EscapeDataString(user.Id.ToString()), StringComparison.Ordinal)
+                .Replace("%7Btoken%7D", Uri.EscapeDataString(token), StringComparison.OrdinalIgnoreCase)
+                .Replace("{token}", Uri.EscapeDataString(token), StringComparison.Ordinal);
+
+            Result emailResult = await _emailNotificationService.SendPasswordResetEmailAsync(
+                new PasswordResetEmailNotification
+                {
+                    ToEmail = user.CorreoElectronico.Value,
+                    RecipientName = user.Nombre,
+                    ResetUrl = resetUrl,
+                    ExpiresAtUtc = expiresAtUtc
+                },
+                cancellationToken);
+
+            if (emailResult.IsFailure)
+            {
+                return Result.Failure<PasswordResetRequestResultDto>(emailResult.Error);
+            }
 
             await _auditTrailService.RegisterAsync(
                 user.Id,

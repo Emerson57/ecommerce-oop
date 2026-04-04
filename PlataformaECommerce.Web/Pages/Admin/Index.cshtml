@@ -134,6 +134,20 @@
                             <div class="small text-muted">Total facturado: @Model.Dashboard.TotalOrdersAmount.ToString("N2")</div>
                         </div>
                     </div>
+                    <div class="col-sm-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Ingreso en ventana</div>
+                            <div class="fw-semibold fs-5">@Model.Dashboard.OrdersAmountInWindow.ToString("N2") @Model.Dashboard.Currency</div>
+                            <div class="small text-muted">Ticket ventana: @Model.Dashboard.AverageOrderAmountInWindow.ToString("N2")</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Usuarios pendientes de confirmar</div>
+                            <div class="fw-semibold fs-5">@Model.Dashboard.PendingEmailConfirmationUsers</div>
+                            <div class="small text-muted">Correos confirmados: @Model.Dashboard.EmailConfirmedUsers</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -145,6 +159,7 @@
                 <div class="admin-muted-label">Acciones operativas</div>
                 <h3 class="h5 fw-semibold mt-2">Atajos del panel</h3>
                 <div class="d-grid gap-2">
+                    <a asp-page="/Admin/Operations/Index" class="btn btn-outline-dark btn-sm">Abrir centro operativo</a>
                     <a asp-page="/Admin/Audit/Index" class="btn btn-outline-dark btn-sm">Abrir auditoría administrativa</a>
                     <a asp-page="/Admin/Products/Index" class="btn btn-outline-primary btn-sm">Abrir catálogo administrativo</a>
                     <a asp-page="/Admin/Categories/Index" class="btn btn-outline-info btn-sm">Abrir backoffice de categorías</a>
@@ -189,11 +204,19 @@
                                         <div class="small text-muted">
                                             <span class="badge text-bg-dark me-2">@activity.Module</span>
                                             <code>@activity.Action</code>
+                                            @if (!string.IsNullOrWhiteSpace(activity.Source))
+                                            {
+                                                <span class="ms-2">Origen: <strong>@activity.Source</strong></span>
+                                            }
                                         </div>
                                     </div>
                                     <div class="small text-muted text-lg-end">
                                         <div>@activity.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</div>
                                         <div>@activity.PerformedBy</div>
+                                        @if (!string.IsNullOrWhiteSpace(activity.CorrelationId))
+                                        {
+                                            <div><code>@activity.CorrelationId</code></div>
+                                        }
                                     </div>
                                 </div>
                             </div>
@@ -212,9 +235,11 @@
                 <ul class="mb-0 text-muted small mt-3">
                     <li>Productos agotados: <strong>@Model.Dashboard.OutOfStockProducts</strong></li>
                     <li>Inventario bajo: <strong>@Model.Dashboard.LowStockProducts</strong></li>
+                        <li>Pedidos con atención activa: <strong>@Model.Dashboard.OrdersRequiringAttention</strong></li>
                     <li>Pedidos finalizados: <strong>@Model.Dashboard.FinalizedOrders</strong></li>
                     <li>Usuarios activos: <strong>@Model.Dashboard.ActiveUsers</strong></li>
                     <li>Correos confirmados: <strong>@Model.Dashboard.EmailConfirmedUsers</strong></li>
+                        <li>Correos pendientes de confirmar: <strong>@Model.Dashboard.PendingEmailConfirmationUsers</strong></li>
                     <li>Pedidos en ventana: <strong>@Model.Dashboard.NewOrdersInWindow</strong></li>
                     <li>Usuarios nuevos en ventana: <strong>@Model.Dashboard.NewUsersInWindow</strong></li>
                     <li>Productos nuevos en ventana: <strong>@Model.Dashboard.NewProductsInWindow</strong></li>

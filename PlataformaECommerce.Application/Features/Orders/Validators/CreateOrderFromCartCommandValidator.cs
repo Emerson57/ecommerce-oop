@@ -30,6 +30,7 @@ public sealed class CreateOrderFromCartCommandValidator : AbstractValidator<Crea
     /// Longitud máxima permitida para el campo de notas.
     /// </summary>
     private const int NotesMaxLength = 1000;
+    private const int ShippingFieldMaxLength = 150;
 
     /// <summary>
     /// Longitud máxima permitida para la referencia externa.
@@ -84,6 +85,46 @@ public sealed class CreateOrderFromCartCommandValidator : AbstractValidator<Crea
             .WithMessage($"Las notas no pueden superar los {NotesMaxLength} caracteres.")
             .Must(BeNullOrContainMeaningfulContent)
             .WithMessage("Si se informan notas, estas no pueden contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.PaymentMethod)
+            .NotNull()
+            .WithMessage("Debes seleccionar un método de pago para continuar con el checkout.")
+            .IsInEnum()
+            .WithMessage("El método de pago seleccionado no es válido.");
+
+        RuleFor(command => command.ShippingStreet)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"La dirección de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa la dirección de envío, esta no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingCity)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"La ciudad de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa la ciudad de envío, esta no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingRegion)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"La región de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa la región de envío, esta no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingCountry)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"El país de envío no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa el país de envío, este no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command.ShippingPostalCode)
+            .MaximumLength(ShippingFieldMaxLength)
+            .WithMessage($"El código postal no puede superar los {ShippingFieldMaxLength} caracteres.")
+            .Must(BeNullOrContainMeaningfulContent)
+            .WithMessage("Si se informa el código postal, este no puede contener únicamente espacios en blanco.");
+
+        RuleFor(command => command)
+            .Must(HaveConsistentShippingAddress)
+            .WithMessage("Cuando se informa dirección de envío, todos sus campos obligatorios deben completarse.");
 
         RuleFor(command => command.ExternalReference)
             .MaximumLength(ExternalReferenceMaxLength)
@@ -165,6 +206,22 @@ public sealed class CreateOrderFromCartCommandValidator : AbstractValidator<Crea
     private static bool BeNullOrUtcDate(DateTime? value)
     {
         return !value.HasValue || value.Value.Kind == DateTimeKind.Utc;
+    }
+
+    private static bool HaveConsistentShippingAddress(CreateOrderFromCartCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        if (!command.HasShippingAddress)
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(command.ShippingStreet)
+            && !string.IsNullOrWhiteSpace(command.ShippingCity)
+            && !string.IsNullOrWhiteSpace(command.ShippingRegion)
+            && !string.IsNullOrWhiteSpace(command.ShippingCountry)
+            && !string.IsNullOrWhiteSpace(command.ShippingPostalCode);
     }
 
     #endregion

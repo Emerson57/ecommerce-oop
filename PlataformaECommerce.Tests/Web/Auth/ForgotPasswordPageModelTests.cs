@@ -28,6 +28,7 @@ public class ForgotPasswordPageModelTests
         Assert.That(result, Is.TypeOf<RedirectToPageResult>());
         Assert.That(service.LastCommand?.Email, Is.EqualTo("cliente@plataforma.com"));
         Assert.That(service.LastCommand?.IpAddress, Is.EqualTo("10.20.30.40"));
+        Assert.That(service.LastCommand?.ResetPasswordUrl, Does.Contain("userId=%7BuserId%7D"));
         Assert.That(pageModel.StatusMessage, Does.Contain("Si la cuenta existe"));
         Assert.That(pageModel.DevelopmentResetUrl, Does.Contain("/Auth/ResetPassword"));
     }

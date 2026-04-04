@@ -260,6 +260,7 @@ public sealed class OrderRepository : IOrderRepository
         entity.FechaEntregaUtc = pedido.FechaEntregaUtc;
         entity.FechaCancelacionUtc = pedido.FechaCancelacionUtc;
         entity.ObservacionCancelacion = pedido.ObservacionCancelacion;
+        entity.MetodoPagoSeleccionado = pedido.MetodoPagoSeleccionado?.ToString();
 
         if (pedido.DireccionEnvio is null)
         {
@@ -321,6 +322,19 @@ public sealed class OrderRepository : IOrderRepository
         SetPropertyValue(typeof(Pedido), order, nameof(Pedido.FechaCancelacionUtc), entity.FechaCancelacionUtc);
         SetPropertyValue(typeof(Pedido), order, nameof(Pedido.ObservacionCancelacion), entity.ObservacionCancelacion);
         SetPropertyValue(typeof(Pedido), order, nameof(Pedido.DireccionEnvio), TryBuildShippingAddress(entity));
+        SetPropertyValue(typeof(Pedido), order, nameof(Pedido.MetodoPagoSeleccionado), TryBuildPaymentMethod(entity.MetodoPagoSeleccionado));
+    }
+
+    private static MetodoPagoPedido? TryBuildPaymentMethod(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return Enum.TryParse(value, ignoreCase: true, out MetodoPagoPedido paymentMethod)
+            ? paymentMethod
+            : throw new InvalidOperationException($"El método de pago persistido '{value}' no es válido para un pedido.");
     }
 
     private static DireccionEnvio? TryBuildShippingAddress(OrderEntity entity)

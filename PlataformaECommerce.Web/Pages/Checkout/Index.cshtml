@@ -54,7 +54,7 @@
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4">
                     <div class="small text-uppercase text-muted fw-semibold">Confirmación</div>
-                    <h2 class="h5 fw-bold mt-2 mb-3">Crear pedido</h2>
+                    <h2 class="h5 fw-bold mt-2 mb-3">Confirmar pedido</h2>
 
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">Líneas</span>
@@ -73,6 +73,59 @@
                         <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
 
                         <div class="mb-3">
+                            <label asp-for="Input.PaymentMethod" class="form-label"></label>
+                            <select asp-for="Input.PaymentMethod" class="form-select">
+                                <option value="">Selecciona una opción</option>
+                                @foreach (var paymentMethod in Model.PaymentMethods)
+                                {
+                                    <option value="@paymentMethod.Value">@paymentMethod.Label</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Input.PaymentMethod" class="text-danger small"></span>
+                        </div>
+
+                        <div class="border rounded-3 p-3 bg-light-subtle mb-3">
+                            <div class="fw-semibold mb-2">Entrega</div>
+                            @if (Model.Cart.RequiresShippingAddress)
+                            {
+                                <p class="text-muted small mb-3">Este pedido contiene productos físicos, por lo que debes completar la dirección de envío.</p>
+
+                                <div class="mb-3">
+                                    <label asp-for="Input.ShippingStreet" class="form-label"></label>
+                                    <input asp-for="Input.ShippingStreet" class="form-control" placeholder="Calle, número, apartamento o referencia" />
+                                    <span asp-validation-for="Input.ShippingStreet" class="text-danger small"></span>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingCity" class="form-label"></label>
+                                        <input asp-for="Input.ShippingCity" class="form-control" placeholder="Ciudad" />
+                                        <span asp-validation-for="Input.ShippingCity" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingRegion" class="form-label"></label>
+                                        <input asp-for="Input.ShippingRegion" class="form-control" placeholder="Departamento o región" />
+                                        <span asp-validation-for="Input.ShippingRegion" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingCountry" class="form-label"></label>
+                                        <input asp-for="Input.ShippingCountry" class="form-control" placeholder="País" />
+                                        <span asp-validation-for="Input.ShippingCountry" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Input.ShippingPostalCode" class="form-label"></label>
+                                        <input asp-for="Input.ShippingPostalCode" class="form-control" placeholder="Código postal" />
+                                        <span asp-validation-for="Input.ShippingPostalCode" class="text-danger small"></span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted small mb-0">Todos los productos del pedido son digitales. No se requiere dirección de envío para completar esta compra.</p>
+                            }
+                        </div>
+
+                        <div class="mb-3">
                             <label asp-for="Input.Notes" class="form-label"></label>
                             <textarea asp-for="Input.Notes" class="form-control" rows="4" placeholder="Observaciones opcionales para el pedido."></textarea>
                             <span asp-validation-for="Input.Notes" class="text-danger small"></span>
@@ -85,7 +138,7 @@
                         </div>
 
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Generar pedido</button>
+                            <button type="submit" class="btn btn-primary">Confirmar pedido</button>
                             <a asp-page="/Cart/Index" class="btn btn-outline-secondary">Volver al carrito</a>
                         </div>
                     </form>

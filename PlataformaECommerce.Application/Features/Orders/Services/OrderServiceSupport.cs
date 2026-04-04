@@ -148,4 +148,13 @@ internal static class OrderServiceSupport
             metadata,
             cancellationToken);
     }
+
+    internal static IReadOnlyDictionary<Guid, int> BuildOrderedProductQuantities(Pedido order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        return order.Detalles
+            .GroupBy(detail => detail.ProductoId)
+            .ToDictionary(group => group.Key, group => group.Sum(detail => detail.Cantidad));
+    }
 }

@@ -1,0 +1,26 @@
+@page
+@model PlataformaECommerce.Web.Pages.Auth.ConfirmEmailModel
+@{
+    ViewData["Title"] = "Confirmar correo electrónico";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-lg-5 text-center">
+                    <h1 class="h3 fw-bold mb-3">Confirmación de correo electrónico</h1>
+
+                    <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger")" role="alert">
+                        @Model.StatusMessage
+                    </div>
+
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-4">
+                        <a asp-page="/Auth/Login" class="btn btn-primary">Ir al ingreso</a>
+                        <a asp-page="/Index" class="btn btn-outline-secondary">Volver al inicio</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

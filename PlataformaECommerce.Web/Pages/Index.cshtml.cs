@@ -129,7 +129,7 @@ public sealed class IndexModel : PageModel
             return;
         }
 
-        FeaturedProducts = catalogResult.Value
+        FeaturedProducts = catalogResult.Value.Items
             .Select(MapCatalogProduct)
             .ToArray();
     }

@@ -71,6 +71,8 @@ public sealed class ForgotPasswordModel : PageModel
             return Page();
         }
 
+        string resetPasswordUrl = BuildResetPasswordUrl();
+
         var result = await _authApplicationService.RequestPasswordResetAsync(new RequestPasswordResetCommand
         {
             Email = Input.Email,
@@ -78,6 +80,7 @@ public sealed class ForgotPasswordModel : PageModel
             UserAgent = Request.Headers.UserAgent.ToString(),
             Source = "Web.Auth.ForgotPassword",
             ExternalReference = "Web.Auth.ForgotPassword",
+            ResetPasswordUrl = resetPasswordUrl,
             RequestedAtUtc = DateTime.UtcNow
         }, cancellationToken);
 
@@ -90,6 +93,16 @@ public sealed class ForgotPasswordModel : PageModel
         StatusMessage = "Si la cuenta existe y está habilitada, se generó un enlace temporal para restablecer la contraseña.";
         DevelopmentResetUrl = BuildDevelopmentResetUrl(result.Value);
         return RedirectToPage("/Auth/ForgotPasswordConfirmation");
+    }
+
+    private string BuildResetPasswordUrl()
+    {
+        return _linkGenerator.GetUriByPage(
+            HttpContext,
+            page: "/Auth/ResetPassword",
+            handler: null,
+            values: new { userId = "{userId}", token = "{token}" },
+            scheme: Request.Scheme) ?? string.Empty;
     }
 
     private string? BuildDevelopmentResetUrl(PlataformaECommerce.Application.Features.Auth.DTOs.PasswordResetRequestResultDto result)

@@ -2,11 +2,13 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewComponents;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Categories.Commands;
 using PlataformaECommerce.Application.Features.Categories.DTOs;
 using PlataformaECommerce.Application.Features.Categories.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Categories;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.ViewComponents;
 
 namespace PlataformaECommerce.Tests.Web.Shared;
@@ -44,6 +46,19 @@ public class StoreFooterViewComponentTests
     }
 
     [Test]
+    public async Task InvokeAsync_ConfiguraBrandingYSoporteDesdeOpciones()
+    {
+        StoreFooterViewComponent component = CreateComponent(new FakeCategoryApplicationService([]));
+
+        IViewComponentResult result = await component.InvokeAsync();
+
+        StoreFooterViewComponent.StoreFooterViewModel model = ExtractModel(result);
+
+        Assert.That(model.BrandName, Is.EqualTo("NovaShop"));
+        Assert.That(model.SupportEmail, Is.EqualTo("support@novashop.example"));
+    }
+
+    [Test]
     public async Task InvokeAsync_AdministradorAutenticado_ProyectaPanelYCorreo()
     {
         ClaimsPrincipal user = new(new ClaimsIdentity(
@@ -74,7 +89,16 @@ public class StoreFooterViewComponentTests
         DefaultHttpContext httpContext = new();
         httpContext.User = user ?? new ClaimsPrincipal(new ClaimsIdentity());
 
-        StoreFooterViewComponent component = new(categoryApplicationService)
+        StoreFooterViewComponent component = new(
+            categoryApplicationService,
+            Options.Create(new ClientExperienceOptions
+            {
+                StorefrontName = "NovaShop",
+                StorefrontTagline = "Tienda configurable para una sola marca.",
+                SupportEmail = "support@novashop.example",
+                SupportPhone = "+57 300 000 0000",
+                SupportHours = "Lunes a viernes, 08:00 a 18:00 UTC-5"
+            }))
         {
             ViewComponentContext = new ViewComponentContext
             {

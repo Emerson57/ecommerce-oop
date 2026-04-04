@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 using PlataformaECommerce.Application.Common.Results;
+using PlataformaECommerce.Application.Features.Audit.DTOs;
+using PlataformaECommerce.Application.Features.Audit.Queries;
 using PlataformaECommerce.Application.Features.Orders.Commands;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
 using PlataformaECommerce.Application.Features.Orders.Queries;
+using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Orders;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Authorization;
@@ -23,7 +26,7 @@ public class OrdersDetailsPageModelTests
     public async Task OnGetAsync_PedidoPropio_CargaDetalleYRetornaPagina()
     {
         FakeOrderQueryService orderApplicationService = new();
-        DetailsModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        DetailsModel pageModel = CreatePageModel(orderApplicationService, new FakeAuditApplicationService(), Guid.NewGuid());
 
         IActionResult result = await pageModel.OnGetAsync(Guid.NewGuid(), CancellationToken.None);
 
@@ -35,7 +38,7 @@ public class OrdersDetailsPageModelTests
     public async Task OnGetAsync_PedidoInvalido_RedireccionaAlHistorial()
     {
         FakeOrderQueryService orderApplicationService = new();
-        DetailsModel pageModel = CreatePageModel(orderApplicationService, Guid.NewGuid());
+        DetailsModel pageModel = CreatePageModel(orderApplicationService, new FakeAuditApplicationService(), Guid.NewGuid());
 
         IActionResult result = await pageModel.OnGetAsync(Guid.Empty, CancellationToken.None);
 
@@ -43,13 +46,31 @@ public class OrdersDetailsPageModelTests
         Assert.That(pageModel.StatusMessage, Does.Contain("pedido válido"));
     }
 
+    [Test]
+    public async Task OnGetAsync_PedidoPendienteDePago_ExponeMetodoYPermiteContinuarPago()
+    {
+        FakeOrderQueryService orderApplicationService = new()
+        {
+            OrderStatus = EstadoPedido.Confirmado,
+            PaymentMethod = MetodoPagoPedido.Tarjeta
+        };
+        DetailsModel pageModel = CreatePageModel(orderApplicationService, new FakeAuditApplicationService(), Guid.NewGuid());
+
+        await pageModel.OnGetAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.That(pageModel.Order.PaymentMethodLabel, Is.EqualTo("Tarjeta"));
+        Assert.That(pageModel.Order.CanStartOnlinePayment, Is.True);
+        Assert.That(pageModel.OperationalHistory.Count, Is.EqualTo(1));
+    }
+
     private static DetailsModel CreatePageModel(
         FakeOrderQueryService orderApplicationService,
+        FakeAuditApplicationService auditApplicationService,
         Guid? authenticatedUserId,
         FakeAuthenticationService? authenticationService = null)
     {
         authenticationService ??= new FakeAuthenticationService();
-        DetailsModel pageModel = new(orderApplicationService);
+        DetailsModel pageModel = new(orderApplicationService, auditApplicationService);
 
         ServiceCollection services = new();
         services.AddSingleton<IAuthenticationService>(authenticationService);
@@ -88,13 +109,16 @@ public class OrdersDetailsPageModelTests
 
     private sealed class FakeOrderQueryService : IOrderQueryService
     {
+        public EstadoPedido OrderStatus { get; set; } = EstadoPedido.Enviado;
+        public MetodoPagoPedido? PaymentMethod { get; set; } = MetodoPagoPedido.TransferenciaBancaria;
+
         public Task<Result<OrderDetailDto>> GetOrderByIdAsync(GetOrderByIdQuery query, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Result.Success(new OrderDetailDto
             {
                 Id = query.OrderId,
                 CustomerId = query.ExpectedCustomerId ?? Guid.NewGuid(),
-                Status = EstadoPedido.Enviado,
+                Status = OrderStatus,
                 ItemsCount = 1,
                 TotalUnits = 1,
                 TotalAmount = 99900m,
@@ -103,6 +127,7 @@ public class OrdersDetailsPageModelTests
                 ConfirmedAtUtc = DateTime.UtcNow.AddDays(-4),
                 PaidAtUtc = DateTime.UtcNow.AddDays(-4),
                 ShippedAtUtc = DateTime.UtcNow.AddDays(-3),
+                PaymentMethod = PaymentMethod,
                 Items =
                 [
                     new OrderItemDto
@@ -147,6 +172,39 @@ public class OrdersDetailsPageModelTests
         {
             LastSignOutScheme = scheme;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeAuditApplicationService : IAuditApplicationService
+    {
+        public Task<Result<AuditQueryResultDto>> GetAuditTrailAsync(GetAuditTrailQuery query, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Result.Success(new AuditQueryResultDto
+            {
+                Items =
+                [
+                    new AuditEntryDto
+                    {
+                        AggregateId = query.AggregateId ?? Guid.NewGuid(),
+                        AggregateType = query.AggregateType ?? "Pedido",
+                        Module = "Orders",
+                        Action = "order.payment.registered",
+                        Detail = "Se registró el pago del pedido.",
+                        PerformedBy = "cliente@plataforma.com",
+                        OccurredAtUtc = DateTime.UtcNow,
+                        Source = "Web.Payments.Confirm",
+                        Metadata = new Dictionary<string, string>
+                        {
+                            ["status"] = "Pagado"
+                        }
+                    }
+                ],
+                TotalCount = 1,
+                ReturnedCount = 1,
+                PageNumber = 1,
+                PageSize = 10,
+                TotalPages = 1
+            }));
         }
     }
 

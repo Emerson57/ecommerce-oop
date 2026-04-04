@@ -1,0 +1,44 @@
+@page
+@model PlataformaECommerce.Web.Pages.Auth.RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Confirmación de registro";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-lg-5 text-center">
+                    <h1 class="h3 fw-bold mb-3">Revisa tu correo electrónico</h1>
+                    <p class="text-muted mb-3">@(Model.StatusMessage ?? "Tu cuenta fue creada. Antes de iniciar sesión debes confirmar el correo electrónico desde el enlace enviado a tu bandeja de entrada.")</p>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.RegisteredEmail))
+                    {
+                        <p class="small text-muted mb-4">
+                            Correo registrado: <strong>@Model.RegisteredEmail</strong>
+                        </p>
+                    }
+
+                    <div class="alert alert-light border text-start mb-4" role="status">
+                        <h2 class="h6 fw-semibold mb-2">Siguiente paso</h2>
+                        <ul class="small text-muted mb-0 ps-3">
+                            <li>Abre el mensaje de confirmación enviado a tu bandeja de entrada.</li>
+                            <li>Confirma tu correo para habilitar el acceso a la cuenta.</li>
+                            <li>Si no lo recibes en unos minutos, solicita un nuevo enlace de activación.</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                        @if (!string.IsNullOrWhiteSpace(Model.RegisteredEmail))
+                        {
+                            <a asp-page="/Auth/ResendEmailConfirmation" asp-route-email="@Model.RegisteredEmail" class="btn btn-primary">Reenviar confirmación</a>
+                        }
+
+                        <a asp-page="/Auth/Login" class="btn btn-outline-primary">Ir al ingreso</a>
+                        <a asp-page="/Index" class="btn btn-outline-secondary">Volver al inicio</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Users.Commands;
 using PlataformaECommerce.Application.Features.Users.DTOs;
@@ -16,7 +17,7 @@ namespace PlataformaECommerce.Tests.Web.Auth;
 public class RegisterPageModelTests
 {
     [Test]
-    public async Task OnPostAsync_FormularioValido_RegistraCuentaYRedirigeALogin()
+    public async Task OnPostAsync_FormularioValido_RegistraCuentaYRedirigeAConfirmacion()
     {
         FakeUserApplicationService service = new();
         RegisterModel pageModel = CreatePageModel(service, remoteIpAddress: "10.20.30.40");
@@ -40,6 +41,7 @@ public class RegisterPageModelTests
         Assert.That(service.LastRegisterCommand?.Source, Is.EqualTo("Web.Auth.Register"));
         Assert.That(service.LastRegisterCommand?.IpAddress, Is.EqualTo("10.20.30.40"));
         Assert.That(service.LastRegisterCommand?.Preferences.Count, Is.EqualTo(2));
+        Assert.That(service.LastRegisterCommand?.EmailConfirmationUrl, Does.Contain("/Auth/ConfirmEmail"));
     }
 
     [Test]
@@ -182,8 +184,9 @@ public class RegisterPageModelTests
 
     private static RegisterModel CreatePageModel(FakeUserApplicationService userApplicationService, string? remoteIpAddress = null)
     {
-        RegisterModel pageModel = new(userApplicationService);
+        RegisterModel pageModel = new(userApplicationService, new FakeLinkGenerator());
         DefaultHttpContext httpContext = new();
+        httpContext.Request.Scheme = "https";
 
         if (!string.IsNullOrWhiteSpace(remoteIpAddress))
         {
@@ -196,6 +199,21 @@ public class RegisterPageModelTests
         };
         pageModel.TempData = new TempDataDictionary(httpContext, new FakeTempDataProvider());
         return pageModel;
+    }
+
+    private sealed class FakeLinkGenerator : LinkGenerator
+    {
+        public override string? GetPathByAddress<TAddress>(HttpContext httpContext, TAddress address, RouteValueDictionary values, RouteValueDictionary? ambientValues = null, PathString? pathBase = null, FragmentString fragment = default, LinkOptions? options = null)
+            => "/Auth/ConfirmEmail";
+
+        public override string? GetPathByAddress<TAddress>(TAddress address, RouteValueDictionary values, PathString pathBase = default, FragmentString fragment = default, LinkOptions? options = null)
+            => "/Auth/ConfirmEmail";
+
+        public override string? GetUriByAddress<TAddress>(HttpContext httpContext, TAddress address, RouteValueDictionary values, RouteValueDictionary? ambientValues = null, string? scheme = null, HostString? host = null, PathString? pathBase = null, FragmentString fragment = default, LinkOptions? options = null)
+            => $"https://shop.example.com/Auth/ConfirmEmail?userId={Uri.EscapeDataString(values["userId"]?.ToString() ?? string.Empty)}&token={Uri.EscapeDataString(values["token"]?.ToString() ?? string.Empty)}";
+
+        public override string? GetUriByAddress<TAddress>(TAddress address, RouteValueDictionary values, string scheme, HostString host, PathString pathBase = default, FragmentString fragment = default, LinkOptions? options = null)
+            => $"{scheme}://{host}/Auth/ConfirmEmail?userId={Uri.EscapeDataString(values["userId"]?.ToString() ?? string.Empty)}&token={Uri.EscapeDataString(values["token"]?.ToString() ?? string.Empty)}";
     }
 
     private static bool GetBoolean(object? instance, string propertyName)
@@ -243,6 +261,9 @@ public class RegisterPageModelTests
             => throw new NotSupportedException();
 
         public Task<Result<UserDto>> ConfirmUserEmailAsync(ConfirmUserEmailCommand command, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public Task<Result> ResendUserEmailConfirmationAsync(ResendUserEmailConfirmationCommand command, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public Task<Result<UserDto>> ActivateUserAsync(ActivateUserCommand command, CancellationToken cancellationToken = default)

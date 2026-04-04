@@ -22,6 +22,21 @@ La solución abierta en esta rama representa una plataforma e-commerce en consol
 
 El resto de este `README` conserva trazabilidad de etapas académicas anteriores del repositorio. Ese material sigue siendo útil como historial formativo, pero no reemplaza la convención arquitectónica vigente ni describe por sí solo la solución activa.
 
+### Estado comercial-operativo vigente
+
+- Versión base actual: `1.5.0+fase5`.
+- Estrategia de despliegue actual: instancia monocliente configurable mediante `ClientExperience`.
+- Branding configurable en storefront y backoffice sin introducir multi-tenant completo.
+- Backoffice con dashboard operativo, auditoría transversal y centro de operación/soporte.
+- Health checks disponibles en `/health/live` y `/health/ready`.
+
+### Guías actuales de instalación, operación y soporte
+
+- `docs/INSTALLATION.md`
+- `docs/OPERATIONS.md`
+- `docs/SUPPORT.md`
+- `CHANGELOG.md`
+
 ## 1. Descripción General del Historial del Proyecto
 Este repositorio integra el desarrollo de varias asignaciones académicas correspondientes a diferentes materias del programa.
 La solución evolucionó desde ejercicios iniciales de Programación Orientada a Objetos hasta una base arquitectónica multicapa con backend, capa web, persistencia y pruebas automatizadas.

@@ -1,18 +1,21 @@
 ﻿@page
 @model IndexModel
+@using Microsoft.Extensions.Options
+@using PlataformaECommerce.Web.Configuration
+@inject IOptions<ClientExperienceOptions> ClientExperienceOptionsAccessor
 @{
     ViewData["Title"] = "Inicio";
+    ClientExperienceOptions clientExperience = ClientExperienceOptionsAccessor.Value;
 }
 
 <section class="hero-commerce">
     <div class="container">
         <div class="hero-commerce-grid">
             <div class="hero-main-banner">
-                <span class="hero-badge">Temporada de ofertas</span>
-                <h1>Descubre productos que elevan tu estilo y tu día a día</h1>
+                <span class="hero-badge">@clientExperience.HomeHeroBadge</span>
+                <h1>@clientExperience.HomeHeroTitle</h1>
                 <p>
-                    Compra tecnología, hogar, moda y mucho más en una experiencia moderna,
-                    rápida y pensada para ofrecer confianza desde el primer clic.
+                    @clientExperience.StorefrontTagline
                 </p>
 
                 <div class="hero-buttons">
@@ -23,16 +26,16 @@
 
             <div class="hero-side-offers">
                 <article class="side-offer-card">
-                    <span>Promoción exclusiva</span>
-                    <h3>Hasta 40% OFF</h3>
-                    <p>En productos seleccionados de tecnología y accesorios.</p>
+                    <span>Operación confiable</span>
+                    <h3>@clientExperience.StorefrontName</h3>
+                    <p>@clientExperience.SupportSla</p>
                      <a asp-page="/Catalog/Index">Ver oferta</a>
                 </article>
 
                 <article class="side-offer-card">
-                    <span>Nueva colección</span>
-                    <h3>Hogar & confort</h3>
-                    <p>Renueva tus espacios con diseño, funcionalidad y estilo.</p>
+                    <span>Soporte del cliente</span>
+                    <h3>@clientExperience.SupportHours</h3>
+                    <p>Canales disponibles: @clientExperience.SupportEmail · @clientExperience.SupportPhone</p>
                      <a asp-page="/Catalog/Index">Explorar</a>
                 </article>
             </div>
@@ -142,10 +145,9 @@
         <div class="promo-banner">
             <div>
                 <span class="promo-mini">Beneficio especial</span>
-                <h2>Compra con envío rápido y promociones semanales</h2>
+                <h2>@clientExperience.HomePromoTitle</h2>
                 <p>
-                    Diseñamos una experiencia enfocada en confianza, rapidez y facilidad de compra,
-                    como debe verse una tienda profesional real.
+                    @clientExperience.StorefrontTagline
                 </p>
             </div>
             <a asp-page="/Catalog/Index" class="btn-shop-primary">Descubrir ofertas</a>

@@ -6,9 +6,12 @@ using PlataformaECommerce.Application.Features.Orders.DTOs;
 using PlataformaECommerce.Application.Features.Orders.Mappings;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Orders;
+using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Application.Interfaces.Services.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Orders;
 using PlataformaECommerce.Domain.Entities.Orders;
+using PlataformaECommerce.Domain.Entities.Products;
+using PlataformaECommerce.Domain.Enums;
 
 namespace PlataformaECommerce.Application.Features.Orders.Services;
 
@@ -18,6 +21,7 @@ namespace PlataformaECommerce.Application.Features.Orders.Services;
 public sealed class OrderLifecycleService : IOrderLifecycleService
 {
     private readonly IOrderRepository _orderRepository;
+    private readonly IProductRepository _productRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuditTrailService _auditTrailService;
     private readonly IValidator<CancelOrderCommand> _cancelOrderCommandValidator;
@@ -27,11 +31,13 @@ public sealed class OrderLifecycleService : IOrderLifecycleService
     /// </summary>
     public OrderLifecycleService(
         IOrderRepository orderRepository,
+        IProductRepository productRepository,
         IUnitOfWork unitOfWork,
         IAuditTrailService auditTrailService,
         IValidator<CancelOrderCommand> cancelOrderCommandValidator)
     {
         _orderRepository = orderRepository ?? throw new ArgumentNullException(nameof(orderRepository));
+        _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _auditTrailService = auditTrailService ?? throw new ArgumentNullException(nameof(auditTrailService));
         _cancelOrderCommandValidator = cancelOrderCommandValidator ?? throw new ArgumentNullException(nameof(cancelOrderCommandValidator));
@@ -157,17 +163,79 @@ public sealed class OrderLifecycleService : IOrderLifecycleService
             return Result.Failure<OrderDetailDto>(validationError);
         }
 
-        return await ExecuteLifecycleChangeAsync(
-            command.OrderId,
-            order => order.Cancelar(command.Reason),
-            "order.cancelled",
-            order => $"Se canceló el pedido '{order.Id}'.",
-            order => new Dictionary<string, string>
+        return await OrderServiceSupport.ExecuteAsync(async () =>
+        {
+            Pedido? order = await _orderRepository.GetByIdAsync(command.OrderId, cancellationToken);
+            if (order is null)
             {
-                ["reason"] = command.Reason.Trim(),
-                ["status"] = order.Estado.ToString()
-            },
-            cancellationToken);
+                return Result.Failure<OrderDetailDto>(
+                    Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{command.OrderId}'."));
+            }
+
+            EstadoPedido previousStatus = order.Estado;
+            IReadOnlyDictionary<Guid, int> orderedProductQuantities = previousStatus == EstadoPedido.Pagado
+                ? OrderServiceSupport.BuildOrderedProductQuantities(order)
+                : new Dictionary<Guid, int>();
+            List<Producto> productsToRestore = previousStatus == EstadoPedido.Pagado
+                ? await GetProductsForStockAdjustmentAsync(orderedProductQuantities, cancellationToken)
+                : [];
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
+            try
+            {
+                order.Cancelar(command.Reason);
+
+                foreach (Producto product in productsToRestore)
+                {
+                    product.IncrementarStock(orderedProductQuantities[product.Id]);
+                    await _productRepository.UpdateAsync(product, cancellationToken);
+                }
+
+                await _orderRepository.UpdateAsync(order, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
+            await OrderServiceSupport.AuditOrderEventAsync(
+                _auditTrailService,
+                order,
+                "order.cancelled",
+                $"Se canceló el pedido '{order.Id}'.",
+                new Dictionary<string, string>
+                {
+                    ["reason"] = command.Reason.Trim(),
+                    ["status"] = order.Estado.ToString(),
+                    ["restockedProducts"] = productsToRestore.Count.ToString(CultureInfo.InvariantCulture)
+                },
+                cancellationToken);
+
+            foreach (Producto product in productsToRestore)
+            {
+                int restoredQuantity = orderedProductQuantities[product.Id];
+                await _auditTrailService.RegisterAsync(
+                    product.Id,
+                    nameof(Producto),
+                    "Products",
+                    "product.stock.restored.for-order-cancellation",
+                    $"Se restauró inventario del producto '{product.Sku.Value}' por la cancelación del pedido '{order.Id}'.",
+                    new Dictionary<string, string>
+                    {
+                        ["orderId"] = order.Id.ToString(),
+                        ["quantity"] = restoredQuantity.ToString(CultureInfo.InvariantCulture),
+                        ["resultingStock"] = product.Stock.ToString(CultureInfo.InvariantCulture),
+                        ["sku"] = product.Sku.Value
+                    },
+                    cancellationToken);
+            }
+
+            return Result.Success(order.ToOrderDetailDto());
+        }, "Orders.Domain");
     }
 
     private Task<Result<OrderDetailDto>> ExecuteLifecycleChangeAsync(
@@ -187,10 +255,22 @@ public sealed class OrderLifecycleService : IOrderLifecycleService
                     Error.NotFound("Orders.NotFound", $"No se encontró un pedido con identificador '{orderId}'."));
             }
 
-            transition(order);
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            await _orderRepository.UpdateAsync(order, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                transition(order);
+
+                await _orderRepository.UpdateAsync(order, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
             await OrderServiceSupport.AuditOrderEventAsync(
                 _auditTrailService,
                 order,
@@ -201,5 +281,25 @@ public sealed class OrderLifecycleService : IOrderLifecycleService
 
             return Result.Success(order.ToOrderDetailDto());
         }, "Orders.Domain");
+    }
+
+    private async Task<List<Producto>> GetProductsForStockAdjustmentAsync(
+        IReadOnlyDictionary<Guid, int> orderedProductQuantities,
+        CancellationToken cancellationToken)
+    {
+        List<Producto> products = [];
+
+        foreach (KeyValuePair<Guid, int> orderedProduct in orderedProductQuantities)
+        {
+            Producto? product = await _productRepository.GetByIdAsync(orderedProduct.Key, cancellationToken);
+            if (product is null)
+            {
+                throw new InvalidOperationException($"No se encontró el producto '{orderedProduct.Key}' requerido para ajustar inventario del pedido.");
+            }
+
+            products.Add(product);
+        }
+
+        return products;
     }
 }

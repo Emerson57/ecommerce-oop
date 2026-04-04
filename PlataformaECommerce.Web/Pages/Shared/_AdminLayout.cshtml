@@ -1,8 +1,14 @@
 @using System.Security.Claims
+@using System.Reflection
+@using Microsoft.Extensions.Options
 @using PlataformaECommerce.Application.Common.Security
 @using PlataformaECommerce.Domain.Enums
 @using PlataformaECommerce.Web.Authorization
+@using PlataformaECommerce.Web.Configuration
+@using PlataformaECommerce.Web.Middlewares
+@inject IOptions<ClientExperienceOptions> ClientExperienceOptionsAccessor
 @{
+    ClientExperienceOptions clientExperience = ClientExperienceOptionsAccessor.Value;
     string currentPath = Context.Request.Path.Value ?? string.Empty;
     bool isDashboard = currentPath.Equals("/Admin", StringComparison.OrdinalIgnoreCase) || currentPath.Equals("/Admin/Index", StringComparison.OrdinalIgnoreCase);
     bool isAudit = currentPath.StartsWith("/Admin/Audit", StringComparison.OrdinalIgnoreCase);
@@ -11,6 +17,7 @@
     bool isCategoriesCreate = currentPath.Equals("/Admin/Categories/Create", StringComparison.OrdinalIgnoreCase);
     bool isProducts = currentPath.StartsWith("/Admin/Products", StringComparison.OrdinalIgnoreCase);
     bool isUsers = currentPath.StartsWith("/Admin/Users", StringComparison.OrdinalIgnoreCase);
+    bool isOperations = currentPath.StartsWith("/Admin/Operations", StringComparison.OrdinalIgnoreCase);
     bool isUsersIndex = currentPath.Equals("/Admin/Users", StringComparison.OrdinalIgnoreCase) || currentPath.Equals("/Admin/Users/Index", StringComparison.OrdinalIgnoreCase);
     bool isUsersCreate = currentPath.Equals("/Admin/Users/Create", StringComparison.OrdinalIgnoreCase);
     string adminName = User.Identity?.Name ?? "Administrador";
@@ -18,13 +25,19 @@
     string adminArea = User.FindFirstValue(SecurityClaimTypes.AdminArea) ?? "Operaciones";
     string adminRole = User.FindFirstValue(SecurityClaimTypes.PrimaryRole) ?? User.FindFirstValue(ClaimTypes.Role) ?? RolUsuario.Administrador.ToString();
     bool isSuperUser = AuthorizationPolicies.IsSuperUserPrincipal(User);
+    string applicationVersion = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(Program).Assembly.GetName().Version?.ToString()
+        ?? "0.0.0";
+    string currentCorrelationId = Context.Items.TryGetValue(RequestCorrelationMiddleware.CorrelationIdItemKey, out object? correlationIdValue)
+        ? Convert.ToString(correlationIdValue) ?? Context.TraceIdentifier
+        : Context.TraceIdentifier;
 }
 <!DOCTYPE html>
 <html lang="es" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - NovaShop Backoffice</title>
+    <title>@ViewData["Title"] - @clientExperience.BackofficeName</title>
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,22 +48,23 @@
     <link rel="stylesheet" href="~/PlataformaECommerce.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <div class="container-fluid admin-shell">
+    <div class="container-fluid admin-shell" style="--primary:@clientExperience.PrimaryColor; --accent:@clientExperience.AccentColor; --accent-hover:@clientExperience.AccentColor; --admin-sidebar-start:@clientExperience.AdminSidebarStartColor; --admin-sidebar-end:@clientExperience.AdminSidebarEndColor;">
         <div class="row g-0">
             <aside class="col-12 col-lg-3 col-xl-2 admin-sidebar p-4">
                 <div class="d-flex flex-column h-100">
                     <div class="mb-4">
                         <a asp-page="/Admin/Index" class="admin-brand d-inline-flex align-items-center gap-2">
-                            <span class="badge text-bg-light text-dark">N</span>
-                            <span>NovaShop Backoffice</span>
+                            <span class="badge text-bg-light text-dark">@clientExperience.LogoGlyph</span>
+                            <span>@clientExperience.BackofficeName</span>
                         </a>
                         <p class="text-light-emphasis small mt-3 mb-0">
-                            Panel operativo para la administración interna, trazabilidad y supervisión del e-commerce.
+                            @clientExperience.StorefrontTagline
                         </p>
                     </div>
 
                     <nav class="mb-4" aria-label="Navegación principal del backoffice">
                         <a asp-page="/Admin/Index" class="admin-nav-link @(isDashboard ? "active" : string.Empty)">Dashboard</a>
+                        <a asp-page="/Admin/Operations/Index" class="admin-nav-link @(isOperations ? "active" : string.Empty)">Operación y soporte</a>
                         <a asp-page="/Admin/Audit/Index" class="admin-nav-link @(isAudit ? "active" : string.Empty)">Auditoría transversal</a>
                         <a asp-page="/Admin/Products/Index" class="admin-nav-link @(isProducts ? "active" : string.Empty)">Productos</a>
                         <div class="admin-nav-group @(isCategories ? "active" : string.Empty)">
@@ -75,6 +89,11 @@
                     </nav>
 
                     <div class="mt-auto rounded-4 border border-light-subtle p-3 bg-dark bg-opacity-25">
+                        <div class="admin-muted-label text-light-emphasis">Cliente activo</div>
+                        <div class="fw-semibold mt-2">@clientExperience.ClientId</div>
+                        <div class="small text-light-emphasis">Versión: @applicationVersion</div>
+                        <div class="small text-light-emphasis">Correlación actual: @currentCorrelationId</div>
+                        <hr class="border-light-subtle" />
                         <div class="admin-muted-label text-light-emphasis">Sesión activa</div>
                         <div class="fw-semibold mt-2">@adminName</div>
                         <div class="small text-light-emphasis">@adminEmail</div>
@@ -89,6 +108,7 @@
                     <div>
                         <div class="admin-muted-label">Backoffice</div>
                         <div class="fw-semibold">@adminName</div>
+                        <div class="small text-muted">@clientExperience.ClientId · @applicationVersion · Correlación @currentCorrelationId</div>
                     </div>
 
                     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -106,7 +126,8 @@
                     <div class="admin-page-header p-4 mb-4">
                         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3">
                             <div>
-                                <div class="admin-muted-label">NovaShop Admin</div>
+                                <div class="admin-muted-label">@clientExperience.StorefrontName Admin</div>
+                                <div class="small text-muted">@clientExperience.BackofficeName</div>
                                 <h1 class="h3 fw-bold mb-2">@(ViewData["Title"] ?? "Backoffice")</h1>
                                 @if (ViewData["Subtitle"] is string subtitle && !string.IsNullOrWhiteSpace(subtitle))
                                 {

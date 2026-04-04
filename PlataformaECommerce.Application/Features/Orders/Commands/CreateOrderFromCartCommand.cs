@@ -1,5 +1,6 @@
 ﻿using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Orders.DTOs;
+using PlataformaECommerce.Domain.Enums;
 
 namespace PlataformaECommerce.Application.Features.Orders.Commands;
 
@@ -65,6 +66,36 @@ public sealed class CreateOrderFromCartCommand
     public string? Notes { get; init; }
 
     /// <summary>
+    /// Método de pago seleccionado por el cliente durante el checkout.
+    /// </summary>
+    public MetodoPagoPedido? PaymentMethod { get; init; }
+
+    /// <summary>
+    /// Calle o dirección principal de envío del pedido.
+    /// </summary>
+    public string? ShippingStreet { get; init; }
+
+    /// <summary>
+    /// Ciudad de la dirección de envío.
+    /// </summary>
+    public string? ShippingCity { get; init; }
+
+    /// <summary>
+    /// Departamento o región de la dirección de envío.
+    /// </summary>
+    public string? ShippingRegion { get; init; }
+
+    /// <summary>
+    /// País de la dirección de envío.
+    /// </summary>
+    public string? ShippingCountry { get; init; }
+
+    /// <summary>
+    /// Código postal de la dirección de envío.
+    /// </summary>
+    public string? ShippingPostalCode { get; init; }
+
+    /// <summary>
     /// Referencia funcional externa asociada al proceso de creación del pedido.
     /// </summary>
     /// <remarks>
@@ -119,6 +150,16 @@ public sealed class CreateOrderFromCartCommand
     /// fuente de tiempo controlada.
     /// </remarks>
     public DateTime? RequestedAtUtc { get; init; }
+
+    /// <summary>
+    /// Indica si la solicitud incluye una dirección de envío completa.
+    /// </summary>
+    public bool HasShippingAddress =>
+        !string.IsNullOrWhiteSpace(ShippingStreet)
+        || !string.IsNullOrWhiteSpace(ShippingCity)
+        || !string.IsNullOrWhiteSpace(ShippingRegion)
+        || !string.IsNullOrWhiteSpace(ShippingCountry)
+        || !string.IsNullOrWhiteSpace(ShippingPostalCode);
 
     #endregion
 

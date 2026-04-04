@@ -135,10 +135,20 @@ public class IndexPageModelTests
         IReadOnlyCollection<CatalogProductDto>? catalogProducts = null,
         Func<GetFeaturedProductsQuery, Task>? onGetFeaturedProductsAsync = null) : ICatalogApplicationService
     {
-        public Task<Result<IReadOnlyCollection<CatalogProductDto>>> GetCatalogProductsAsync(
+        public Task<Result<CatalogQueryResultDto>> GetCatalogProductsAsync(
             GetCatalogProductsQuery query,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(Result.Success(catalogProducts ?? Array.Empty<CatalogProductDto>()));
+            => Task.FromResult(Result.Success(new CatalogQueryResultDto
+            {
+                Items = catalogProducts ?? Array.Empty<CatalogProductDto>(),
+                TotalCount = catalogProducts?.Count ?? 0,
+                ReturnedCount = catalogProducts?.Count ?? 0,
+                PageNumber = 1,
+                PageSize = Math.Max(1, catalogProducts?.Count ?? 1),
+                TotalPages = catalogProducts is { Count: > 0 } ? 1 : 0,
+                HasPreviousPage = false,
+                HasNextPage = false
+            }));
 
         public async Task<Result<IReadOnlyCollection<FeaturedProductDto>>> GetFeaturedProductsAsync(
             GetFeaturedProductsQuery query,

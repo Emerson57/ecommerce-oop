@@ -56,6 +56,10 @@ public sealed class OrderEntityConfiguration : IEntityTypeConfiguration<OrderEnt
             .HasMaxLength(500)
             .IsRequired(false);
 
+        builder.Property(order => order.MetodoPagoSeleccionado)
+            .HasMaxLength(50)
+            .IsRequired(false);
+
         builder.Property(order => order.DireccionCalle)
             .HasMaxLength(150)
             .IsRequired(false);

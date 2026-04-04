@@ -137,6 +137,16 @@ builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructure(builder.Configuration, builder.Environment);
 
 builder.Services
+    .AddOptions<ClientExperienceOptions>()
+    .Bind(builder.Configuration.GetSection(ClientExperienceOptions.SectionName))
+    .ValidateDataAnnotations()
+    .Validate(options => IsValidHexColor(options.PrimaryColor), "La configuración comercial requiere un color primario hexadecimal válido.")
+    .Validate(options => IsValidHexColor(options.AccentColor), "La configuración comercial requiere un color de acento hexadecimal válido.")
+    .Validate(options => IsValidHexColor(options.AdminSidebarStartColor), "La configuración comercial requiere un color inicial válido para el sidebar administrativo.")
+    .Validate(options => IsValidHexColor(options.AdminSidebarEndColor), "La configuración comercial requiere un color final válido para el sidebar administrativo.")
+    .ValidateOnStart();
+
+builder.Services
     .AddOptions<AdminUsersBackofficeOptions>()
     .Bind(builder.Configuration.GetSection(AdminUsersBackofficeOptions.SectionName));
 
@@ -350,6 +360,16 @@ static bool IsValidPolicy(WebRateLimitingOptions.FixedWindowPolicyOptions? optio
         && options.PermitLimit > 0
         && options.WindowSeconds > 0
         && options.QueueLimit >= 0;
+}
+
+static bool IsValidHexColor(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return false;
+    }
+
+    return System.Text.RegularExpressions.Regex.IsMatch(value.Trim(), "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$");
 }
 
 static void AddFixedWindowPolicy(

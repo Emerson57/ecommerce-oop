@@ -66,6 +66,11 @@ public sealed class OrderEntity
     public string? ObservacionCancelacion { get; set; }
 
     /// <summary>
+    /// Obtiene o establece el método de pago seleccionado durante el checkout.
+    /// </summary>
+    public string? MetodoPagoSeleccionado { get; set; }
+
+    /// <summary>
     /// Obtiene o establece la calle de la dirección de envío asociada al pedido.
     /// </summary>
     public string? DireccionCalle { get; set; }

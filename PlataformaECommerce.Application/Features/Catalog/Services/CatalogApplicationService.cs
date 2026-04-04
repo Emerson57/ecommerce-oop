@@ -75,7 +75,7 @@ public sealed class CatalogApplicationService : ICatalogApplicationService
     /// <returns>
     /// Un resultado con la colección de productos del catálogo cuando la operación es exitosa.
     /// </returns>
-    public async Task<Result<IReadOnlyCollection<CatalogProductDto>>> GetCatalogProductsAsync(
+    public async Task<Result<CatalogQueryResultDto>> GetCatalogProductsAsync(
         GetCatalogProductsQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -84,21 +84,36 @@ public sealed class CatalogApplicationService : ICatalogApplicationService
         Error? validationError = ValidateCatalogQuery(query);
         if (validationError is not null)
         {
-            return Result.Failure<IReadOnlyCollection<CatalogProductDto>>(validationError);
+            return Result.Failure<CatalogQueryResultDto>(validationError);
         }
 
         IReadOnlyCollection<Producto> sourceProducts = await GetCatalogSourceProductsAsync(query, cancellationToken);
 
         IEnumerable<Producto> filteredProducts = ApplyCatalogFilters(sourceProducts, query);
         IEnumerable<Producto> orderedProducts = ApplyCatalogSorting(filteredProducts, query);
+        Producto[] orderedProductsSnapshot = orderedProducts.ToArray();
+        int totalCount = orderedProductsSnapshot.Length;
+        int totalPages = totalCount == 0
+            ? 0
+            : (int)Math.Ceiling(totalCount / (double)query.NormalizedPageSize);
 
-        IReadOnlyCollection<CatalogProductDto> result = orderedProducts
+        IReadOnlyCollection<CatalogProductDto> items = orderedProductsSnapshot
             .Skip(query.Offset)
             .Take(query.NormalizedPageSize)
             .Select(product => MapToCatalogProductDto(product, query.IncludeImageGallery, query.IncludeCommercialMetrics))
             .ToArray();
 
-        return Result.Success(result);
+        return Result.Success(new CatalogQueryResultDto
+        {
+            Items = items,
+            TotalCount = totalCount,
+            ReturnedCount = items.Count,
+            PageNumber = query.NormalizedPageNumber,
+            PageSize = query.NormalizedPageSize,
+            TotalPages = totalPages,
+            HasPreviousPage = query.NormalizedPageNumber > 1 && totalPages > 0,
+            HasNextPage = totalPages > 0 && query.NormalizedPageNumber < totalPages
+        });
     }
 
     /// <summary>

@@ -1,11 +1,15 @@
 @model PlataformaECommerce.Web.ViewComponents.StoreFooterViewComponent.StoreFooterViewModel
 
 <div>
-    <h4>NovaShop</h4>
+    <h4>@Model.BrandName</h4>
     <p>
-        Una experiencia de compra moderna, segura y pensada para ofrecer productos,
-        promociones atractivas y una navegación clara.
+        @Model.BrandTagline
     </p>
+    <div class="small text-muted d-flex flex-column gap-1">
+        <span><strong>Soporte:</strong> @Model.SupportEmail</span>
+        <span><strong>Teléfono:</strong> @Model.SupportPhone</span>
+        <span><strong>Horario:</strong> @Model.SupportHours</span>
+    </div>
 </div>
 
 <div>
