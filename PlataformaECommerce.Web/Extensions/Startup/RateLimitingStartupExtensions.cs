@@ -26,7 +26,7 @@ public static class RateLimitingStartupExtensions
         services
             .AddOptions<WebRateLimitingOptions>()
             .Bind(configuration.GetSection(WebRateLimitingOptions.SectionName))
-            .Validate(options => StartupCompositionHelpers.AreValidRateLimitingOptions(options), "La configuración de rate limiting contiene valores inválidos.")
+            .Validate(RateLimitingOptionsValidator.AreValid, "La configuración de rate limiting contiene valores inválidos.")
             .ValidateOnStart();
 
         WebRateLimitingOptions configuredRateLimitingOptions = configuration
@@ -54,9 +54,9 @@ public static class RateLimitingStartupExtensions
                 }, cancellationToken: cancellationToken);
             };
 
-            StartupCompositionHelpers.AddFixedWindowPolicy(options, WebRateLimitingOptions.AuthFlowPolicyName, configuredRateLimitingOptions.AuthFlow);
-            StartupCompositionHelpers.AddFixedWindowPolicy(options, WebRateLimitingOptions.SensitiveApiPolicyName, configuredRateLimitingOptions.SensitiveApi);
-            StartupCompositionHelpers.AddFixedWindowPolicy(options, WebRateLimitingOptions.PublicApiPolicyName, configuredRateLimitingOptions.PublicApi);
+            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, WebRateLimitingOptions.AuthFlowPolicyName, configuredRateLimitingOptions.AuthFlow);
+            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, WebRateLimitingOptions.SensitiveApiPolicyName, configuredRateLimitingOptions.SensitiveApi);
+            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, WebRateLimitingOptions.PublicApiPolicyName, configuredRateLimitingOptions.PublicApi);
         });
 
         return services;

@@ -43,7 +43,7 @@ public static class PresentationStartupExtensions
                         detail: "Corrige los campos indicados e inténtalo nuevamente.",
                         instance: context.HttpContext.Request.Path);
 
-                    StartupCompositionHelpers.PopulateProblemDetails(context.HttpContext, problemDetails);
+                    ProblemDetailsMetadataEnricher.Enrich(context.HttpContext, problemDetails);
 
                     return new BadRequestObjectResult(problemDetails)
                     {
@@ -56,10 +56,10 @@ public static class PresentationStartupExtensions
             .AddOptions<ClientExperienceOptions>()
             .BindConfiguration(ClientExperienceOptions.SectionName)
             .ValidateDataAnnotations()
-            .Validate(options => StartupCompositionHelpers.IsValidHexColor(options.PrimaryColor), "La configuración comercial requiere un color primario hexadecimal válido.")
-            .Validate(options => StartupCompositionHelpers.IsValidHexColor(options.AccentColor), "La configuración comercial requiere un color de acento hexadecimal válido.")
-            .Validate(options => StartupCompositionHelpers.IsValidHexColor(options.AdminSidebarStartColor), "La configuración comercial requiere un color inicial válido para el sidebar administrativo.")
-            .Validate(options => StartupCompositionHelpers.IsValidHexColor(options.AdminSidebarEndColor), "La configuración comercial requiere un color final válido para el sidebar administrativo.")
+            .Validate(options => HexColorValidator.IsValid(options.PrimaryColor), "La configuración comercial requiere un color primario hexadecimal válido.")
+            .Validate(options => HexColorValidator.IsValid(options.AccentColor), "La configuración comercial requiere un color de acento hexadecimal válido.")
+            .Validate(options => HexColorValidator.IsValid(options.AdminSidebarStartColor), "La configuración comercial requiere un color inicial válido para el sidebar administrativo.")
+            .Validate(options => HexColorValidator.IsValid(options.AdminSidebarEndColor), "La configuración comercial requiere un color final válido para el sidebar administrativo.")
             .ValidateOnStart();
 
         services
@@ -69,10 +69,10 @@ public static class PresentationStartupExtensions
         services
             .AddOptions<ProductImagesOptions>()
             .BindConfiguration(ProductImagesOptions.SectionName)
-            .Validate(options => !string.IsNullOrWhiteSpace(options.UploadsDirectory), "La configuración de imágenes de productos requiere un directorio de almacenamiento válido.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.RequestPath) && options.RequestPath.StartsWith('/'), "La configuración de imágenes de productos requiere una ruta pública válida que comience con '/'.")
-            .Validate(options => options.MaxFileSizeInBytes > 0, "La configuración de imágenes de productos requiere un tamaño máximo de archivo mayor que cero.")
-            .Validate(options => options.AllowedExtensions.Count > 0, "La configuración de imágenes de productos requiere al menos una extensión permitida.")
+            .Validate(ProductImagesOptionsValidator.HasValidUploadsDirectory, "La configuración de imágenes de productos requiere un directorio de almacenamiento válido.")
+            .Validate(ProductImagesOptionsValidator.HasValidRequestPath, "La configuración de imágenes de productos requiere una ruta pública válida que comience con '/'.")
+            .Validate(ProductImagesOptionsValidator.HasValidMaxFileSize, "La configuración de imágenes de productos requiere un tamaño máximo de archivo mayor que cero.")
+            .Validate(ProductImagesOptionsValidator.HasAllowedExtensions, "La configuración de imágenes de productos requiere al menos una extensión permitida.")
             .ValidateOnStart();
 
         services.AddScoped<IProductImageStorageService, ProductImageStorageService>();

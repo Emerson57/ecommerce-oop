@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using PlataformaECommerce.Web.Extensions.Startup;
 
 namespace PlataformaECommerce.Web.HealthChecks;
 
@@ -19,9 +20,7 @@ public static class HealthCheckResponseWriter
 
         context.Response.ContentType = "application/json";
 
-        string correlationId = context.Items.TryGetValue(Middlewares.RequestCorrelationMiddleware.CorrelationIdItemKey, out object? correlationIdValue)
-            ? Convert.ToString(correlationIdValue, System.Globalization.CultureInfo.InvariantCulture) ?? context.TraceIdentifier
-            : context.TraceIdentifier;
+        string correlationId = CorrelationIdResolver.Resolve(context);
 
         var payload = new
         {

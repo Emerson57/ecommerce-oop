@@ -19,7 +19,7 @@ public static class ProblemDetailsStartupExtensions
         services.AddProblemDetails(options =>
         {
             options.CustomizeProblemDetails = context =>
-                StartupCompositionHelpers.PopulateProblemDetails(context.HttpContext, context.ProblemDetails);
+                ProblemDetailsMetadataEnricher.Enrich(context.HttpContext, context.ProblemDetails);
         });
 
         return services;
