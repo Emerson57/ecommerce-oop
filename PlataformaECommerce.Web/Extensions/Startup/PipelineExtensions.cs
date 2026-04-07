@@ -34,13 +34,13 @@ public static class PipelineExtensions
         }
         else
         {
-            app.UseExceptionHandler("/Error");
             app.UseHsts();
         }
 
         app.UseForwardedHeaders();
         app.UseHttpsRedirection();
         app.UseMiddleware<RequestCorrelationMiddleware>();
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseConfiguredSerilogRequestLogging();
 
         RequestLocalizationOptions requestLocalizationOptions = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
@@ -49,7 +49,6 @@ public static class PipelineExtensions
         ProductImagesStaticFileConfigurator.UseConfiguredStaticFiles(app);
         app.UseRouting();
         app.UseRateLimiter();
-        app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
 

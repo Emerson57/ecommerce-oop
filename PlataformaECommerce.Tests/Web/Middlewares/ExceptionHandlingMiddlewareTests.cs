@@ -1,8 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
 using PlataformaECommerce.Domain.Exceptions;
 using PlataformaECommerce.Web.Middlewares;
 
@@ -16,8 +14,7 @@ public class ExceptionHandlingMiddlewareTests
     {
         ExceptionHandlingMiddleware middleware = new(
             _ => throw new InvalidOperationException("Detalle interno sensible."),
-            NullLogger<ExceptionHandlingMiddleware>.Instance,
-            CreateProblemDetailsService());
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
         DefaultHttpContext httpContext = new();
         httpContext.TraceIdentifier = "trace-admin-001";
         httpContext.Response.Body = new MemoryStream();
@@ -34,6 +31,7 @@ public class ExceptionHandlingMiddlewareTests
         Assert.That(responseBody, Does.Not.Contain("Detalle interno sensible"));
         Assert.That(payload.RootElement.GetProperty("traceId").GetString(), Is.EqualTo("trace-admin-001"));
         Assert.That(payload.RootElement.GetProperty("title").GetString(), Is.EqualTo("La operación no es válida."));
+        Assert.That(httpContext.Response.ContentType, Is.EqualTo("application/problem+json"));
     }
 
     [Test]
@@ -41,8 +39,7 @@ public class ExceptionHandlingMiddlewareTests
     {
         ExceptionHandlingMiddleware middleware = new(
             _ => throw new Exception("Fallo interno sensible."),
-            NullLogger<ExceptionHandlingMiddleware>.Instance,
-            CreateProblemDetailsService());
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
         DefaultHttpContext httpContext = new();
         httpContext.Response.Body = new MemoryStream();
 
@@ -61,8 +58,7 @@ public class ExceptionHandlingMiddlewareTests
     {
         ExceptionHandlingMiddleware middleware = new(
             _ => throw new OperationCanceledException("Cancelada por cliente."),
-            NullLogger<ExceptionHandlingMiddleware>.Instance,
-            CreateProblemDetailsService());
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
         DefaultHttpContext httpContext = new();
         httpContext.TraceIdentifier = "corr-cancel-001";
         httpContext.Items[RequestCorrelationMiddleware.CorrelationIdItemKey] = "corr-cancel-001";
@@ -80,8 +76,7 @@ public class ExceptionHandlingMiddlewareTests
     {
         ExceptionHandlingMiddleware middleware = new(
             _ => throw new DomainException("No hay inventario suficiente para completar la operación."),
-            NullLogger<ExceptionHandlingMiddleware>.Instance,
-            CreateProblemDetailsService());
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
         DefaultHttpContext httpContext = new();
         httpContext.TraceIdentifier = "domain-trace-001";
         httpContext.Items[RequestCorrelationMiddleware.CorrelationIdItemKey] = "corr-domain-001";
@@ -98,11 +93,25 @@ public class ExceptionHandlingMiddlewareTests
         Assert.That(payload.RootElement.GetProperty("correlationId").GetString(), Is.EqualTo("corr-domain-001"));
     }
 
-    private static IProblemDetailsService CreateProblemDetailsService()
+    [Test]
+    public async Task InvokeAsync_SolicitudHtml_RetornaProblemDetailsComoContratoGlobalConsistente()
     {
-        ServiceCollection services = new();
-        services.AddLogging();
-        services.AddProblemDetails();
-        return services.BuildServiceProvider().GetRequiredService<IProblemDetailsService>();
+        ExceptionHandlingMiddleware middleware = new(
+            _ => throw new KeyNotFoundException("No existe el producto solicitado."),
+            NullLogger<ExceptionHandlingMiddleware>.Instance);
+        DefaultHttpContext httpContext = new();
+        httpContext.TraceIdentifier = "trace-html-001";
+        httpContext.Request.Headers.Accept = "text/html";
+        httpContext.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(httpContext);
+
+        httpContext.Response.Body.Position = 0;
+        JsonDocument payload = await JsonDocument.ParseAsync(httpContext.Response.Body);
+
+        Assert.That(httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status404NotFound));
+        Assert.That(httpContext.Response.ContentType, Is.EqualTo("application/problem+json"));
+        Assert.That(payload.RootElement.GetProperty("title").GetString(), Is.EqualTo("No se encontró el recurso solicitado."));
+        Assert.That(payload.RootElement.GetProperty("traceId").GetString(), Is.EqualTo("trace-html-001"));
     }
 }
