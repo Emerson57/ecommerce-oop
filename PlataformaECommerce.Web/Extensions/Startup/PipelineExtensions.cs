@@ -22,6 +22,11 @@ public static class PipelineExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        app.UseForwardedHeaders();
+        app.UseMiddleware<ExceptionHandlingMiddleware>();
+        app.UseMiddleware<RequestCorrelationMiddleware>();
+        app.UseConfiguredSerilogRequestLogging();
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -37,11 +42,7 @@ public static class PipelineExtensions
             app.UseHsts();
         }
 
-        app.UseForwardedHeaders();
         app.UseHttpsRedirection();
-        app.UseMiddleware<RequestCorrelationMiddleware>();
-        app.UseMiddleware<ExceptionHandlingMiddleware>();
-        app.UseConfiguredSerilogRequestLogging();
 
         RequestLocalizationOptions requestLocalizationOptions = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
         app.UseRequestLocalization(requestLocalizationOptions);
