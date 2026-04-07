@@ -24,7 +24,7 @@ namespace PlataformaECommerce.Web.Pages.Auth;
 /// con validación cliente y verificación online de disponibilidad del correo.
 /// </remarks>
 [AllowAnonymous]
-[EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
+[EnableRateLimiting(RateLimitingOptions.AuthenticationPolicyName)]
 public sealed class RegisterModel : PageModel
 {
     private const string RegisterSource = "Web.Auth.Register";

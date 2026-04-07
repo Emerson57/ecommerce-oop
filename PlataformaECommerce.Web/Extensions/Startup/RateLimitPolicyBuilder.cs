@@ -9,14 +9,18 @@ internal static class RateLimitPolicyBuilder
     public static void AddFixedWindowPolicy(
         RateLimiterOptions options,
         string policyName,
-        WebRateLimitingOptions.FixedWindowPolicyOptions policy)
+        RateLimitingOptions.FixedWindowPolicyOptions policy)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(policy);
 
         options.AddPolicy(policyName, httpContext =>
-            RateLimitPartition.GetFixedWindowLimiter(
-                partitionKey: RateLimitPartitionKeyResolver.Resolve(httpContext),
+        {
+            RateLimitPartitionKeyResolver partitionKeyResolver = httpContext.RequestServices.GetRequiredService<RateLimitPartitionKeyResolver>();
+            string partitionKey = partitionKeyResolver.Resolve(httpContext, policyName);
+
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: partitionKey,
                 factory: _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = policy.PermitLimit,
@@ -24,6 +28,7 @@ internal static class RateLimitPolicyBuilder
                     QueueLimit = policy.QueueLimit,
                     QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                     AutoReplenishment = true
-                }));
+                });
+        });
     }
 }

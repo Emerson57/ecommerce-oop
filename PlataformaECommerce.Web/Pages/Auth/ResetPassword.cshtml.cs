@@ -13,7 +13,7 @@ namespace PlataformaECommerce.Web.Pages.Auth;
 /// Gestiona el restablecimiento de contraseña mediante un enlace temporal.
 /// </summary>
 [AllowAnonymous]
-[EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
+[EnableRateLimiting(RateLimitingOptions.AuthenticationPolicyName)]
 public sealed class ResetPasswordModel : PageModel
 {
     private readonly IAuthApplicationService _authApplicationService;

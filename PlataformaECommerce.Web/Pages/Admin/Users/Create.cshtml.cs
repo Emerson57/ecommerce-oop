@@ -25,7 +25,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Users;
 [Authorize(
     Policy = AuthorizationPolicies.SuperUserOnly,
     AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
-[EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
+[EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
 public sealed class CreateModel : PageModel
 {
     private readonly IAdminUserService _adminUserService;

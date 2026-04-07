@@ -19,7 +19,7 @@ namespace PlataformaECommerce.Web.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [ApiExplorerSettings(GroupName = SwaggerGroups.Public)]
-[EnableRateLimiting(WebRateLimitingOptions.PublicApiPolicyName)]
+ [EnableRateLimiting(RateLimitingOptions.PublicApiPolicyName)]
 public sealed class ProductsController : ControllerBase
 {
     private readonly IProductQueryService _productQueryService;

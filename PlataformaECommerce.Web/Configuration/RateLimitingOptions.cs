@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations;
 namespace PlataformaECommerce.Web.Configuration;
 
 /// <summary>
-/// Define la configuración centralizada de rate limiting para endpoints sensibles y públicos.
+/// Define la configuración centralizada de rate limiting para flujos interactivos, APIs públicas y endpoints administrativos.
 /// </summary>
-public sealed class WebRateLimitingOptions
+public sealed class RateLimitingOptions
 {
     /// <summary>
     /// Nombre de la sección de configuración.
@@ -15,12 +15,7 @@ public sealed class WebRateLimitingOptions
     /// <summary>
     /// Nombre de la política de autenticación interactiva.
     /// </summary>
-    public const string AuthFlowPolicyName = "auth-flow";
-
-    /// <summary>
-    /// Nombre de la política aplicada a APIs administrativas sensibles.
-    /// </summary>
-    public const string SensitiveApiPolicyName = "sensitive-api";
+    public const string AuthenticationPolicyName = "auth-flow";
 
     /// <summary>
     /// Nombre de la política aplicada a APIs públicas consultivas.
@@ -28,19 +23,34 @@ public sealed class WebRateLimitingOptions
     public const string PublicApiPolicyName = "public-api";
 
     /// <summary>
-    /// Configuración del rate limiting para autenticación interactiva.
+    /// Nombre de la política aplicada a endpoints administrativos del backoffice.
     /// </summary>
-    public FixedWindowPolicyOptions AuthFlow { get; set; } = new(permitLimit: 10, windowSeconds: 60, queueLimit: 0);
+    public const string AdministrationPolicyName = "administration-api";
 
     /// <summary>
-    /// Configuración del rate limiting para endpoints administrativos sensibles.
+    /// Nombre de la política aplicada a endpoints sensibles adicionales.
     /// </summary>
-    public FixedWindowPolicyOptions SensitiveApi { get; set; } = new(permitLimit: 30, windowSeconds: 60, queueLimit: 0);
+    public const string SensitiveEndpointsPolicyName = "sensitive-endpoints";
+
+    /// <summary>
+    /// Configuración del rate limiting para autenticación interactiva.
+    /// </summary>
+    public FixedWindowPolicyOptions Authentication { get; set; } = new(permitLimit: 10, windowSeconds: 60, queueLimit: 0);
 
     /// <summary>
     /// Configuración del rate limiting para endpoints públicos.
     /// </summary>
     public FixedWindowPolicyOptions PublicApi { get; set; } = new(permitLimit: 120, windowSeconds: 60, queueLimit: 0);
+
+    /// <summary>
+    /// Configuración del rate limiting para endpoints administrativos.
+    /// </summary>
+    public FixedWindowPolicyOptions Administration { get; set; } = new(permitLimit: 30, windowSeconds: 60, queueLimit: 0);
+
+    /// <summary>
+    /// Configuración del rate limiting para endpoints sensibles adicionales.
+    /// </summary>
+    public FixedWindowPolicyOptions SensitiveEndpoints { get; set; } = new(permitLimit: 30, windowSeconds: 60, queueLimit: 0);
 
     /// <summary>
     /// Define una ventana fija de rate limiting.

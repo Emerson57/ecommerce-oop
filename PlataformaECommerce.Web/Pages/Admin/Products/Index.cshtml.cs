@@ -23,7 +23,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     /// acciones rápidas sobre el estado, destacado, inventario y promociones del catálogo
     /// sin abandonar el listado.
     /// </remarks>
-    [EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
+    [EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
     public sealed class IndexModel : PageModel
     {
         private const int MaxVisiblePageLinks = 5;

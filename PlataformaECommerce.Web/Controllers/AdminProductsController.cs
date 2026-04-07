@@ -26,7 +26,7 @@ namespace PlataformaECommerce.Web.Controllers;
 [Authorize(
     Policy = AuthorizationPolicies.AdminOnly,
     AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
-[EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
+[EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
 public sealed class AdminProductsController : ControllerBase
 {
     private readonly IProductCommandService _productCommandService;

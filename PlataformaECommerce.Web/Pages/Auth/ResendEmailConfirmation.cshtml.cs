@@ -15,7 +15,7 @@ namespace PlataformaECommerce.Web.Pages.Auth;
 /// Gestiona la solicitud pública de reenvío del correo de confirmación de cuenta.
 /// </summary>
 [AllowAnonymous]
-[EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
+[EnableRateLimiting(RateLimitingOptions.AuthenticationPolicyName)]
 public sealed class ResendEmailConfirmationModel : PageModel
 {
     private readonly IUserApplicationService _userApplicationService;

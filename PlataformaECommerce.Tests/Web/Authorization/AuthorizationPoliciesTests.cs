@@ -91,7 +91,7 @@ public class AuthorizationPoliciesTests
             .OfType<EnableRateLimitingAttribute>()
             .SingleOrDefault();
 
-        Assert.That(attribute?.PolicyName, Is.EqualTo(WebRateLimitingOptions.AuthFlowPolicyName));
+        Assert.That(attribute?.PolicyName, Is.EqualTo(RateLimitingOptions.AuthenticationPolicyName));
     }
 
     [Test]
@@ -102,7 +102,7 @@ public class AuthorizationPoliciesTests
             .OfType<EnableRateLimitingAttribute>()
             .SingleOrDefault();
 
-        Assert.That(attribute?.PolicyName, Is.EqualTo(WebRateLimitingOptions.SensitiveApiPolicyName));
+        Assert.That(attribute?.PolicyName, Is.EqualTo(RateLimitingOptions.AdministrationPolicyName));
     }
 
     [Test]
@@ -113,7 +113,7 @@ public class AuthorizationPoliciesTests
             .OfType<EnableRateLimitingAttribute>()
             .SingleOrDefault();
 
-        Assert.That(attribute?.PolicyName, Is.EqualTo(WebRateLimitingOptions.PublicApiPolicyName));
+        Assert.That(attribute?.PolicyName, Is.EqualTo(RateLimitingOptions.PublicApiPolicyName));
     }
 
     [Test]

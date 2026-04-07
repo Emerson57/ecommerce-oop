@@ -4,16 +4,17 @@ namespace PlataformaECommerce.Web.Extensions.Startup;
 
 internal static class RateLimitingOptionsValidator
 {
-    public static bool AreValid(WebRateLimitingOptions options)
+    public static bool AreValid(RateLimitingOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        return HasValidPolicy(options.AuthFlow)
-            && HasValidPolicy(options.SensitiveApi)
-            && HasValidPolicy(options.PublicApi);
+        return HasValidPolicy(options.Authentication)
+            && HasValidPolicy(options.PublicApi)
+            && HasValidPolicy(options.Administration)
+            && HasValidPolicy(options.SensitiveEndpoints);
     }
 
-    private static bool HasValidPolicy(WebRateLimitingOptions.FixedWindowPolicyOptions? options)
+    private static bool HasValidPolicy(RateLimitingOptions.FixedWindowPolicyOptions? options)
     {
         return options is not null
             && options.PermitLimit > 0

@@ -25,7 +25,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
     /// a <c>Application</c>, emitiendo posteriormente la cookie apropiada según el tipo de cuenta autenticada.
     /// </remarks>
     [AllowAnonymous]
-    [EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
+    [EnableRateLimiting(RateLimitingOptions.AuthenticationPolicyName)]
     public sealed class LoginModel : PageModel
     {
         private readonly IAuthApplicationService _authApplicationService;

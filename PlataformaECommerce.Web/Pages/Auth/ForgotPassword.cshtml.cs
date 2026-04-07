@@ -14,7 +14,7 @@ namespace PlataformaECommerce.Web.Pages.Auth;
 /// Gestiona la solicitud interactiva de recuperación de contraseña basada en correo electrónico.
 /// </summary>
 [AllowAnonymous]
-[EnableRateLimiting(WebRateLimitingOptions.AuthFlowPolicyName)]
+[EnableRateLimiting(RateLimitingOptions.AuthenticationPolicyName)]
 public sealed class ForgotPasswordModel : PageModel
 {
     private readonly IAuthApplicationService _authApplicationService;

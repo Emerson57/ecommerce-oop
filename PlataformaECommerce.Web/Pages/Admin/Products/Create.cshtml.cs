@@ -21,7 +21,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     /// Esta página unifica la captura de datos comunes del catálogo y deriva la creación
     /// hacia el comando físico o digital correspondiente según el tipo seleccionado.
     /// </remarks>
-    [EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
+    [EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
     public sealed class CreateModel : PageModel
     {
         private readonly IProductCommandService _productCommandService;

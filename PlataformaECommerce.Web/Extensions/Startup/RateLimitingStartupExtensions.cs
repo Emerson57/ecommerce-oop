@@ -24,15 +24,17 @@ public static class RateLimitingStartupExtensions
         ArgumentNullException.ThrowIfNull(configuration);
 
         services
-            .AddOptions<WebRateLimitingOptions>()
-            .Bind(configuration.GetSection(WebRateLimitingOptions.SectionName))
+            .AddOptions<RateLimitingOptions>()
+            .Bind(configuration.GetSection(RateLimitingOptions.SectionName))
             .Validate(RateLimitingOptionsValidator.AreValid, "La configuración de rate limiting contiene valores inválidos.")
             .ValidateOnStart();
 
-        WebRateLimitingOptions configuredRateLimitingOptions = configuration
-            .GetSection(WebRateLimitingOptions.SectionName)
-            .Get<WebRateLimitingOptions>()
-            ?? new WebRateLimitingOptions();
+        services.AddScoped<RateLimitPartitionKeyResolver>();
+
+        RateLimitingOptions configuredRateLimitingOptions = configuration
+            .GetSection(RateLimitingOptions.SectionName)
+            .Get<RateLimitingOptions>()
+            ?? new RateLimitingOptions();
 
         services.AddRateLimiter(options =>
         {
@@ -54,9 +56,10 @@ public static class RateLimitingStartupExtensions
                 }, cancellationToken: cancellationToken);
             };
 
-            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, WebRateLimitingOptions.AuthFlowPolicyName, configuredRateLimitingOptions.AuthFlow);
-            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, WebRateLimitingOptions.SensitiveApiPolicyName, configuredRateLimitingOptions.SensitiveApi);
-            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, WebRateLimitingOptions.PublicApiPolicyName, configuredRateLimitingOptions.PublicApi);
+            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, RateLimitingOptions.AuthenticationPolicyName, configuredRateLimitingOptions.Authentication);
+            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, RateLimitingOptions.PublicApiPolicyName, configuredRateLimitingOptions.PublicApi);
+            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, RateLimitingOptions.AdministrationPolicyName, configuredRateLimitingOptions.Administration);
+            RateLimitPolicyBuilder.AddFixedWindowPolicy(options, RateLimitingOptions.SensitiveEndpointsPolicyName, configuredRateLimitingOptions.SensitiveEndpoints);
         });
 
         return services;

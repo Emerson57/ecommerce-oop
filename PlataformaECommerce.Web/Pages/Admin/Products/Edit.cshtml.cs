@@ -28,7 +28,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Products
     /// el caso de uso de actualización ya disponible en la capa Application y mostrar
     /// trazabilidad resumida de las promociones aplicadas sobre el producto.
     /// </remarks>
-    [EnableRateLimiting(WebRateLimitingOptions.SensitiveApiPolicyName)]
+    [EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
     public sealed class EditModel : PageModel
     {
         private const int PromotionHistoryPageSize = 10;
