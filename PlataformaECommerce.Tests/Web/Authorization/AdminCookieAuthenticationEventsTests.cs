@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Web.Authorization;
 
 namespace PlataformaECommerce.Tests.Web.Authorization;
@@ -33,7 +35,7 @@ public class AdminCookieAuthenticationEventsTests
             AuthorizationPolicies.AdminCookieScheme);
         CookieValidatePrincipalContext context = new(httpContext, scheme, options, ticket);
         AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository()),
+            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
             NullLogger<AdminCookieAuthenticationEvents>.Instance);
 
         await events.ValidatePrincipal(context);
@@ -50,7 +52,7 @@ public class AdminCookieAuthenticationEventsTests
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
         AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository()),
+            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
             NullLogger<AdminCookieAuthenticationEvents>.Instance);
 
         await events.RedirectToLogin(context);
@@ -67,7 +69,7 @@ public class AdminCookieAuthenticationEventsTests
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
         AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository()),
+            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
             NullLogger<AdminCookieAuthenticationEvents>.Instance);
 
         await events.RedirectToAccessDenied(context);
@@ -82,11 +84,18 @@ public class AdminCookieAuthenticationEventsTests
         [
             new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
             new Claim(ClaimTypes.Name, "Admin Demo"),
+            new Claim(SecurityClaimTypes.TenantId, "tenant-demo"),
             new Claim(ClaimTypes.Role, "Administrador"),
             new Claim(AuthorizationPolicies.PrimaryRoleClaimType, "Administrador"),
             new Claim(AuthorizationPolicies.SuperUserClaimType, bool.FalseString),
             new Claim(AuthorizationPolicies.AdminAreaClaimType, "Operaciones")
         ], AuthorizationPolicies.AdminCookieScheme));
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => !string.IsNullOrWhiteSpace(TenantId);
     }
 
     private static RedirectContext<CookieAuthenticationOptions> CreateRedirectContext(HttpContext httpContext)

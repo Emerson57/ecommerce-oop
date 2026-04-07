@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using PlataformaECommerce.Application.Common.Security;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Web.Authorization;
 
 namespace PlataformaECommerce.Tests.Web.Authorization;
@@ -31,7 +33,7 @@ public class CustomerCookieAuthenticationEventsTests
             new AuthenticationProperties(),
             AuthorizationPolicies.CustomerCookieScheme);
         CookieValidatePrincipalContext context = new(httpContext, scheme, options, ticket);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository()));
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")));
 
         await events.ValidatePrincipal(context);
 
@@ -46,7 +48,7 @@ public class CustomerCookieAuthenticationEventsTests
         httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository()));
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")));
 
         await events.RedirectToLogin(context);
 
@@ -61,7 +63,7 @@ public class CustomerCookieAuthenticationEventsTests
         httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository()));
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")));
 
         await events.RedirectToAccessDenied(context);
 
@@ -76,10 +78,17 @@ public class CustomerCookieAuthenticationEventsTests
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Cliente Demo"),
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Email, "cliente@plataforma.com"),
+            new System.Security.Claims.Claim(SecurityClaimTypes.TenantId, "tenant-demo"),
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Cliente"),
             new System.Security.Claims.Claim(AuthorizationPolicies.PrimaryRoleClaimType, "Cliente"),
             new System.Security.Claims.Claim(AuthorizationPolicies.SuperUserClaimType, bool.FalseString)
         ], AuthorizationPolicies.CustomerCookieScheme));
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => !string.IsNullOrWhiteSpace(TenantId);
     }
 
     private static RedirectContext<CookieAuthenticationOptions> CreateRedirectContext(HttpContext httpContext)

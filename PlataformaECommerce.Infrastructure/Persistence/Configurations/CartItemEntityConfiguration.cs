@@ -24,6 +24,10 @@ public sealed class CartItemEntityConfiguration : IEntityTypeConfiguration<CartI
         builder.Property(item => item.Id)
             .ValueGeneratedNever();
 
+        builder.Property(item => item.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
         builder.Property(item => item.CartId)
             .IsRequired();
 
@@ -63,8 +67,9 @@ public sealed class CartItemEntityConfiguration : IEntityTypeConfiguration<CartI
         builder.Property(item => item.FechaActualizacionUtc)
             .IsRequired(false);
 
+        builder.HasIndex(item => item.TenantId);
         builder.HasIndex(item => item.CartId);
         builder.HasIndex(item => item.ProductoId);
-        builder.HasIndex(item => new { item.CartId, item.ProductoId });
+        builder.HasIndex(item => new { item.TenantId, item.CartId, item.ProductoId });
     }
 }

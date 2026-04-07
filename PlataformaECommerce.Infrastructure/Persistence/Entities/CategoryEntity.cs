@@ -3,12 +3,17 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities;
 /// <summary>
 /// Representa la proyección persistente de una categoría de producto.
 /// </summary>
-public sealed class CategoryEntity
+public sealed class CategoryEntity : ITenantOwnedEntity
 {
     /// <summary>
     /// Identificador único de la categoría.
     /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Identificador lógico del tenant propietario de la categoría.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
     /// Nombre visible de la categoría.

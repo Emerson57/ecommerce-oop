@@ -91,6 +91,12 @@ public static class InfrastructureServiceRegistration
         IHostEnvironment hostEnvironment)
     {
         services
+            .AddOptions<SaaSPlatformOptions>()
+            .Bind(configuration.GetSection(SaaSPlatformOptions.SectionName))
+            .Validate(options => HasValidSaaSSettings(options), "La configuración SaaS contiene tenants, planes o features inválidos para aislamiento de datos y operación comercial.")
+            .ValidateOnStart();
+
+        services
             .AddOptions<MongoDbSettings>()
             .Bind(configuration.GetSection(MongoDbSettings.SectionName))
             .Validate(settings => HasValidMongoDbSettings(settings, hostEnvironment), BuildMongoValidationMessage(hostEnvironment))
@@ -232,10 +238,13 @@ public static class InfrastructureServiceRegistration
         services.TryAddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.TryAddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();
         services.TryAddSingleton<IEmailConfirmationTokenService, EmailConfirmationTokenService>();
-        services.TryAddSingleton<ITokenService, JwtTokenService>();
+        services.TryAddScoped<ITokenService, JwtTokenService>();
         services.TryAddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.TryAddScoped<IEmailNotificationService, SmtpEmailNotificationService>();
         services.TryAddScoped<IExecutionContextAccessor, ExecutionContextAccessor>();
+        services.TryAddScoped<ITenantContextAccessor, TenantContextAccessor>();
+        services.TryAddScoped<ITenantCatalogService, TenantCatalogService>();
+        services.TryAddScoped<ITenantCatalogProvisioningService, TenantCatalogProvisioningService>();
         services.TryAddScoped<ICurrentUserService, CurrentUserService>();
         services.TryAddSingleton<Microsoft.AspNetCore.Http.IHttpContextAccessor, Microsoft.AspNetCore.Http.HttpContextAccessor>();
 
@@ -275,6 +284,87 @@ public static class InfrastructureServiceRegistration
         return !string.IsNullOrWhiteSpace(settings.ConnectionString)
             && !string.IsNullOrWhiteSpace(settings.DatabaseName)
             && !string.IsNullOrWhiteSpace(settings.AuditCollectionName);
+    }
+
+    private static bool HasValidSaaSSettings(SaaSPlatformOptions settings)
+    {
+        if (settings is null)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.DataIsolationMode))
+        {
+            return false;
+        }
+
+        IReadOnlyCollection<string> featureIds = settings.Features
+            .Select(feature => feature.FeatureId?.Trim())
+            .Where(featureId => !string.IsNullOrWhiteSpace(featureId))
+            .Cast<string>()
+            .ToArray();
+
+        if (featureIds.Count != settings.Features.Count || featureIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != featureIds.Count)
+        {
+            return false;
+        }
+
+        IReadOnlyCollection<string> planIds = settings.Plans
+            .Select(plan => plan.PlanId?.Trim())
+            .Where(planId => !string.IsNullOrWhiteSpace(planId))
+            .Cast<string>()
+            .ToArray();
+
+        if (planIds.Count != settings.Plans.Count || planIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != planIds.Count)
+        {
+            return false;
+        }
+
+        IReadOnlyCollection<string> tenantIds = settings.Tenants
+            .Select(tenant => tenant.TenantId?.Trim())
+            .Where(tenantId => !string.IsNullOrWhiteSpace(tenantId))
+            .Cast<string>()
+            .ToArray();
+
+        if (tenantIds.Count != settings.Tenants.Count || tenantIds.Count == 0 || tenantIds.Distinct(StringComparer.OrdinalIgnoreCase).Count() != tenantIds.Count)
+        {
+            return false;
+        }
+
+        if (settings.Tenants.All(tenant => !tenant.Enabled))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.ActiveTenantId)
+            && !tenantIds.Contains(settings.ActiveTenantId.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        HashSet<string> featureCatalog = featureIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> planCatalog = planIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        bool hasValidPlans = settings.Plans.All(plan =>
+            !string.IsNullOrWhiteSpace(plan.DisplayName)
+            && plan.MonthlyPrice >= 0
+            && plan.IncludedAdministrators >= 0
+            && plan.IncludedProducts >= 0
+            && plan.IncludedFeatureIds
+                .Where(featureId => !string.IsNullOrWhiteSpace(featureId))
+                .All(featureCatalog.Contains));
+
+        if (!hasValidPlans)
+        {
+            return false;
+        }
+
+        return settings.Tenants.All(tenant =>
+            !string.IsNullOrWhiteSpace(tenant.DisplayName)
+            && (string.IsNullOrWhiteSpace(tenant.PlanId) || planCatalog.Contains(tenant.PlanId.Trim()))
+            && tenant.EnabledFeatureIds
+                .Where(featureId => !string.IsNullOrWhiteSpace(featureId))
+                .All(featureCatalog.Contains));
     }
 
     private static string BuildMongoValidationMessage(IHostEnvironment hostEnvironment)

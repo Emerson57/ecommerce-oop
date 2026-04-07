@@ -94,6 +94,7 @@ public sealed class AuditQueryApplicationService : IAuditApplicationService
             PerformedByUserId = entry.PerformedByUserId,
             OccurredAtUtc = entry.OccurredAtUtc,
             CorrelationId = entry.CorrelationId,
+            TenantId = entry.TenantId,
             Source = entry.Source,
             Metadata = entry.Metadata is null
                 ? new Dictionary<string, string>()

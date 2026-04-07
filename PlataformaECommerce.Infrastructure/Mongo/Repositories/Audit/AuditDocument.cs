@@ -67,6 +67,11 @@ public sealed class AuditDocument
     public string? CorrelationId { get; set; }
 
     /// <summary>
+    /// Obtiene o establece el tenant efectivo asociado al evento auditado.
+    /// </summary>
+    public string? TenantId { get; set; }
+
+    /// <summary>
     /// Obtiene o establece el origen técnico o funcional que generó la auditoría.
     /// </summary>
     public string? Source { get; set; }

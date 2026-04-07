@@ -15,11 +15,13 @@ public class AuditTrailApplicationServiceTests
         AuditTrailApplicationService service = new(
             auditRepository,
             new FakeCurrentUserService("auditor@plataforma.com", "auditor"),
-            new FakeExecutionContextAccessor("trace-audit"));
+            new FakeExecutionContextAccessor("trace-audit"),
+            new FakeTenantContextAccessor("tenant-a"));
 
         await service.RegisterAsync(Guid.NewGuid(), "Product", "Products", "product.created", "Evento de prueba.");
 
         Assert.That(auditRepository.LastEntry?.PerformedBy, Is.EqualTo("auditor@plataforma.com"));
+        Assert.That(auditRepository.LastEntry?.TenantId, Is.EqualTo("tenant-a"));
     }
 
     [Test]
@@ -29,7 +31,8 @@ public class AuditTrailApplicationServiceTests
         AuditTrailApplicationService service = new(
             auditRepository,
             new FakeCurrentUserService(null, null),
-            new FakeExecutionContextAccessor("trace-audit"));
+            new FakeExecutionContextAccessor("trace-audit"),
+            new FakeTenantContextAccessor("tenant-a"));
 
         await service.RegisterAsync(Guid.NewGuid(), "Cart", "Cart", "cart.created", "Evento de prueba.");
 
@@ -105,5 +108,11 @@ public class AuditTrailApplicationServiceTests
         }
 
         public string? CorrelationId { get; }
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => true;
     }
 }

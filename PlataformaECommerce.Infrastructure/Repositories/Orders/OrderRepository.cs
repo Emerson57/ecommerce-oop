@@ -234,6 +234,7 @@ public sealed class OrderRepository : IOrderRepository
         return new OrderItemEntity
         {
             Id = detail.Id,
+            TenantId = string.Empty,
             PedidoId = detail.PedidoId,
             ProductoId = detail.ProductoId,
             NombreProducto = detail.NombreProducto,
@@ -291,6 +292,7 @@ public sealed class OrderRepository : IOrderRepository
         {
             if (currentDetails.TryGetValue(detail.Id, out OrderItemEntity? currentDetail))
             {
+                currentDetail.TenantId = entity.TenantId;
                 currentDetail.PedidoId = detail.PedidoId;
                 currentDetail.ProductoId = detail.ProductoId;
                 currentDetail.NombreProducto = detail.NombreProducto;
@@ -304,7 +306,9 @@ public sealed class OrderRepository : IOrderRepository
                 continue;
             }
 
-            entity.Detalles.Add(MapToEntity(detail));
+            OrderItemEntity detailEntity = MapToEntity(detail);
+            detailEntity.TenantId = entity.TenantId;
+            entity.Detalles.Add(detailEntity);
         }
     }
 

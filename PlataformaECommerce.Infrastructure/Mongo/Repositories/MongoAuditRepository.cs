@@ -2,6 +2,7 @@ using System.Threading;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Infrastructure.Mongo;
 using PlataformaECommerce.Infrastructure.Mongo.Repositories.Audit;
 
@@ -19,6 +20,7 @@ public sealed class MongoAuditRepository : IAuditRepository
 {
     private static int _indexesInitialized;
     private readonly IMongoCollection<AuditDocument> _collection;
+    private readonly ITenantContextAccessor _tenantContextAccessor;
 
     /// <summary>
     /// Inicializa una nueva instancia del repositorio transversal de auditoría.
@@ -27,10 +29,12 @@ public sealed class MongoAuditRepository : IAuditRepository
     /// <param name="settingsOptions">Opciones tipadas de MongoDB.</param>
     public MongoAuditRepository(
         IMongoDatabase database,
-        IOptions<MongoDbSettings> settingsOptions)
+        IOptions<MongoDbSettings> settingsOptions,
+        ITenantContextAccessor tenantContextAccessor)
     {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(settingsOptions);
+        _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
 
         MongoDbSettings settings = settingsOptions.Value;
         if (string.IsNullOrWhiteSpace(settings.AuditCollectionName))
@@ -92,6 +96,7 @@ public sealed class MongoAuditRepository : IAuditRepository
             PerformedByUserId = string.IsNullOrWhiteSpace(entry.PerformedByUserId) ? null : entry.PerformedByUserId.Trim(),
             OccurredAtUtc = entry.OccurredAtUtc == default ? DateTime.UtcNow : entry.OccurredAtUtc,
             CorrelationId = string.IsNullOrWhiteSpace(entry.CorrelationId) ? null : entry.CorrelationId.Trim(),
+            TenantId = string.IsNullOrWhiteSpace(entry.TenantId) ? _tenantContextAccessor.TenantId : entry.TenantId.Trim(),
             Source = string.IsNullOrWhiteSpace(entry.Source) ? null : entry.Source.Trim(),
             Metadata = entry.Metadata?.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase)
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -117,7 +122,7 @@ public sealed class MongoAuditRepository : IAuditRepository
         }
 
         List<AuditDocument> documents = await _collection
-            .Find(document => document.AggregateId == aggregateId && document.AggregateType == aggregateType)
+            .Find(document => document.AggregateId == aggregateId && document.AggregateType == aggregateType && document.TenantId == _tenantContextAccessor.TenantId)
             .SortByDescending(document => document.OccurredAtUtc)
             .ToListAsync(cancellationToken);
 
@@ -163,6 +168,8 @@ public sealed class MongoAuditRepository : IAuditRepository
         {
             filterDefinitions.Add(filters.Eq(document => document.CorrelationId, filter.CorrelationId.Trim()));
         }
+
+        filterDefinitions.Add(filters.Eq(document => document.TenantId, _tenantContextAccessor.TenantId));
 
         if (filter.FromUtc.HasValue)
         {
@@ -217,6 +224,7 @@ public sealed class MongoAuditRepository : IAuditRepository
             PerformedByUserId = document.PerformedByUserId,
             OccurredAtUtc = document.OccurredAtUtc,
             CorrelationId = document.CorrelationId,
+            TenantId = document.TenantId,
             Source = document.Source,
             Metadata = document.Metadata
         };
@@ -236,8 +244,10 @@ public sealed class MongoAuditRepository : IAuditRepository
                 .Ascending(document => document.AggregateType)
                 .Ascending(document => document.AggregateId)),
             new(Builders<AuditDocument>.IndexKeys.Ascending(document => document.Module)),
+            new(Builders<AuditDocument>.IndexKeys.Ascending(document => document.TenantId)),
             new(Builders<AuditDocument>.IndexKeys.Descending(document => document.OccurredAtUtc)),
             new(Builders<AuditDocument>.IndexKeys
+                .Ascending(document => document.TenantId)
                 .Ascending(document => document.AggregateType)
                 .Ascending(document => document.AggregateId)
                 .Descending(document => document.OccurredAtUtc)),

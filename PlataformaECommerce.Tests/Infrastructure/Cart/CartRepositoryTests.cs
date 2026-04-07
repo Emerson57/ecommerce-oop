@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Cart;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
 using PlataformaECommerce.Infrastructure.Repositories.Cart;
@@ -77,12 +78,40 @@ public class CartRepositoryTests
         Assert.That(result, Is.True);
     }
 
-    private static ECommerceDbContext CreateContext()
+    [Test]
+    public async Task GetAllByCustomerIdAsync_TenantDiferente_NoExponeCarritosDeOtroTenant()
+    {
+        string databaseName = $"carts-shared-{Guid.NewGuid():N}";
+        Guid customerId = Guid.NewGuid();
+
+        await using (ECommerceDbContext seedContext = CreateContext(databaseName, "tenant-a"))
+        {
+            CartRepository seedRepository = new(seedContext);
+            await seedRepository.AddAsync(new CarritoCompra(customerId));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using (ECommerceDbContext isolatedContext = CreateContext(databaseName, "tenant-b"))
+        {
+            CartRepository isolatedRepository = new(isolatedContext);
+            IReadOnlyCollection<CarritoCompra> result = await isolatedRepository.GetAllByCustomerIdAsync(customerId);
+
+            Assert.That(result, Is.Empty);
+        }
+    }
+
+    private static ECommerceDbContext CreateContext(string? databaseName = null, string tenantId = "tenant-default")
     {
         DbContextOptions<ECommerceDbContext> options = new DbContextOptionsBuilder<ECommerceDbContext>()
-            .UseInMemoryDatabase($"carts-{Guid.NewGuid():N}")
+            .UseInMemoryDatabase(databaseName ?? $"carts-{Guid.NewGuid():N}")
             .Options;
 
-        return new ECommerceDbContext(options);
+        return new ECommerceDbContext(options, new FakeTenantContextAccessor(tenantId));
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => true;
     }
 }

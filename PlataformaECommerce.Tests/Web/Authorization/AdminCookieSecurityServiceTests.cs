@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -16,7 +18,7 @@ public class AdminCookieSecurityServiceTests
     {
         Administrador superUser = CreateSuperUser();
         FakeUserRepository userRepository = new(superUser);
-        AdminCookieSecurityService service = new(userRepository);
+        AdminCookieSecurityService service = new(userRepository, new FakeTenantContextAccessor("tenant-demo"));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(superUser),
@@ -35,7 +37,7 @@ public class AdminCookieSecurityServiceTests
     {
         Administrador superUser = CreateSuperUser();
         FakeUserRepository userRepository = new(superUser);
-        AdminCookieSecurityService service = new(userRepository);
+        AdminCookieSecurityService service = new(userRepository, new FakeTenantContextAccessor("tenant-demo"));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(superUser),
@@ -52,7 +54,7 @@ public class AdminCookieSecurityServiceTests
     [Test]
     public async Task IsPrincipalValidAsync_ClaimsDeSuperUsuarioSinActorPersistido_RetornaFalse()
     {
-        AdminCookieSecurityService service = new(new FakeUserRepository());
+        AdminCookieSecurityService service = new(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(CreateSuperUser()),
@@ -85,6 +87,7 @@ public class AdminCookieSecurityServiceTests
             new(ClaimTypes.NameIdentifier, actor.Id.ToString()),
             new(ClaimTypes.Name, actor.Nombre),
             new(ClaimTypes.Email, actor.CorreoElectronico.Value),
+            new(SecurityClaimTypes.TenantId, "tenant-demo"),
             new(AuthorizationPolicies.PrimaryRoleClaimType, actor.Rol.ToString()),
             new(AuthorizationPolicies.AdminAreaClaimType, actor.Area),
             new(AuthorizationPolicies.SuperUserClaimType, actor.EsSuperUsuario.ToString())
@@ -96,6 +99,12 @@ public class AdminCookieSecurityServiceTests
         }
 
         return new ClaimsPrincipal(new ClaimsIdentity(claims, AuthorizationPolicies.AdminCookieScheme));
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => !string.IsNullOrWhiteSpace(TenantId);
     }
 
     private sealed class FakeUserRepository : IUserRepository

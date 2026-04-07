@@ -41,6 +41,11 @@ public sealed record AdminDashboardRecentActivityDto
     public string? CorrelationId { get; init; }
 
     /// <summary>
+    /// Obtiene o establece el tenant asociado al evento cuando esté disponible.
+    /// </summary>
+    public string? TenantId { get; init; }
+
+    /// <summary>
     /// Obtiene o establece el origen funcional o técnico del evento cuando esté disponible.
     /// </summary>
     public string? Source { get; init; }

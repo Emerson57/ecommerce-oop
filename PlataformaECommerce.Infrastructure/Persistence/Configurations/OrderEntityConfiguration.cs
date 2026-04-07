@@ -21,8 +21,14 @@ public sealed class OrderEntityConfiguration : IEntityTypeConfiguration<OrderEnt
 
         builder.HasKey(order => order.Id);
 
+        builder.HasAlternateKey(order => new { order.TenantId, order.Id });
+
         builder.Property(order => order.Id)
             .ValueGeneratedNever();
+
+        builder.Property(order => order.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
 
         builder.Property(order => order.ClienteId)
             .IsRequired();
@@ -82,12 +88,14 @@ public sealed class OrderEntityConfiguration : IEntityTypeConfiguration<OrderEnt
 
         builder.HasMany(order => order.Detalles)
             .WithOne(detail => detail.Pedido)
-            .HasForeignKey(detail => detail.PedidoId)
+            .HasForeignKey(detail => new { detail.TenantId, detail.PedidoId })
+            .HasPrincipalKey(order => new { order.TenantId, order.Id })
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasIndex(order => order.TenantId);
         builder.HasIndex(order => order.ClienteId);
         builder.HasIndex(order => order.Estado);
         builder.HasIndex(order => order.FechaCreacionUtc);
-        builder.HasIndex(order => new { order.ClienteId, order.Estado });
+        builder.HasIndex(order => new { order.TenantId, order.ClienteId, order.Estado });
     }
 }

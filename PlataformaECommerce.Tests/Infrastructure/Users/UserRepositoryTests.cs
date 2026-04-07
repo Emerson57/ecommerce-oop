@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -77,13 +78,34 @@ public class UserRepositoryTests
     }
 
     [Test]
+    public async Task GetAllAsync_TenantDiferente_NoExponeUsuariosDeOtroTenant()
+    {
+        string databaseName = $"users-shared-{Guid.NewGuid():N}";
+
+        await using (ECommerceDbContext seedContext = CreateContext(databaseName, "tenant-a"))
+        {
+            UserRepository seedRepository = new(seedContext);
+            await seedRepository.AddAsync(CreateCustomer());
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using (ECommerceDbContext isolatedContext = CreateContext(databaseName, "tenant-b"))
+        {
+            UserRepository isolatedRepository = new(isolatedContext);
+            IReadOnlyCollection<Usuario> result = await isolatedRepository.GetAllAsync();
+
+            Assert.That(result, Is.Empty);
+        }
+    }
+
+    [Test]
     public void Model_UsersTable_DefineIndiceUnicoPorCorreoElectronico()
     {
         using ECommerceDbContext context = CreateSqlServerModelContext();
         IEntityType entityType = GetUserEntityType(context);
 
         var emailIndex = entityType.GetIndexes()
-            .Single(index => index.Properties.Select(property => property.Name).SequenceEqual([nameof(UserEntity.CorreoElectronico)]));
+            .Single(index => index.Properties.Select(property => property.Name).SequenceEqual([nameof(UserEntity.TenantId), nameof(UserEntity.CorreoElectronico)]));
 
         Assert.That(emailIndex.IsUnique, Is.True);
     }
@@ -238,13 +260,13 @@ public class UserRepositoryTests
         Assert.That(result, Is.True);
     }
 
-    private static ECommerceDbContext CreateContext()
+    private static ECommerceDbContext CreateContext(string? databaseName = null, string tenantId = "tenant-default")
     {
         DbContextOptions<ECommerceDbContext> options = new DbContextOptionsBuilder<ECommerceDbContext>()
-            .UseInMemoryDatabase($"users-{Guid.NewGuid():N}")
+            .UseInMemoryDatabase(databaseName ?? $"users-{Guid.NewGuid():N}")
             .Options;
 
-        return new ECommerceDbContext(options);
+        return new ECommerceDbContext(options, new FakeTenantContextAccessor(tenantId));
     }
 
     private static Cliente CreateCustomer()
@@ -261,11 +283,17 @@ public class UserRepositoryTests
             .UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=PlataformaECommerceTests;Trusted_Connection=True;TrustServerCertificate=True;")
             .Options;
 
-        return new ECommerceDbContext(options);
+        return new ECommerceDbContext(options, new FakeTenantContextAccessor("tenant-default"));
     }
 
     private static IEntityType GetUserEntityType(ECommerceDbContext context)
     {
         return context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(UserEntity))!;
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => true;
     }
 }

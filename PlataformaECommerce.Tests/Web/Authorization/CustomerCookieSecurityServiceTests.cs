@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -16,7 +18,7 @@ public class CustomerCookieSecurityServiceTests
     {
         Cliente customer = CreateCustomer();
         FakeUserRepository userRepository = new(customer);
-        CustomerCookieSecurityService service = new(userRepository);
+        CustomerCookieSecurityService service = new(userRepository, new FakeTenantContextAccessor("tenant-demo"));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(customer),
@@ -33,7 +35,7 @@ public class CustomerCookieSecurityServiceTests
     [Test]
     public async Task IsPrincipalValidAsync_ClaimsDeClienteSinActorPersistido_RetornaFalse()
     {
-        CustomerCookieSecurityService service = new(new FakeUserRepository());
+        CustomerCookieSecurityService service = new(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(CreateCustomer()),
@@ -64,10 +66,17 @@ public class CustomerCookieSecurityServiceTests
             new Claim(ClaimTypes.NameIdentifier, actor.Id.ToString()),
             new Claim(ClaimTypes.Name, actor.Nombre),
             new Claim(ClaimTypes.Email, actor.CorreoElectronico.Value),
+            new Claim(SecurityClaimTypes.TenantId, "tenant-demo"),
             new Claim(ClaimTypes.Role, RolUsuario.Cliente.ToString()),
             new Claim(AuthorizationPolicies.PrimaryRoleClaimType, RolUsuario.Cliente.ToString()),
             new Claim(AuthorizationPolicies.SuperUserClaimType, bool.FalseString)
         ], AuthorizationPolicies.CustomerCookieScheme));
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => !string.IsNullOrWhiteSpace(TenantId);
     }
 
     private sealed class FakeUserRepository : IUserRepository

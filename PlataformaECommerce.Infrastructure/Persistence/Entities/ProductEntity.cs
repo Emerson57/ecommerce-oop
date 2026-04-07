@@ -11,12 +11,17 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities
     /// incluyendo clasificación comercial, trazabilidad temporal y atributos específicos
     /// según el tipo de producto.
     /// </remarks>
-    public sealed class ProductEntity
+    public sealed class ProductEntity : ITenantOwnedEntity
     {
         /// <summary>
         /// Identificador único del producto.
         /// </summary>
         public Guid Id { get; set; }
+
+        /// <summary>
+        /// Identificador lógico del tenant propietario del producto.
+        /// </summary>
+        public string TenantId { get; set; } = string.Empty;
 
         /// <summary>
         /// Nombre comercial del producto.

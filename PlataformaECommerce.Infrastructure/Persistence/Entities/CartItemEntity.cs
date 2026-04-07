@@ -8,12 +8,17 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities;
 /// fue incorporado o sincronizado dentro del carrito, preservando consistencia histórica
 /// para nombre, SKU, tipo, imagen, precio y cantidad.
 /// </remarks>
-public sealed class CartItemEntity
+public sealed class CartItemEntity : ITenantOwnedEntity
 {
     /// <summary>
     /// Obtiene o establece el identificador único del ítem del carrito.
     /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Obtiene o establece el identificador lógico del tenant propietario del ítem.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
     /// Obtiene o establece el identificador del carrito propietario del ítem.

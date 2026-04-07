@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Security;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -49,6 +50,7 @@ public class JwtTokenServiceTests
         Assert.That(result?.IsInRole(RolUsuario.SuperUsuario.ToString()), Is.True);
         Assert.That(result?.IsInRole(RolUsuario.Administrador.ToString()), Is.True);
         Assert.That(result?.FindFirstValue(SecurityClaimTypes.IsSuperUser), Is.EqualTo(bool.TrueString));
+        Assert.That(result?.FindFirstValue(SecurityClaimTypes.TenantId), Is.EqualTo("tenant-security"));
     }
 
     private static JwtTokenService CreateService()
@@ -63,7 +65,13 @@ public class JwtTokenServiceTests
             RequireHttpsMetadata = false
         };
 
-        return new JwtTokenService(Options.Create(settings));
+        return new JwtTokenService(Options.Create(settings), new FakeTenantContextAccessor("tenant-security"));
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => !string.IsNullOrWhiteSpace(TenantId);
     }
 
     private static Cliente CreateCustomer()

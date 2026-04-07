@@ -149,6 +149,7 @@ public sealed class AdminDashboardService : IAdminDashboardService
                             Detail = entry.Detail,
                             PerformedBy = entry.PerformedBy,
                             CorrelationId = entry.CorrelationId,
+                            TenantId = entry.TenantId,
                             Source = entry.Source
                         })
                         .ToArray()

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Infrastructure.Configurations;
@@ -29,16 +30,18 @@ public sealed class JwtTokenService : ITokenService
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
     private readonly SigningCredentials _signingCredentials;
     private readonly SymmetricSecurityKey _securityKey;
+    private readonly ITenantContextAccessor _tenantContextAccessor;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="JwtTokenService"/>.
     /// </summary>
     /// <param name="options">Opciones JWT de la solución.</param>
-    public JwtTokenService(IOptions<JwtSettings> options)
+    public JwtTokenService(IOptions<JwtSettings> options, ITenantContextAccessor tenantContextAccessor)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         _settings = options.Value;
+        _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
 
         if (string.IsNullOrWhiteSpace(_settings.Issuer))
         {
@@ -101,7 +104,13 @@ public sealed class JwtTokenService : ITokenService
 
     private string GenerateToken(Usuario usuario, string tokenType, DateTime expiresAtUtc)
     {
-        List<Claim> claims = BuildClaims(usuario, tokenType);
+        string tenantId = _tenantContextAccessor.TenantId;
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new InvalidOperationException("No se puede emitir un token sin un tenant activo resuelto.");
+        }
+
+        List<Claim> claims = BuildClaims(usuario, tokenType, tenantId);
 
         JwtSecurityToken token = new(
             issuer: _settings.Issuer,
@@ -114,7 +123,7 @@ public sealed class JwtTokenService : ITokenService
         return _tokenHandler.WriteToken(token);
     }
 
-    private static List<Claim> BuildClaims(Usuario usuario, string tokenType)
+    private static List<Claim> BuildClaims(Usuario usuario, string tokenType, string tenantId)
     {
         string userId = usuario.Id.ToString();
         string email = usuario.CorreoElectronico.Value;
@@ -130,6 +139,7 @@ public sealed class JwtTokenService : ITokenService
             new(ClaimTypes.NameIdentifier, userId),
             new(ClaimTypes.Name, usuario.Nombre),
             new(ClaimTypes.Email, email),
+            new(SecurityClaimTypes.TenantId, tenantId.Trim()),
             new(SecurityClaimTypes.PrimaryRole, role),
             new(SecurityClaimTypes.IsSuperUser, usuario.Rol == RolUsuario.SuperUsuario ? bool.TrueString : bool.FalseString),
             new(TokenTypeClaim, tokenType)

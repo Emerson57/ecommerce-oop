@@ -18,6 +18,7 @@ public sealed class AuditTrailApplicationService : IAuditTrailService
     private readonly IAuditRepository _auditRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IExecutionContextAccessor _executionContextAccessor;
+    private readonly ITenantContextAccessor _tenantContextAccessor;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="AuditTrailApplicationService"/>.
@@ -28,11 +29,13 @@ public sealed class AuditTrailApplicationService : IAuditTrailService
     public AuditTrailApplicationService(
         IAuditRepository auditRepository,
         ICurrentUserService currentUserService,
-        IExecutionContextAccessor executionContextAccessor)
+        IExecutionContextAccessor executionContextAccessor,
+        ITenantContextAccessor tenantContextAccessor)
     {
         _auditRepository = auditRepository ?? throw new ArgumentNullException(nameof(auditRepository));
         _currentUserService = currentUserService ?? throw new ArgumentNullException(nameof(currentUserService));
         _executionContextAccessor = executionContextAccessor ?? throw new ArgumentNullException(nameof(executionContextAccessor));
+        _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
     }
 
     /// <inheritdoc />
@@ -81,6 +84,7 @@ public sealed class AuditTrailApplicationService : IAuditTrailService
             PerformedByUserId = _currentUserService.UserId?.ToString(),
             OccurredAtUtc = DateTime.UtcNow,
             CorrelationId = _executionContextAccessor.CorrelationId,
+            TenantId = _tenantContextAccessor.TenantId,
             Source = $"Application.{module.Trim()}",
             Metadata = metadata
         };

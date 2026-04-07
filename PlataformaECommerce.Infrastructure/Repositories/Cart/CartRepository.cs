@@ -211,6 +211,7 @@ public sealed class CartRepository : ICartRepository
         return new CartItemEntity
         {
             Id = item.Id,
+            TenantId = string.Empty,
             CartId = cartId,
             ProductoId = item.ProductoId,
             NombreProducto = item.NombreProducto,
@@ -245,6 +246,7 @@ public sealed class CartRepository : ICartRepository
         {
             if (currentItems.TryGetValue(item.Id, out CartItemEntity? currentItem))
             {
+                currentItem.TenantId = entity.TenantId;
                 currentItem.ProductoId = item.ProductoId;
                 currentItem.NombreProducto = item.NombreProducto;
                 currentItem.SkuProducto = item.SkuProducto.Value;
@@ -258,7 +260,9 @@ public sealed class CartRepository : ICartRepository
                 continue;
             }
 
-            entity.Items.Add(MapToEntity(item, carrito.Id));
+            CartItemEntity itemEntity = MapToEntity(item, carrito.Id);
+            itemEntity.TenantId = entity.TenantId;
+            entity.Items.Add(itemEntity);
         }
     }
 

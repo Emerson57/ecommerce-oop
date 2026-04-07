@@ -12,8 +12,8 @@
                 <div class="admin-muted-label">Cliente activo</div>
                 <h2 class="h4 fw-bold mt-2 mb-3">@Model.StorefrontName</h2>
                 <p class="text-muted mb-4">
-                    Esta instancia opera en modalidad monocliente configurable: el branding, los datos de soporte y la experiencia del backoffice
-                    se parametrizan sin introducir multi-tenant completo ni duplicar lógica de negocio.
+                    Esta instancia opera sobre una base SaaS con tenant activo resuelto, aislamiento de datos por <code>TenantId</code>
+                    y catálogo comercial preparado para planes, features y suscripciones.
                 </p>
 
                 <div class="row g-3">
@@ -39,6 +39,18 @@
                         <div class="rounded-4 border bg-light p-3 h-100">
                             <div class="small text-muted">Versión desplegada</div>
                             <div class="fw-semibold">@Model.ApplicationVersion</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Aislamiento de datos</div>
+                            <div class="fw-semibold">@Model.DataIsolationMode</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Tenants configurados</div>
+                            <div class="fw-semibold">@Model.ConfiguredTenantsCount</div>
                         </div>
                     </div>
                 </div>
@@ -67,6 +79,72 @@
     <div class="col-12 col-xl-7">
         <div class="card admin-summary-card border-0 h-100">
             <div class="card-body p-4">
+                <div class="admin-muted-label">Plan y suscripción</div>
+                <h2 class="h5 fw-semibold mt-2">Base comercial SaaS</h2>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Plan actual</div>
+                            <div class="fw-semibold">@(Model.CurrentTenant.CurrentPlan?.DisplayName ?? "Sin plan asignado")</div>
+                            @if (Model.CurrentTenant.CurrentPlan is not null)
+                            {
+                                <div class="small text-muted mt-2">@Model.CurrentTenant.CurrentPlan.MonthlyPrice.ToString("N2") @Model.CurrentTenant.CurrentPlan.Currency / mes</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Estado de suscripción</div>
+                            <div class="fw-semibold">@Model.CurrentTenant.Subscription.Status</div>
+                            @if (Model.CurrentTenant.Subscription.RenewalAtUtc.HasValue)
+                            {
+                                <div class="small text-muted mt-2">Renovación: @Model.CurrentTenant.Subscription.RenewalAtUtc.Value.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Capacidad incluida</div>
+                            <div class="fw-semibold">@(Model.CurrentTenant.CurrentPlan?.IncludedAdministrators ?? 0) admins · @(Model.CurrentTenant.CurrentPlan?.IncludedProducts ?? 0) productos</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="small text-muted">Asientos contratados</div>
+                            <div class="fw-semibold">@Model.CurrentTenant.Subscription.SeatsPurchased</div>
+                            <div class="small text-muted mt-2">Auto-renovación: @(Model.CurrentTenant.Subscription.AutoRenew ? "Sí" : "No")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
+                <div class="admin-muted-label">Provisionamiento inicial</div>
+                <h2 class="h5 fw-semibold mt-2">Plantilla operativa del tenant</h2>
+                <ul class="list-unstyled text-muted small mt-3 mb-0 d-grid gap-2">
+                    <li><strong>Bootstrap super usuario:</strong> @Model.CurrentTenant.Provisioning.BootstrapSuperUserEmail</li>
+                    <li><strong>Sembrar categorías base:</strong> @(Model.CurrentTenant.Provisioning.SeedBaseCategories ? "Sí" : "No")</li>
+                    <li><strong>Sembrar catálogo demo:</strong> @(Model.CurrentTenant.Provisioning.SeedDemoCatalog ? "Sí" : "No")</li>
+                    <li><strong>Storefront público inicial:</strong> @(Model.CurrentTenant.Provisioning.EnablePublicStorefront ? "Habilitado" : "Deshabilitado")</li>
+                    @if (!string.IsNullOrWhiteSpace(Model.CurrentTenant.Provisioning.Notes))
+                    {
+                        <li><strong>Notas:</strong> @Model.CurrentTenant.Provisioning.Notes</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-12 col-xl-7">
+        <div class="card admin-summary-card border-0 h-100">
+            <div class="card-body p-4">
                 <div class="admin-muted-label">Trazabilidad</div>
                 <h2 class="h5 fw-semibold mt-2">Checklist para soporte técnico</h2>
                 <div class="rounded-4 border bg-light p-3 mt-3 mb-4">
@@ -74,10 +152,13 @@
                     <div class="fw-semibold"><code>@Model.CorrelationHeaderName</code></div>
                     <div class="small text-muted mt-2">Id actual de la solicitud</div>
                     <div class="fw-semibold"><code>@Model.CurrentCorrelationId</code></div>
+                    <div class="small text-muted mt-2">Tenant actual</div>
+                    <div class="fw-semibold"><code>@Model.CurrentTenant.TenantId</code></div>
                 </div>
 
                 <ol class="text-muted small mb-0 ps-3 d-grid gap-2">
                     <li>Solicita al operador el <strong>Client Id</strong>, la <strong>versión</strong> y el <strong>Correlation Id</strong>.</li>
+                    <li>Confirma el <strong>TenantId</strong> y el modo de aislamiento antes de revisar datos o accesos.</li>
                     <li>Filtra el módulo y la correlación en <a asp-page="/Admin/Audit/Index">Auditoría administrativa</a>.</li>
                     <li>Confirma si el incidente impacta catálogo, usuarios, pedidos, pagos o seguridad.</li>
                     <li>Usa los endpoints <code>/health/live</code> y <code>/health/ready</code> para validar disponibilidad antes de escalar.</li>
@@ -100,6 +181,33 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card admin-summary-card border-0 mb-4">
+    <div class="card-body p-4">
+        <div class="admin-muted-label">Features habilitados</div>
+        <h2 class="h5 fw-semibold mt-2">Capacidades efectivas del tenant</h2>
+
+        @if (Model.CurrentTenant.Features.Count == 0)
+        {
+            <p class="text-muted small mb-0 mt-3">No hay features configurados explícitamente para el tenant activo.</p>
+        }
+        else
+        {
+            <div class="row g-3 mt-1">
+                @foreach (var feature in Model.CurrentTenant.Features)
+                {
+                    <div class="col-md-6 col-xl-4">
+                        <div class="rounded-4 border bg-light p-3 h-100">
+                            <div class="fw-semibold">@feature.DisplayName</div>
+                            <div class="small text-muted mt-1">@feature.Description</div>
+                            <div class="small mt-2"><code>@feature.FeatureId</code> · @feature.Category</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
     </div>
 </div>
 

@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using PlataformaECommerce.Application.Common.SaaS;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using Microsoft.Extensions.Options;
 using PlataformaECommerce.Web.Authorization;
 using PlataformaECommerce.Web.Configuration;
@@ -17,23 +19,22 @@ namespace PlataformaECommerce.Web.Pages.Admin.Operations;
     AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
 public sealed class IndexModel : PageModel
 {
-    private readonly ClientExperienceOptions _clientExperienceOptions;
     private readonly RequestCorrelationOptions _requestCorrelationOptions;
+    private readonly ITenantCatalogService _tenantCatalogService;
     private readonly IHostEnvironment _hostEnvironment;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="IndexModel"/>.
     /// </summary>
     public IndexModel(
-        IOptions<ClientExperienceOptions> clientExperienceOptions,
         IOptions<RequestCorrelationOptions> requestCorrelationOptions,
+        ITenantCatalogService tenantCatalogService,
         IHostEnvironment hostEnvironment)
     {
-        ArgumentNullException.ThrowIfNull(clientExperienceOptions);
         ArgumentNullException.ThrowIfNull(requestCorrelationOptions);
 
-        _clientExperienceOptions = clientExperienceOptions.Value;
         _requestCorrelationOptions = requestCorrelationOptions.Value;
+        _tenantCatalogService = tenantCatalogService ?? throw new ArgumentNullException(nameof(tenantCatalogService));
         _hostEnvironment = hostEnvironment ?? throw new ArgumentNullException(nameof(hostEnvironment));
     }
 
@@ -93,6 +94,21 @@ public sealed class IndexModel : PageModel
     public string ApplicationVersion { get; private set; } = string.Empty;
 
     /// <summary>
+    /// Modo de aislamiento de datos actualmente implementado por la plataforma.
+    /// </summary>
+    public string DataIsolationMode { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Cantidad de tenants configurados en la instancia actual.
+    /// </summary>
+    public int ConfiguredTenantsCount { get; private set; }
+
+    /// <summary>
+    /// Definición efectiva del tenant activo.
+    /// </summary>
+    public TenantDefinition CurrentTenant { get; private set; } = new();
+
+    /// <summary>
     /// Fecha y hora UTC de consulta del panel operativo.
     /// </summary>
     public DateTime GeneratedAtUtc { get; private set; }
@@ -105,15 +121,18 @@ public sealed class IndexModel : PageModel
     /// <summary>
     /// Carga el contexto operativo del cliente activo para soporte y trazabilidad.
     /// </summary>
-    public void OnGet()
+    public async Task OnGetAsync()
     {
-        StorefrontName = _clientExperienceOptions.StorefrontName;
-        BackofficeName = _clientExperienceOptions.BackofficeName;
-        ClientId = _clientExperienceOptions.ClientId;
-        SupportEmail = _clientExperienceOptions.SupportEmail;
-        SupportPhone = _clientExperienceOptions.SupportPhone;
-        SupportHours = _clientExperienceOptions.SupportHours;
-        SupportSla = _clientExperienceOptions.SupportSla;
+        CurrentTenant = await _tenantCatalogService.GetCurrentTenantAsync().ConfigureAwait(false);
+        ConfiguredTenantsCount = (await _tenantCatalogService.GetConfiguredTenantsAsync().ConfigureAwait(false)).Count;
+        DataIsolationMode = _tenantCatalogService.DataIsolationMode;
+        StorefrontName = CurrentTenant.StorefrontName;
+        BackofficeName = CurrentTenant.BackofficeName;
+        ClientId = CurrentTenant.TenantId;
+        SupportEmail = CurrentTenant.SupportEmail;
+        SupportPhone = CurrentTenant.SupportPhone;
+        SupportHours = CurrentTenant.SupportHours;
+        SupportSla = CurrentTenant.SupportSla;
         CorrelationHeaderName = _requestCorrelationOptions.CorrelationHeaderName;
         CurrentCorrelationId = HttpContext.Items.TryGetValue(RequestCorrelationMiddleware.CorrelationIdItemKey, out object? correlationIdValue)
             ? Convert.ToString(correlationIdValue, CultureInfo.InvariantCulture) ?? HttpContext.TraceIdentifier
@@ -127,6 +146,7 @@ public sealed class IndexModel : PageModel
         [
             new SupportDocumentItem("Instalación", "docs/INSTALLATION.md", "Prerequisitos, configuración segura, aplicación de migraciones y arranque controlado."),
             new SupportDocumentItem("Operación", "docs/OPERATIONS.md", "Playbook de health checks, dashboard, monitoreo y operación diaria del backoffice."),
+            new SupportDocumentItem("SaaS", "docs/SAAS.md", "Modelo de tenants, aislamiento de datos, planes, features y aprovisionamiento inicial."),
             new SupportDocumentItem("Soporte", "docs/SUPPORT.md", "Guía de atención con correlación, auditoría y datos mínimos para incidentes."),
             new SupportDocumentItem("Changelog", "CHANGELOG.md", "Historial de releases, cambios comerciales y ajustes operativos por versión.")
         ];

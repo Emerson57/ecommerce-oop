@@ -21,8 +21,14 @@ public sealed class CartEntityConfiguration : IEntityTypeConfiguration<CartEntit
 
         builder.HasKey(cart => cart.Id);
 
+        builder.HasAlternateKey(cart => new { cart.TenantId, cart.Id });
+
         builder.Property(cart => cart.Id)
             .ValueGeneratedNever();
+
+        builder.Property(cart => cart.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
 
         builder.Property(cart => cart.ClienteId)
             .IsRequired();
@@ -38,11 +44,13 @@ public sealed class CartEntityConfiguration : IEntityTypeConfiguration<CartEntit
 
         builder.HasMany(cart => cart.Items)
             .WithOne(item => item.Cart)
-            .HasForeignKey(item => item.CartId)
+            .HasForeignKey(item => new { item.TenantId, item.CartId })
+            .HasPrincipalKey(cart => new { cart.TenantId, cart.Id })
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasIndex(cart => cart.TenantId);
         builder.HasIndex(cart => cart.ClienteId);
         builder.HasIndex(cart => cart.Activo);
-        builder.HasIndex(cart => new { cart.ClienteId, cart.Activo });
+        builder.HasIndex(cart => new { cart.TenantId, cart.ClienteId, cart.Activo });
     }
 }

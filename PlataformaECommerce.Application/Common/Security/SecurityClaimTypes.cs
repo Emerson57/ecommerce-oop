@@ -24,4 +24,9 @@ public static class SecurityClaimTypes
     /// Claim que indica si la cuenta autenticada posee privilegios de super usuario.
     /// </summary>
     public const string IsSuperUser = "is_super_user";
+
+    /// <summary>
+    /// Claim que representa el tenant efectivo asociado al contexto autenticado.
+    /// </summary>
+    public const string TenantId = "tenant_id";
 }

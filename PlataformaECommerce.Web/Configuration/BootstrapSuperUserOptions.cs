@@ -30,6 +30,11 @@ public sealed class BootstrapSuperUserOptions
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// Tenant objetivo sobre el cual debe ejecutarse el bootstrap inicial.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
+
+    /// <summary>
     /// Correo electrónico del super usuario inicial.
     /// </summary>
     public string Email { get; set; } = string.Empty;

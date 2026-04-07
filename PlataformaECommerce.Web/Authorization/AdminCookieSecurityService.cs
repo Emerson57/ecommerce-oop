@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 
@@ -21,14 +23,17 @@ public sealed class AdminCookieSecurityService
     private static readonly TimeSpan PersistentSessionLifetime = TimeSpan.FromHours(24);
 
     private readonly IUserRepository _userRepository;
+    private readonly ITenantContextAccessor _tenantContextAccessor;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="AdminCookieSecurityService"/>.
     /// </summary>
     /// <param name="userRepository">Repositorio de usuarios.</param>
-    public AdminCookieSecurityService(IUserRepository userRepository)
+    /// <param name="tenantContextAccessor">Accesor al tenant resuelto para la solicitud actual.</param>
+    public AdminCookieSecurityService(IUserRepository userRepository, ITenantContextAccessor tenantContextAccessor)
     {
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
+        _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
     }
 
     /// <summary>
@@ -49,6 +54,11 @@ public sealed class AdminCookieSecurityService
         }
 
         if (!HasValidSessionLifetime(properties))
+        {
+            return false;
+        }
+
+        if (!HasConsistentTenantClaim(principal, _tenantContextAccessor.TenantId))
         {
             return false;
         }
@@ -129,5 +139,17 @@ public sealed class AdminCookieSecurityService
             .ToArray();
 
         return principalAdministrativeRoles.SequenceEqual(expectedAdministrativeRoles, StringComparer.Ordinal);
+    }
+
+    private static bool HasConsistentTenantClaim(ClaimsPrincipal? principal, string resolvedTenantId)
+    {
+        if (string.IsNullOrWhiteSpace(resolvedTenantId))
+        {
+            return false;
+        }
+
+        string? tenantClaim = principal?.FindFirstValue(SecurityClaimTypes.TenantId);
+        return !string.IsNullOrWhiteSpace(tenantClaim)
+            && string.Equals(tenantClaim.Trim(), resolvedTenantId.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 }

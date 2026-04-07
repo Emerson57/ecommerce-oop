@@ -5,6 +5,7 @@ using PlataformaECommerce.Application.Features.Admin.Commands;
 using PlataformaECommerce.Application.Features.Admin.DTOs;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Admin;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Configuration;
 
@@ -23,6 +24,8 @@ public sealed class SuperUserBootstrapService
     private readonly BootstrapSuperUserOptions _options;
     private readonly IUserRepository _userRepository;
     private readonly IAdminApplicationService _adminApplicationService;
+    private readonly ITenantCatalogProvisioningService _tenantCatalogProvisioningService;
+    private readonly ITenantContextAccessor _tenantContextAccessor;
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ILogger<SuperUserBootstrapService> _logger;
 
@@ -32,12 +35,16 @@ public sealed class SuperUserBootstrapService
     /// <param name="options">Opciones de bootstrap del super usuario.</param>
     /// <param name="userRepository">Repositorio de usuarios del sistema.</param>
     /// <param name="adminApplicationService">Servicio de aplicación administrativo.</param>
+    /// <param name="tenantCatalogProvisioningService">Servicio responsable de registrar el estado persistente del aprovisionamiento SaaS.</param>
+    /// <param name="tenantContextAccessor">Accesor al tenant activo durante el bootstrap.</param>
     /// <param name="hostEnvironment">Entorno de ejecución actual.</param>
     /// <param name="logger">Registrador estructurado del proceso de bootstrap.</param>
     public SuperUserBootstrapService(
         IOptions<BootstrapSuperUserOptions> options,
         IUserRepository userRepository,
         IAdminApplicationService adminApplicationService,
+        ITenantCatalogProvisioningService tenantCatalogProvisioningService,
+        ITenantContextAccessor tenantContextAccessor,
         IHostEnvironment hostEnvironment,
         ILogger<SuperUserBootstrapService> logger)
     {
@@ -46,6 +53,8 @@ public sealed class SuperUserBootstrapService
         _options = options.Value;
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _adminApplicationService = adminApplicationService ?? throw new ArgumentNullException(nameof(adminApplicationService));
+        _tenantCatalogProvisioningService = tenantCatalogProvisioningService ?? throw new ArgumentNullException(nameof(tenantCatalogProvisioningService));
+        _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
         _hostEnvironment = hostEnvironment ?? throw new ArgumentNullException(nameof(hostEnvironment));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -63,6 +72,7 @@ public sealed class SuperUserBootstrapService
         }
 
         ValidateOptions(_options);
+        EnsureBootstrapTargetsResolvedTenant(_options);
 
         bool superUserExists = await SuperUserExistsAsync(cancellationToken).ConfigureAwait(false);
 
@@ -85,6 +95,10 @@ public sealed class SuperUserBootstrapService
         {
             throw new InvalidOperationException($"No fue posible bootstrappear el super usuario inicial. {result.Error.Code}: {result.Error.Message}");
         }
+
+        await _tenantCatalogProvisioningService
+            .MarkSuperUserProvisionedAsync(_tenantContextAccessor.TenantId, command.Email, cancellationToken)
+            .ConfigureAwait(false);
 
         _logger.LogWarning(
             "Se creó el super usuario inicial '{Email}' mediante bootstrap. Deshabilite {SectionName} para evitar nuevas ejecuciones.",
@@ -156,6 +170,11 @@ public sealed class SuperUserBootstrapService
             throw new InvalidOperationException("El bootstrap del super usuario requiere un nombre válido.");
         }
 
+        if (string.IsNullOrWhiteSpace(options.TenantId))
+        {
+            throw new InvalidOperationException("El bootstrap del super usuario requiere un tenant objetivo válido.");
+        }
+
         if (string.IsNullOrWhiteSpace(options.Email))
         {
             throw new InvalidOperationException("El bootstrap del super usuario requiere un correo electrónico válido.");
@@ -169,6 +188,15 @@ public sealed class SuperUserBootstrapService
         if (string.IsNullOrWhiteSpace(options.Area))
         {
             throw new InvalidOperationException("El bootstrap del super usuario requiere un área válida.");
+        }
+    }
+
+    private void EnsureBootstrapTargetsResolvedTenant(BootstrapSuperUserOptions options)
+    {
+        string resolvedTenantId = _tenantContextAccessor.TenantId;
+        if (!string.Equals(options.TenantId.Trim(), resolvedTenantId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"El bootstrap del super usuario está configurado para el tenant '{options.TenantId.Trim()}', pero el contexto activo resolvió '{resolvedTenantId}'.");
         }
     }
 }

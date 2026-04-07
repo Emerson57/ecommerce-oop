@@ -19,6 +19,10 @@ public sealed class CategoryEntityConfiguration : IEntityTypeConfiguration<Categ
         builder.Property(category => category.Id)
             .ValueGeneratedNever();
 
+        builder.Property(category => category.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
         builder.Property(category => category.Nombre)
             .IsRequired()
             .HasMaxLength(120);
@@ -40,15 +44,19 @@ public sealed class CategoryEntityConfiguration : IEntityTypeConfiguration<Categ
         builder.Property(category => category.FechaActualizacionUtc)
             .IsRequired(false);
 
-        builder.HasIndex(category => category.Slug)
+        builder.HasAlternateKey(category => new { category.TenantId, category.Id });
+
+        builder.HasIndex(category => new { category.TenantId, category.Slug })
             .IsUnique();
 
+        builder.HasIndex(category => category.TenantId);
         builder.HasIndex(category => category.Nombre);
-        builder.HasIndex(category => category.ParentCategoryId);
+        builder.HasIndex(category => new { category.TenantId, category.ParentCategoryId });
 
         builder.HasOne<CategoryEntity>()
             .WithMany()
-            .HasForeignKey(category => category.ParentCategoryId)
+            .HasForeignKey(category => new { category.TenantId, category.ParentCategoryId })
+            .HasPrincipalKey(category => new { category.TenantId, category.Id })
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

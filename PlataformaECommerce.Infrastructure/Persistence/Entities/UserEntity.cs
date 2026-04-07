@@ -11,12 +11,17 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities;
 /// SuperUsuario y Administrador comparten esta misma estructura persistente y se
 /// diferencian exclusivamente por el valor controlado de <see cref="Rol"/>.
 /// </remarks>
-public sealed class UserEntity
+public sealed class UserEntity : ITenantOwnedEntity
 {
     /// <summary>
     /// Obtiene o establece el identificador único del usuario.
     /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Obtiene o establece el identificador lógico del tenant propietario del usuario.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
     /// Obtiene o establece el nombre completo del usuario.

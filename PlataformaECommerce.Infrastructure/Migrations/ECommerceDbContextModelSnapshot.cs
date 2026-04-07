@@ -58,13 +58,20 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                     b.Property<DateTime>("FechaCreacionUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Activo");
 
                     b.HasIndex("ClienteId");
 
-                    b.HasIndex("ClienteId", "Activo");
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ClienteId", "Activo");
 
                     b.ToTable("Carts", (string)null);
                 });
@@ -112,6 +119,11 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("TipoProducto")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -123,7 +135,9 @@ namespace PlataformaECommerce.Infrastructure.Migrations
 
                     b.HasIndex("ProductoId");
 
-                    b.HasIndex("CartId", "ProductoId");
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "CartId", "ProductoId");
 
                     b.ToTable("CartItems", (string)null);
                 });
@@ -159,13 +173,20 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasMaxLength(140)
                         .HasColumnType("nvarchar(140)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Nombre");
 
-                    b.HasIndex("ParentCategoryId");
+                    b.HasIndex("TenantId");
 
-                    b.HasIndex("Slug")
+                    b.HasIndex("TenantId", "ParentCategoryId");
+
+                    b.HasIndex("TenantId", "Slug")
                         .IsUnique();
 
                     b.ToTable("Categories", (string)null);
@@ -233,6 +254,11 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ClienteId");
@@ -241,7 +267,9 @@ namespace PlataformaECommerce.Infrastructure.Migrations
 
                     b.HasIndex("FechaCreacionUtc");
 
-                    b.HasIndex("ClienteId", "Estado");
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ClienteId", "Estado");
 
                     b.ToTable("Orders", (string)null);
                 });
@@ -286,6 +314,11 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("nvarchar(40)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("TipoProducto")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -297,7 +330,9 @@ namespace PlataformaECommerce.Infrastructure.Migrations
 
                     b.HasIndex("ProductoId");
 
-                    b.HasIndex("PedidoId", "ProductoId");
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "PedidoId", "ProductoId");
 
                     b.ToTable("OrderItems", (string)null);
                 });
@@ -411,6 +446,11 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("TipoProducto")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -420,18 +460,321 @@ namespace PlataformaECommerce.Infrastructure.Migrations
 
                     b.HasIndex("Activo");
 
-                    b.HasIndex("CategoriaId");
-
                     b.HasIndex("Nombre");
 
-                    b.HasIndex("Sku")
-                        .IsUnique();
-
-                    b.HasIndex("SubcategoriaId");
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("TipoProducto");
 
+                    b.HasIndex("TenantId", "CategoriaId");
+
+                    b.HasIndex("TenantId", "Sku")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "SubcategoriaId");
+
                     b.ToTable("Products", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("AccentColor")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("AdminSidebarEndColor")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("AdminSidebarStartColor")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("BackofficeName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LegalCompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LogoGlyph")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("PrimaryColor")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("StorefrontName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("StorefrontTagline")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("SupportEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<string>("SupportHours")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("SupportPhone")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("SupportSla")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("TenantId");
+
+                    b.HasIndex("DisplayName");
+
+                    b.HasIndex("Enabled");
+
+                    b.ToTable("Tenants", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantFeatureAssignmentEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("FeatureId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("TenantId", "FeatureId");
+
+                    b.HasIndex("FeatureId");
+
+                    b.ToTable("TenantFeatureAssignments", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantFeatureEntity", b =>
+                {
+                    b.Property<string>("FeatureId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.HasKey("FeatureId");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("Enabled");
+
+                    b.ToTable("TenantFeatures", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantHostnameEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Hostname")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("TenantId", "Hostname");
+
+                    b.HasIndex("Hostname")
+                        .IsUnique();
+
+                    b.ToTable("TenantHostnames", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantPlanEntity", b =>
+                {
+                    b.Property<string>("PlanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("IncludedAdministrators")
+                        .HasColumnType("int");
+
+                    b.Property<int>("IncludedProducts")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MonthlyPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("PlanId");
+
+                    b.HasIndex("DisplayName");
+
+                    b.HasIndex("Enabled");
+
+                    b.ToTable("TenantPlans", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantPlanFeatureEntity", b =>
+                {
+                    b.Property<string>("PlanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("FeatureId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("PlanId", "FeatureId");
+
+                    b.HasIndex("FeatureId");
+
+                    b.ToTable("TenantPlanFeatures", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantProvisioningEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("BaseCategoriesProvisionedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("BootstrapSuperUserEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<DateTime?>("DemoCatalogProvisionedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EnablePublicStorefront")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastSynchronizedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("SeedBaseCategories")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SeedDemoCatalog")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("SuperUserProvisionedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("TenantProvisionings", (string)null);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantSubscriptionEntity", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("AutoRenew")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PlanId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("RenewalAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SeatsPurchased")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime?>("TrialEndsAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TenantId");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("TenantSubscriptions", (string)null);
                 });
 
             modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.UserEntity", b =>
@@ -484,16 +827,23 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Activo");
 
-                    b.HasIndex("CorreoElectronico")
-                        .IsUnique();
-
                     b.HasIndex("Rol");
 
-                    b.HasIndex("Rol", "Activo");
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "CorreoElectronico")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "Rol", "Activo");
 
                     b.ToTable("Users", null, t =>
                         {
@@ -509,7 +859,8 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                 {
                     b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CartEntity", "Cart")
                         .WithMany("Items")
-                        .HasForeignKey("CartId")
+                        .HasForeignKey("TenantId", "CartId")
+                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -520,7 +871,8 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                 {
                     b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", null)
                         .WithMany()
-                        .HasForeignKey("ParentCategoryId")
+                        .HasForeignKey("TenantId", "ParentCategoryId")
+                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
@@ -528,7 +880,8 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                 {
                     b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderEntity", "Pedido")
                         .WithMany("Detalles")
-                        .HasForeignKey("PedidoId")
+                        .HasForeignKey("TenantId", "PedidoId")
+                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -539,13 +892,93 @@ namespace PlataformaECommerce.Infrastructure.Migrations
                 {
                     b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", null)
                         .WithMany()
-                        .HasForeignKey("CategoriaId")
+                        .HasForeignKey("TenantId", "CategoriaId")
+                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.CategoryEntity", null)
                         .WithMany()
-                        .HasForeignKey("SubcategoriaId")
+                        .HasForeignKey("TenantId", "SubcategoriaId")
+                        .HasPrincipalKey("TenantId", "Id")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantFeatureAssignmentEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantFeatureEntity", "Feature")
+                        .WithMany("TenantAssignments")
+                        .HasForeignKey("FeatureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantEntity", "Tenant")
+                        .WithMany("FeatureAssignments")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Feature");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantHostnameEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantEntity", "Tenant")
+                        .WithMany("Hostnames")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantPlanFeatureEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantFeatureEntity", "Feature")
+                        .WithMany("PlanFeatures")
+                        .HasForeignKey("FeatureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantPlanEntity", "Plan")
+                        .WithMany("PlanFeatures")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Feature");
+
+                    b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantProvisioningEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantEntity", "Tenant")
+                        .WithOne("Provisioning")
+                        .HasForeignKey("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantProvisioningEntity", "TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantSubscriptionEntity", b =>
+                {
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantPlanEntity", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantEntity", "Tenant")
+                        .WithOne("Subscription")
+                        .HasForeignKey("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantSubscriptionEntity", "TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Plan");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.CartEntity", b =>
@@ -556,6 +989,29 @@ namespace PlataformaECommerce.Infrastructure.Migrations
             modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.OrderEntity", b =>
                 {
                     b.Navigation("Detalles");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantEntity", b =>
+                {
+                    b.Navigation("FeatureAssignments");
+
+                    b.Navigation("Hostnames");
+
+                    b.Navigation("Provisioning");
+
+                    b.Navigation("Subscription");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantFeatureEntity", b =>
+                {
+                    b.Navigation("PlanFeatures");
+
+                    b.Navigation("TenantAssignments");
+                });
+
+            modelBuilder.Entity("PlataformaECommerce.Infrastructure.Persistence.Entities.TenantPlanEntity", b =>
+                {
+                    b.Navigation("PlanFeatures");
                 });
 #pragma warning restore 612, 618
         }

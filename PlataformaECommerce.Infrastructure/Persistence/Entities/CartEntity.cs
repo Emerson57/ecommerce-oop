@@ -8,12 +8,17 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities;
 /// persistentes, permitiendo reconstruir de forma consistente el agregado
 /// <c>CarritoCompra</c> desde la base de datos transaccional.
 /// </remarks>
-public sealed class CartEntity
+public sealed class CartEntity : ITenantOwnedEntity
 {
     /// <summary>
     /// Obtiene o establece el identificador único del carrito.
     /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Obtiene o establece el identificador lógico del tenant propietario del carrito.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
     /// Obtiene o establece el identificador del cliente propietario del carrito.

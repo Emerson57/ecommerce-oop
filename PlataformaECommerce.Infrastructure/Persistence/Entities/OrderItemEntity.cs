@@ -8,12 +8,17 @@ namespace PlataformaECommerce.Infrastructure.Persistence.Entities;
 /// de la compra, permitiendo reconstruir de forma consistente el historial de venta
 /// sin depender de cambios posteriores en el catálogo.
 /// </remarks>
-public sealed class OrderItemEntity
+public sealed class OrderItemEntity : ITenantOwnedEntity
 {
     /// <summary>
     /// Obtiene o establece el identificador único del detalle del pedido.
     /// </summary>
     public Guid Id { get; set; }
+
+    /// <summary>
+    /// Obtiene o establece el identificador lógico del tenant propietario del detalle.
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
 
     /// <summary>
     /// Obtiene o establece el identificador del pedido propietario del detalle.

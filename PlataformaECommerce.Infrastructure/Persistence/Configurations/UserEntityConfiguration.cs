@@ -39,6 +39,10 @@ public sealed class UserEntityConfiguration : IEntityTypeConfiguration<UserEntit
         builder.Property(user => user.Id)
             .ValueGeneratedNever();
 
+        builder.Property(user => user.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
         builder.Property(user => user.Nombre)
             .IsRequired()
             .HasMaxLength(Usuario.LongitudMaximaNombre);
@@ -80,11 +84,12 @@ public sealed class UserEntityConfiguration : IEntityTypeConfiguration<UserEntit
         builder.Property(user => user.PreferenciasSerializadas)
             .IsRequired(false);
 
-        builder.HasIndex(user => user.CorreoElectronico)
+        builder.HasIndex(user => new { user.TenantId, user.CorreoElectronico })
             .IsUnique();
 
+        builder.HasIndex(user => user.TenantId);
         builder.HasIndex(user => user.Rol);
         builder.HasIndex(user => user.Activo);
-        builder.HasIndex(user => new { user.Rol, user.Activo });
+        builder.HasIndex(user => new { user.TenantId, user.Rol, user.Activo });
     }
 }

@@ -11,6 +11,8 @@ using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
 using PlataformaECommerce.Application.Features.Auth.Queries;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
+using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -53,6 +55,7 @@ public class LoginPageModelTests
         Assert.That(result, Is.InstanceOf<Microsoft.AspNetCore.Mvc.RedirectToPageResult>());
         Assert.That(authenticationService.LastSignInScheme, Is.EqualTo(AuthorizationPolicies.CustomerCookieScheme));
         Assert.That(authenticationService.SignedInPrincipal?.IsInRole(RolUsuario.Cliente.ToString()), Is.True);
+        Assert.That(authenticationService.SignedInPrincipal?.FindFirstValue(SecurityClaimTypes.TenantId), Is.EqualTo("tenant-demo"));
     }
 
     [Test]
@@ -180,7 +183,7 @@ public class LoginPageModelTests
 
     private static LoginModel CreatePageModel(FakeAuthApplicationService authApplicationService, FakeAuthenticationService authenticationService)
     {
-        LoginModel pageModel = new(authApplicationService, NullLogger<LoginModel>.Instance);
+        LoginModel pageModel = new(authApplicationService, new FakeTenantContextAccessor("tenant-demo"), NullLogger<LoginModel>.Instance);
 
         ServiceCollection services = new();
         services.AddSingleton<IAuthenticationService>(authenticationService);
@@ -196,6 +199,12 @@ public class LoginPageModelTests
         pageModel.Url = new FakeUrlHelper();
 
         return pageModel;
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => !string.IsNullOrWhiteSpace(TenantId);
     }
 
     private sealed class FakeUrlHelper : IUrlHelper

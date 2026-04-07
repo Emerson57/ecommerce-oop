@@ -7,6 +7,7 @@ using PlataformaECommerce.Application.Features.Admin.DTOs;
 using PlataformaECommerce.Application.Features.Admin.Queries;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Admin;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
@@ -23,10 +24,12 @@ public class SuperUserBootstrapServiceTests
     {
         FakeUserRepository userRepository = new();
         FakeAdminApplicationService adminApplicationService = new();
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         SuperUserBootstrapService service = CreateService(
             new BootstrapSuperUserOptions { Enabled = false },
             userRepository,
-            adminApplicationService);
+            adminApplicationService,
+            tenantCatalogProvisioningService);
 
         await service.BootstrapAsync(CancellationToken.None);
 
@@ -38,10 +41,12 @@ public class SuperUserBootstrapServiceTests
     {
         FakeUserRepository userRepository = new FakeUserRepository { SuperUsersExist = true };
         FakeAdminApplicationService adminApplicationService = new();
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         SuperUserBootstrapService service = CreateService(
             CreateEnabledOptions(),
             userRepository,
-            adminApplicationService);
+            adminApplicationService,
+            tenantCatalogProvisioningService);
 
         await service.BootstrapAsync(CancellationToken.None);
 
@@ -53,10 +58,12 @@ public class SuperUserBootstrapServiceTests
     {
         FakeUserRepository userRepository = new FakeUserRepository { AdministratorsExist = true, SuperUsersExist = false };
         FakeAdminApplicationService adminApplicationService = new();
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         SuperUserBootstrapService service = CreateService(
             CreateEnabledOptions(),
             userRepository,
-            adminApplicationService);
+            adminApplicationService,
+            tenantCatalogProvisioningService);
 
         await service.BootstrapAsync(CancellationToken.None);
 
@@ -69,10 +76,12 @@ public class SuperUserBootstrapServiceTests
     {
         FakeUserRepository userRepository = new();
         FakeAdminApplicationService adminApplicationService = new();
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         SuperUserBootstrapService service = CreateService(
             CreateEnabledOptions(),
             userRepository,
-            adminApplicationService);
+            adminApplicationService,
+            tenantCatalogProvisioningService);
 
         await service.BootstrapAsync(CancellationToken.None);
 
@@ -92,6 +101,7 @@ public class SuperUserBootstrapServiceTests
                 ConfirmPassword: "Password#2026"
             },
             Is.True);
+        Assert.That(tenantCatalogProvisioningService.MarkCalls, Is.EqualTo(1));
     }
 
     [Test]
@@ -99,10 +109,12 @@ public class SuperUserBootstrapServiceTests
     {
         FakeUserRepository userRepository = new();
         FakeAdminApplicationService adminApplicationService = new();
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         SuperUserBootstrapService service = CreateService(
             CreateEnabledOptions(),
             userRepository,
             adminApplicationService,
+            tenantCatalogProvisioningService,
             environmentName: Environments.Production);
 
         AsyncTestDelegate action = async () => await service.BootstrapAsync(CancellationToken.None);
@@ -115,10 +127,12 @@ public class SuperUserBootstrapServiceTests
     {
         FakeUserRepository userRepository = new() { SuperUsersExist = true };
         FakeAdminApplicationService adminApplicationService = new();
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         SuperUserBootstrapService service = CreateService(
             CreateEnabledOptions(),
             userRepository,
             adminApplicationService,
+            tenantCatalogProvisioningService,
             environmentName: Environments.Production);
 
         AsyncTestDelegate action = async () => await service.BootstrapAsync(CancellationToken.None);
@@ -131,6 +145,7 @@ public class SuperUserBootstrapServiceTests
     {
         FakeUserRepository userRepository = new();
         FakeAdminApplicationService adminApplicationService = new();
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         BootstrapSuperUserOptions options = CreateEnabledOptions();
         options.AllowInProduction = true;
 
@@ -138,6 +153,7 @@ public class SuperUserBootstrapServiceTests
             options,
             userRepository,
             adminApplicationService,
+            tenantCatalogProvisioningService,
             environmentName: Environments.Production);
 
         await service.BootstrapAsync(CancellationToken.None);
@@ -154,10 +170,12 @@ public class SuperUserBootstrapServiceTests
         {
             RegisterResult = Result.Failure<AdminDto>(Error.Failure("Admin.BootstrapFailed", "No fue posible crear el super usuario inicial."))
         };
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService = new();
         SuperUserBootstrapService service = CreateService(
             CreateEnabledOptions(),
             userRepository,
-            adminApplicationService);
+            adminApplicationService,
+            tenantCatalogProvisioningService);
 
         AsyncTestDelegate action = async () => await service.BootstrapAsync(CancellationToken.None);
 
@@ -168,12 +186,15 @@ public class SuperUserBootstrapServiceTests
         BootstrapSuperUserOptions options,
         FakeUserRepository userRepository,
         FakeAdminApplicationService adminApplicationService,
+        FakeTenantCatalogProvisioningService tenantCatalogProvisioningService,
         string environmentName = "Development")
     {
         return new SuperUserBootstrapService(
             Options.Create(options),
             userRepository,
             adminApplicationService,
+            tenantCatalogProvisioningService,
+            new FakeTenantContextAccessor("tenant-root"),
             new FakeHostEnvironment(environmentName),
             NullLogger<SuperUserBootstrapService>.Instance);
     }
@@ -184,6 +205,7 @@ public class SuperUserBootstrapServiceTests
         {
             Enabled = true,
             Name = " Super Admin ",
+            TenantId = " tenant-root ",
             Email = " root@plataforma.com ",
             Password = "Password#2026",
             Area = " Plataforma "
@@ -203,6 +225,12 @@ public class SuperUserBootstrapServiceTests
         public string ApplicationName { get; set; }
         public string ContentRootPath { get; set; }
         public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
+    }
+
+    private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor
+    {
+        public string TenantId { get; } = tenantId;
+        public bool IsAvailable => true;
     }
 
     private sealed class FakeAdminApplicationService : IAdminApplicationService
@@ -239,6 +267,31 @@ public class SuperUserBootstrapServiceTests
         {
             throw new NotSupportedException();
         }
+    }
+
+    private sealed class FakeTenantCatalogProvisioningService : ITenantCatalogProvisioningService
+    {
+        public int SynchronizeCalls { get; private set; }
+
+        public int MarkCalls { get; private set; }
+
+        public Task SynchronizeConfiguredCatalogAsync(CancellationToken cancellationToken = default)
+        {
+            SynchronizeCalls++;
+            return Task.CompletedTask;
+        }
+
+        public Task MarkSuperUserProvisionedAsync(string tenantId, string email, CancellationToken cancellationToken = default)
+        {
+            MarkCalls++;
+            return Task.CompletedTask;
+        }
+
+        public Task MarkBaseCategoriesProvisionedAsync(string tenantId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task MarkDemoCatalogProvisionedAsync(string tenantId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class FakeUserRepository : IUserRepository

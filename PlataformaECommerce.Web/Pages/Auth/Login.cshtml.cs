@@ -10,6 +10,7 @@ using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
+using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Web.Authorization;
 using PlataformaECommerce.Web.Configuration;
@@ -28,16 +29,22 @@ namespace PlataformaECommerce.Web.Pages.Auth
     public sealed class LoginModel : PageModel
     {
         private readonly IAuthApplicationService _authApplicationService;
+        private readonly ITenantContextAccessor _tenantContextAccessor;
         private readonly ILogger<LoginModel> _logger;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="LoginModel"/>.
         /// </summary>
         /// <param name="authApplicationService">Servicio de aplicación de autenticación.</param>
+        /// <param name="tenantContextAccessor">Accesor al tenant activo para emitir una identidad acotada al contexto resuelto.</param>
         /// <param name="logger">Registrador estructurado del flujo de autenticación web.</param>
-        public LoginModel(IAuthApplicationService authApplicationService, ILogger<LoginModel> logger)
+        public LoginModel(
+            IAuthApplicationService authApplicationService,
+            ITenantContextAccessor tenantContextAccessor,
+            ILogger<LoginModel> logger)
         {
             _authApplicationService = authApplicationService ?? throw new ArgumentNullException(nameof(authApplicationService));
+            _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -111,7 +118,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 return Page();
             }
 
-            if (!TryBuildAuthenticatedSession(result.Value.User, out ClaimsPrincipal? principal, out string authenticationScheme, out string redirectPage))
+            if (!TryBuildAuthenticatedSession(result.Value.User, _tenantContextAccessor.TenantId, out ClaimsPrincipal? principal, out string authenticationScheme, out string redirectPage))
             {
                 _logger.LogWarning(
                     "Se rechazó la emisión de sesión autenticada por inconsistencia de identidad. UserId: {UserId}. Email: {Email}. Role: {Role}. IsSuperUser: {IsSuperUser}",
@@ -133,7 +140,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
 
             await HttpContext.SignInAsync(
                 authenticationScheme,
-                principal,
+                principal!,
                 authenticationProperties);
 
             if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
@@ -197,20 +204,29 @@ namespace PlataformaECommerce.Web.Pages.Auth
 
         private static bool TryBuildAuthenticatedSession(
             CurrentUserDto user,
+            string tenantId,
             out ClaimsPrincipal? principal,
             out string authenticationScheme,
             out string redirectPage)
         {
             ArgumentNullException.ThrowIfNull(user);
 
-            if (TryBuildAdministrativePrincipal(user, out principal))
+            if (string.IsNullOrWhiteSpace(tenantId))
+            {
+                principal = null;
+                authenticationScheme = string.Empty;
+                redirectPage = string.Empty;
+                return false;
+            }
+
+            if (TryBuildAdministrativePrincipal(user, tenantId, out principal))
             {
                 authenticationScheme = AuthorizationPolicies.AdminCookieScheme;
                 redirectPage = "/Admin/Index";
                 return true;
             }
 
-            if (TryBuildCustomerPrincipal(user, out principal))
+            if (TryBuildCustomerPrincipal(user, tenantId, out principal))
             {
                 authenticationScheme = AuthorizationPolicies.CustomerCookieScheme;
                 redirectPage = "/Index";
@@ -223,7 +239,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
             return false;
         }
 
-        private static bool TryBuildAdministrativePrincipal(CurrentUserDto user, out ClaimsPrincipal? principal)
+        private static bool TryBuildAdministrativePrincipal(CurrentUserDto user, string tenantId, out ClaimsPrincipal? principal)
         {
             ArgumentNullException.ThrowIfNull(user);
 
@@ -252,6 +268,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 new(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new(ClaimTypes.Name, user.DisplayName),
                 new(ClaimTypes.Email, user.Email),
+                new(SecurityClaimTypes.TenantId, tenantId.Trim()),
                 new(SecurityClaimTypes.PrimaryRole, primaryRole.ToString()),
                 new(SecurityClaimTypes.AdminArea, user.Area ?? "Operaciones"),
                 new(SecurityClaimTypes.IsSuperUser, user.IsSuperUser.ToString())
@@ -267,7 +284,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
             return true;
         }
 
-        private static bool TryBuildCustomerPrincipal(CurrentUserDto user, out ClaimsPrincipal? principal)
+        private static bool TryBuildCustomerPrincipal(CurrentUserDto user, string tenantId, out ClaimsPrincipal? principal)
         {
             ArgumentNullException.ThrowIfNull(user);
 
@@ -283,6 +300,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 new(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new(ClaimTypes.Name, user.DisplayName),
                 new(ClaimTypes.Email, user.Email),
+                new(SecurityClaimTypes.TenantId, tenantId.Trim()),
                 new(SecurityClaimTypes.PrimaryRole, primaryRole.ToString()),
                 new(SecurityClaimTypes.IsSuperUser, bool.FalseString),
                 new(ClaimTypes.Role, primaryRole.ToString())

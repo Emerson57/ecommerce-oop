@@ -18,6 +18,7 @@ using PlataformaECommerce.Infrastructure.Persistence.Context;
 using PlataformaECommerce.Web.Authorization;
 using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.HealthChecks;
+using PlataformaECommerce.Web.Initialization;
 using PlataformaECommerce.Web.Middlewares;
 using PlataformaECommerce.Web.OpenApi;
 using PlataformaECommerce.Web.Services.Products;
@@ -179,6 +180,10 @@ builder.Services
     .Validate(options => !string.IsNullOrWhiteSpace(options.CorrelationHeaderName), "La configuración de observabilidad requiere un header de correlación válido.")
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<BootstrapSuperUserOptions>()
+    .Bind(builder.Configuration.GetSection(BootstrapSuperUserOptions.SectionName));
+
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -231,6 +236,8 @@ builder.Services.AddScoped<AdminCookieAuthenticationEvents>();
 builder.Services.AddScoped<CustomerCookieSecurityService>();
 builder.Services.AddScoped<CustomerCookieAuthenticationEvents>();
 builder.Services.AddScoped<IProductImageStorageService, ProductImageStorageService>();
+builder.Services.AddScoped<SuperUserBootstrapService>();
+builder.Services.AddScoped<SaaSPlatformInitializationService>();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -266,6 +273,12 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 });
 
 var app = builder.Build();
+
+await using (AsyncServiceScope initializationScope = app.Services.CreateAsyncScope())
+{
+    SaaSPlatformInitializationService initializationService = initializationScope.ServiceProvider.GetRequiredService<SaaSPlatformInitializationService>();
+    await initializationService.InitializeAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

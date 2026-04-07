@@ -18,6 +18,10 @@ public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<Produc
         builder.Property(product => product.Id)
             .ValueGeneratedNever();
 
+        builder.Property(product => product.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
         builder.Property(product => product.Nombre)
             .IsRequired()
             .HasMaxLength(150);
@@ -117,21 +121,24 @@ public sealed class ProductEntityConfiguration : IEntityTypeConfiguration<Produc
 
         builder.HasOne<CategoryEntity>()
             .WithMany()
-            .HasForeignKey(product => product.CategoriaId)
+            .HasForeignKey(product => new { product.TenantId, product.CategoriaId })
+            .HasPrincipalKey(category => new { category.TenantId, category.Id })
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<CategoryEntity>()
             .WithMany()
-            .HasForeignKey(product => product.SubcategoriaId)
+            .HasForeignKey(product => new { product.TenantId, product.SubcategoriaId })
+            .HasPrincipalKey(category => new { category.TenantId, category.Id })
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(product => product.Sku)
+        builder.HasIndex(product => new { product.TenantId, product.Sku })
             .IsUnique();
 
+        builder.HasIndex(product => product.TenantId);
         builder.HasIndex(product => product.TipoProducto);
         builder.HasIndex(product => product.Activo);
         builder.HasIndex(product => product.Nombre);
-        builder.HasIndex(product => product.CategoriaId);
-        builder.HasIndex(product => product.SubcategoriaId);
+        builder.HasIndex(product => new { product.TenantId, product.CategoriaId });
+        builder.HasIndex(product => new { product.TenantId, product.SubcategoriaId });
     }
 }

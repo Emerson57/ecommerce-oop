@@ -24,6 +24,10 @@ public sealed class OrderItemEntityConfiguration : IEntityTypeConfiguration<Orde
         builder.Property(detail => detail.Id)
             .ValueGeneratedNever();
 
+        builder.Property(detail => detail.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
         builder.Property(detail => detail.PedidoId)
             .IsRequired();
 
@@ -60,8 +64,9 @@ public sealed class OrderItemEntityConfiguration : IEntityTypeConfiguration<Orde
         builder.Property(detail => detail.FechaCreacionUtc)
             .IsRequired();
 
+        builder.HasIndex(detail => detail.TenantId);
         builder.HasIndex(detail => detail.PedidoId);
         builder.HasIndex(detail => detail.ProductoId);
-        builder.HasIndex(detail => new { detail.PedidoId, detail.ProductoId });
+        builder.HasIndex(detail => new { detail.TenantId, detail.PedidoId, detail.ProductoId });
     }
 }
