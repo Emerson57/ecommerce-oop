@@ -24,7 +24,9 @@ public static class InitializationStartupExtensions
 
         services
             .AddOptions<BootstrapSuperUserOptions>()
-            .Bind(configuration.GetSection(BootstrapSuperUserOptions.SectionName));
+            .Bind(configuration.GetSection(BootstrapSuperUserOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddScoped<SuperUserBootstrapService>();
         services.AddScoped<SaaSPlatformInitializationService>();

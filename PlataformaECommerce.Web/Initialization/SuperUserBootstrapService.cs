@@ -71,7 +71,6 @@ public sealed class SuperUserBootstrapService
             return;
         }
 
-        ValidateOptions(_options);
         EnsureBootstrapTargetsResolvedTenant(_options);
 
         bool superUserExists = await SuperUserExistsAsync(cancellationToken).ConfigureAwait(false);
@@ -159,36 +158,6 @@ public sealed class SuperUserBootstrapService
             Source = "Web.Startup.Bootstrap",
             Reason = "Bootstrap seguro del primer super usuario."
         };
-    }
-
-    private static void ValidateOptions(BootstrapSuperUserOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-
-        if (string.IsNullOrWhiteSpace(options.Name))
-        {
-            throw new InvalidOperationException("El bootstrap del super usuario requiere un nombre válido.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.TenantId))
-        {
-            throw new InvalidOperationException("El bootstrap del super usuario requiere un tenant objetivo válido.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.Email))
-        {
-            throw new InvalidOperationException("El bootstrap del super usuario requiere un correo electrónico válido.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.Password))
-        {
-            throw new InvalidOperationException("El bootstrap del super usuario requiere una contraseña válida.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.Area))
-        {
-            throw new InvalidOperationException("El bootstrap del super usuario requiere un área válida.");
-        }
     }
 
     private void EnsureBootstrapTargetsResolvedTenant(BootstrapSuperUserOptions options)
