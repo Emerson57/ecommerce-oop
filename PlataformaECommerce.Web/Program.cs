@@ -11,6 +11,7 @@ builder.Services
     .AddConfiguredProblemDetails()
     .AddConfiguredPresentation()
     .AddConfiguredOpenApi()
+    .AddConfiguredForwardedHeaders(builder.Configuration, builder.Environment)
     .AddConfiguredSecurity(builder.Configuration, builder.Environment)
     .AddConfiguredRateLimiting(builder.Configuration)
     .AddConfiguredHealthChecks(builder.Configuration)

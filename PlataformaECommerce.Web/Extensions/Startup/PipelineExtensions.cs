@@ -22,7 +22,7 @@ public static class PipelineExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.UseForwardedHeaders();
+        app.UseConfiguredForwardedHeaders();
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseMiddleware<RequestCorrelationMiddleware>();
         app.UseConfiguredSerilogRequestLogging();
