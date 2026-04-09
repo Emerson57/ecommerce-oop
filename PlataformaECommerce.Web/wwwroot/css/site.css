@@ -68,6 +68,10 @@ body {
     min-height: 2.9rem;
 }
 
+.cart-quantity-input {
+    max-width: 120px;
+}
+
 .form-control::placeholder,
 .form-select::placeholder {
     color: var(--text-muted);

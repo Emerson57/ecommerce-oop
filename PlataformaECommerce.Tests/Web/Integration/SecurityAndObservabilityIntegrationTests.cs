@@ -40,6 +40,26 @@ public class SecurityAndObservabilityIntegrationTests
         Assert.That(values?.Single(), Is.EqualTo("integration-correlation-001"));
         Assert.That(response.Headers.Contains("X-Content-Type-Options"), Is.True);
         Assert.That(response.Headers.Contains("Content-Security-Policy"), Is.True);
+        string contentSecurityPolicy = response.Headers.GetValues("Content-Security-Policy").Single();
+        Assert.That(contentSecurityPolicy, Does.Not.Contain("'unsafe-inline'"));
+        Assert.That(contentSecurityPolicy, Does.Contain("script-src 'self'"));
+        Assert.That(contentSecurityPolicy, Does.Contain("style-src 'self' 'nonce-"));
+        Assert.That(contentSecurityPolicy, Does.Contain("font-src 'self' data:"));
+        Assert.That(contentSecurityPolicy, Does.Not.Contain("fonts.googleapis.com"));
+        Assert.That(contentSecurityPolicy, Does.Not.Contain("fonts.gstatic.com"));
+    }
+
+    [Test]
+    public async Task HomePage_EmiteNonceDeEstiloParaBrandingDinamico()
+    {
+        HttpResponseMessage response = await _client.GetAsync("/", CancellationToken.None);
+
+        string html = await response.Content.ReadAsStringAsync(CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(html, Does.Contain("<style nonce=\""));
+        Assert.That(html, Does.Contain("/css/fonts"));
+        Assert.That(html, Does.Not.Contain("fonts.googleapis.com"));
     }
 
     [Test]

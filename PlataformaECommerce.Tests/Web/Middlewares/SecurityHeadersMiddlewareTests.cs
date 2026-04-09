@@ -4,6 +4,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Middlewares;
+using PlataformaECommerce.Web.Security;
 
 namespace PlataformaECommerce.Tests.Web.Middlewares;
 
@@ -24,6 +25,7 @@ public class SecurityHeadersMiddlewareTests
         Assert.That(httpContext.Response.Headers["X-Content-Type-Options"].ToString(), Is.EqualTo("nosniff"));
         Assert.That(httpContext.Response.Headers["X-Frame-Options"].ToString(), Is.EqualTo("DENY"));
         Assert.That(httpContext.Response.Headers["Content-Security-Policy"].ToString(), Does.Contain("frame-ancestors 'none'"));
+        Assert.That(httpContext.Response.Headers["Content-Security-Policy"].ToString(), Does.Not.Contain("'unsafe-inline'"));
     }
 
     [Test]
@@ -33,8 +35,20 @@ public class SecurityHeadersMiddlewareTests
             context => context.Response.WriteAsync("ok"),
             Options.Create(new WebSecurityHeadersOptions
             {
-                ContentSecurityPolicy = "default-src 'self'",
-                IncludeUpgradeInsecureRequests = true
+                ContentSecurityPolicy = new ContentSecurityPolicyOptions
+                {
+                    DefaultSources = ["'self'"],
+                    BaseUriSources = ["'self'"],
+                    ObjectSources = ["'none'"],
+                    FrameAncestorSources = ["'none'"],
+                    ImageSources = ["'self'"],
+                    StyleSources = ["'self'"],
+                    ScriptSources = ["'self'"],
+                    FontSources = ["'self'"],
+                    ConnectSources = ["'self'"],
+                    FormActionSources = ["'self'"],
+                    IncludeUpgradeInsecureRequests = true
+                }
             }),
             new FakeWebHostEnvironment("Production"));
         DefaultHttpContext httpContext = new();

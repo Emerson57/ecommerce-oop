@@ -1,8 +1,10 @@
 ﻿@using Microsoft.Extensions.Options
 @using PlataformaECommerce.Web.Configuration
+@using PlataformaECommerce.Web.Security
 @inject IOptions<ClientExperienceOptions> ClientExperienceOptionsAccessor
 @{
     ClientExperienceOptions clientExperience = ClientExperienceOptionsAccessor.Value;
+    string cspNonce = ContentSecurityPolicyNonceAccessor.GetOrCreateNonce(Context);
 }
 <!DOCTYPE html>
 <html lang="es" data-theme="light">
@@ -12,15 +14,19 @@
     <title>@ViewData["Title"] - @clientExperience.StorefrontName</title>
 
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
+    <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/PlataformaECommerce.Web.styles.css" asp-append-version="true" />
+    <style nonce="@cspNonce">
+        body {
+            --primary: @clientExperience.PrimaryColor;
+            --accent: @clientExperience.AccentColor;
+            --accent-hover: @clientExperience.AccentColor;
+        }
+    </style>
 </head>
-<body style="--primary:@clientExperience.PrimaryColor; --accent:@clientExperience.AccentColor; --accent-hover:@clientExperience.AccentColor;">
+<body>
     @{
         bool isAuthenticated = User.Identity?.IsAuthenticated == true;
         bool isAdminAuthenticated = isAuthenticated && (User.IsInRole("Administrador") || User.IsInRole("SuperUsuario"));

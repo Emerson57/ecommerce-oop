@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Web.Authorization;
 using PlataformaECommerce.Web.Configuration;
+using PlataformaECommerce.Web.Security;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
@@ -29,6 +31,8 @@ public static class SecurityStartupExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(hostEnvironment);
 
+        services.AddSingleton<IValidateOptions<WebSecurityHeadersOptions>, WebSecurityHeadersOptionsValidator>();
+
         services.AddHsts(options =>
         {
             options.Preload = true;
@@ -49,8 +53,6 @@ public static class SecurityStartupExtensions
         services
             .AddOptions<WebSecurityHeadersOptions>()
             .Bind(configuration.GetSection(WebSecurityHeadersOptions.SectionName))
-            .ValidateDataAnnotations()
-            .Validate(options => !string.IsNullOrWhiteSpace(options.ContentSecurityPolicy), "La configuración de headers de seguridad requiere una política CSP válida.")
             .ValidateOnStart();
 
         services

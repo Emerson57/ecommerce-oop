@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using PlataformaECommerce.Web.Security;
 
 namespace PlataformaECommerce.Web.Configuration;
 
@@ -13,10 +14,10 @@ public sealed class WebSecurityHeadersOptions
     public const string SectionName = "SecurityHeaders";
 
     /// <summary>
-    /// Valor del header <c>Content-Security-Policy</c>.
+    /// Define la configuración detallada de <c>Content-Security-Policy</c>.
     /// </summary>
     [Required]
-    public string ContentSecurityPolicy { get; set; } = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; font-src 'self' data: https:; connect-src 'self'; form-action 'self'";
+    public ContentSecurityPolicyOptions ContentSecurityPolicy { get; set; } = new();
 
     /// <summary>
     /// Valor del header <c>Permissions-Policy</c>.
@@ -54,8 +55,4 @@ public sealed class WebSecurityHeadersOptions
     [Required]
     public string CrossOriginResourcePolicy { get; set; } = "same-site";
 
-    /// <summary>
-    /// Indica si debe emitirse <c>upgrade-insecure-requests</c> dentro de la política CSP.
-    /// </summary>
-    public bool IncludeUpgradeInsecureRequests { get; set; } = true;
 }
