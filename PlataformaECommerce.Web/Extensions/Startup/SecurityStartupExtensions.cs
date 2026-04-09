@@ -40,16 +40,6 @@ public static class SecurityStartupExtensions
             options.MaxAge = TimeSpan.FromDays(365);
         });
 
-        services.AddAntiforgery(options =>
-        {
-            options.Cookie.Name = "__Host-PlataformaECommerce.Antiforgery";
-            options.Cookie.HttpOnly = true;
-            options.Cookie.IsEssential = true;
-            options.Cookie.SameSite = SameSiteMode.Strict;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            options.SuppressXFrameOptionsHeader = true;
-        });
-
         services
             .AddOptions<WebSecurityHeadersOptions>()
             .Bind(configuration.GetSection(WebSecurityHeadersOptions.SectionName))

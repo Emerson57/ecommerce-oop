@@ -25,11 +25,15 @@ public static class PresentationStartupExtensions
 
         services.AddRazorPages(options =>
         {
+            options.Conventions.ConfigureFilter(new AutoValidateAntiforgeryTokenAttribute());
             options.Conventions.AuthorizeFolder("/Admin", AuthorizationPolicies.AdminOnly);
             options.Conventions.AuthorizeFolder("/Admin/Users", AuthorizationPolicies.SuperUserOnly);
         });
 
-        services.AddControllers()
+        services.AddControllersWithViews(options =>
+            {
+                options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+            })
             .ConfigureApiBehaviorOptions(options =>
             {
                 options.InvalidModelStateResponseFactory = context =>

@@ -9,6 +9,7 @@ builder.Host.AddConfiguredSerilog(builder.Configuration);
 
 builder.Services
     .AddConfiguredProblemDetails()
+    .AddConfiguredAntiforgery(builder.Configuration, builder.Environment)
     .AddConfiguredPresentation()
     .AddConfiguredOpenApi()
     .AddConfiguredForwardedHeaders(builder.Configuration, builder.Environment)

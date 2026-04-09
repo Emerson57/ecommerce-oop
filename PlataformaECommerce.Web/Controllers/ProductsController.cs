@@ -17,6 +17,7 @@ namespace PlataformaECommerce.Web.Controllers;
 /// manteniendo separadas las capacidades administrativas de escritura y gestión.
 /// </remarks>
 [ApiController]
+[IgnoreAntiforgeryToken]
 [Route("api/[controller]")]
 [ApiExplorerSettings(GroupName = SwaggerGroups.Public)]
  [EnableRateLimiting(RateLimitingOptions.PublicApiPolicyName)]

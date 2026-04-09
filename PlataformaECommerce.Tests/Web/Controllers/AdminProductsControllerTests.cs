@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
@@ -36,6 +37,17 @@ public class AdminProductsControllerTests
             .SingleOrDefault();
 
         Assert.That(attribute?.GroupName, Is.EqualTo(SwaggerGroups.Admin));
+    }
+
+    [Test]
+    public void Controller_ApiAdministrativa_NoExcluyeAntiforgery()
+    {
+        IgnoreAntiforgeryTokenAttribute? attribute = typeof(AdminProductsController)
+            .GetCustomAttributes(typeof(IgnoreAntiforgeryTokenAttribute), inherit: true)
+            .OfType<IgnoreAntiforgeryTokenAttribute>()
+            .SingleOrDefault();
+
+        Assert.That(attribute, Is.Null);
     }
 
     [Test]

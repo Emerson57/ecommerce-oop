@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Products.Commands;
 using PlataformaECommerce.Application.Features.Products.DTOs;
@@ -22,6 +23,17 @@ public class ProductsControllerTests
             .SingleOrDefault();
 
         Assert.That(attribute?.GroupName, Is.EqualTo(SwaggerGroups.Public));
+    }
+
+    [Test]
+    public void Controller_ApiPublica_ExcluyeAntiforgeryDeFormaExplicita()
+    {
+        IgnoreAntiforgeryTokenAttribute? attribute = typeof(ProductsController)
+            .GetCustomAttributes(typeof(IgnoreAntiforgeryTokenAttribute), inherit: true)
+            .OfType<IgnoreAntiforgeryTokenAttribute>()
+            .SingleOrDefault();
+
+        Assert.That(attribute, Is.Not.Null);
     }
 
     [Test]

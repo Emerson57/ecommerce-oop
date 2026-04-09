@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace PlataformaECommerce.Tests.Web.Integration;
@@ -69,6 +70,31 @@ public class SecurityAndObservabilityIntegrationTests
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
         Assert.That(response.Headers.Location?.OriginalString, Does.Contain("/Auth/Login"));
+    }
+
+    [Test]
+    public async Task AntiforgeryTokenEndpoint_SinAutenticacion_RedireccionaALogin()
+    {
+        HttpResponseMessage response = await _client.GetAsync("/security/antiforgery/token", CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.Headers.Location?.OriginalString, Does.Contain("/Auth/Login"));
+    }
+
+    [Test]
+    public async Task Login_PostSinTokenAntiforgery_RetornaBadRequest()
+    {
+        using FormUrlEncodedContent content = new(
+        [
+            new KeyValuePair<string, string>("Input.Email", "root@tenant-demo.example"),
+            new KeyValuePair<string, string>("Input.Password", "Password#2026"),
+            new KeyValuePair<string, string>("Input.RememberMe", bool.FalseString)
+        ]);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+
+        HttpResponseMessage response = await _client.PostAsync("/Auth/Login", content, CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
     [Test]

@@ -1,5 +1,8 @@
 using PlataformaECommerce.Domain.Exceptions;
 
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Http;
+
 namespace PlataformaECommerce.Web.Middlewares;
 
 /// <summary>
@@ -34,6 +37,11 @@ internal static class UnhandledExceptionMapper
                 LogLevel.Warning,
                 "La dependencia no respondió a tiempo.",
                 "La operación no pudo completarse dentro del tiempo esperado."),
+            AntiforgeryValidationException => new UnhandledExceptionDescriptor(
+                StatusCodes.Status400BadRequest,
+                LogLevel.Warning,
+                "El token antiforgery de la solicitud no es válido.",
+                "Actualiza la página o solicita un nuevo token antes de reenviar la operación."),
             DomainException domainException => new UnhandledExceptionDescriptor(
                 StatusCodes.Status422UnprocessableEntity,
                 LogLevel.Warning,

@@ -30,6 +30,8 @@ public static class EndpointMappingExtensions
             ResponseWriter = HealthCheckResponseWriter.WriteJsonAsync
         }).AllowAnonymous();
 
+        app.MapConfiguredAntiforgeryEndpoints();
+
         app.MapStaticAssets();
         app.MapRazorPages()
             .WithStaticAssets();
