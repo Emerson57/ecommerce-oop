@@ -37,6 +37,7 @@ public class BootstrapSuperUserOptionsValidationTests
             _ = serviceProvider.GetRequiredService<IOptions<BootstrapSuperUserOptions>>().Value)!;
 
         Assert.That(exception.Message, Does.Contain(nameof(BootstrapSuperUserOptions.Password)));
+        Assert.That(exception.Message, Does.Contain(BootstrapSuperUserOptions.SectionName));
     }
 
     [Test]
@@ -53,6 +54,7 @@ public class BootstrapSuperUserOptionsValidationTests
             _ = serviceProvider.GetRequiredService<IOptions<BootstrapSuperUserOptions>>().Value)!;
 
         Assert.That(exception.Message, Does.Contain(nameof(BootstrapSuperUserOptions.Email)));
+        Assert.That(exception.Message, Does.Contain(BootstrapSuperUserOptions.SectionName));
     }
 
     private static IConfiguration BuildConfiguration(

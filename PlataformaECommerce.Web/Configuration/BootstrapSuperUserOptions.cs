@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using PlataformaECommerce.Application.Common.Security;
+using DomainEmail = PlataformaECommerce.Domain.ValueObjects.Email;
 
 namespace PlataformaECommerce.Web.Configuration;
 
@@ -41,14 +43,13 @@ public sealed class BootstrapSuperUserOptions : IValidatableObject
     /// <summary>
     /// Correo electrónico del super usuario inicial.
     /// </summary>
-    [EmailAddress]
-    [StringLength(256)]
+    [StringLength(DomainEmail.MaxLength)]
     public string Email { get; set; } = string.Empty;
 
     /// <summary>
     /// Contraseña temporal del super usuario inicial.
     /// </summary>
-    [StringLength(256, MinimumLength = 8)]
+    [StringLength(PasswordPolicyRules.MaxLength)]
     public string Password { get; set; } = string.Empty;
 
     /// <summary>
@@ -79,6 +80,9 @@ public sealed class BootstrapSuperUserOptions : IValidatableObject
         AddRequiredWhenEnabled(validationResults, Password, nameof(Password), "El bootstrap del super usuario requiere una contraseña válida cuando está habilitado.");
         AddRequiredWhenEnabled(validationResults, Area, nameof(Area), "El bootstrap del super usuario requiere un área válida cuando está habilitado.");
 
+        AddEmailValidationWhenEnabled(validationResults, Email);
+        AddPasswordValidationWhenEnabled(validationResults, Password);
+
         return validationResults;
     }
 
@@ -96,5 +100,44 @@ public sealed class BootstrapSuperUserOptions : IValidatableObject
         }
 
         validationResults.Add(new ValidationResult(errorMessage, [memberName]));
+    }
+
+    private static void AddEmailValidationWhenEnabled(ICollection<ValidationResult> validationResults, string? email)
+    {
+        ArgumentNullException.ThrowIfNull(validationResults);
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return;
+        }
+
+        EmailAddressAttribute emailAddressAttribute = new();
+        if (emailAddressAttribute.IsValid(email.Trim()))
+        {
+            return;
+        }
+
+        validationResults.Add(new ValidationResult(
+            "El bootstrap del super usuario requiere un correo electrónico con formato válido cuando está habilitado.",
+            [nameof(Email)]));
+    }
+
+    private static void AddPasswordValidationWhenEnabled(ICollection<ValidationResult> validationResults, string? password)
+    {
+        ArgumentNullException.ThrowIfNull(validationResults);
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            return;
+        }
+
+        if (password.Length >= PasswordPolicyRules.MinLength)
+        {
+            return;
+        }
+
+        validationResults.Add(new ValidationResult(
+            $"El bootstrap del super usuario requiere una contraseña de al menos {PasswordPolicyRules.MinLength} caracteres cuando está habilitado.",
+            [nameof(Password)]));
     }
 }

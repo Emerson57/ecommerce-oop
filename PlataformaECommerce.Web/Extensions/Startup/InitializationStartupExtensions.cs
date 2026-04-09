@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Initialization;
 
@@ -22,12 +23,14 @@ public static class InitializationStartupExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        services.AddSingleton<IValidateOptions<BootstrapSuperUserOptions>, BootstrapSuperUserOptionsValidator>();
+
         services
             .AddOptions<BootstrapSuperUserOptions>()
             .Bind(configuration.GetSection(BootstrapSuperUserOptions.SectionName))
-            .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddScoped<DevelopmentLegacyTenantDataNormalizer>();
         services.AddScoped<SuperUserBootstrapService>();
         services.AddScoped<SaaSPlatformInitializationService>();
 
@@ -44,7 +47,10 @@ public static class InitializationStartupExtensions
         ArgumentNullException.ThrowIfNull(app);
 
         await using AsyncServiceScope initializationScope = app.Services.CreateAsyncScope();
+        DevelopmentLegacyTenantDataNormalizer legacyTenantDataNormalizer = initializationScope.ServiceProvider.GetRequiredService<DevelopmentLegacyTenantDataNormalizer>();
         SaaSPlatformInitializationService initializationService = initializationScope.ServiceProvider.GetRequiredService<SaaSPlatformInitializationService>();
+
+        await legacyTenantDataNormalizer.NormalizeAsync(cancellationToken).ConfigureAwait(false);
         await initializationService.InitializeAsync(cancellationToken).ConfigureAwait(false);
     }
 }
