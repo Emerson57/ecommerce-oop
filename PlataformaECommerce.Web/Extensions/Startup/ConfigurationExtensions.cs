@@ -8,6 +8,38 @@ namespace PlataformaECommerce.Web.Extensions.Startup;
 /// </summary>
 public static class ConfigurationExtensions
 {
+    private static readonly string[] ModularConfigurationNames =
+    [
+        "Observability",
+        "Security",
+        "Branding",
+        "Backoffice",
+        "SaaS",
+        "Payments",
+        "Infrastructure"
+    ];
+
+    /// <summary>
+    /// Agrega archivos de configuración especializados por dominio para desacoplar responsabilidades del `appsettings.json` principal.
+    /// </summary>
+    /// <param name="configuration">Administrador de configuración de la aplicación.</param>
+    /// <param name="hostEnvironment">Entorno actual de ejecución.</param>
+    /// <returns>El mismo administrador de configuración para encadenamiento fluido.</returns>
+    public static ConfigurationManager AddModularConfigurationFiles(this ConfigurationManager configuration, IHostEnvironment hostEnvironment)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
+
+        foreach (string moduleName in ModularConfigurationNames)
+        {
+            configuration
+                .AddJsonFile($"appsettings.{moduleName}.json", optional: true, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{moduleName}.{hostEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+        }
+
+        return configuration;
+    }
+
     /// <summary>
     /// Agrega configuración local exclusiva de desarrollo sin alterar el comportamiento de otros entornos.
     /// </summary>

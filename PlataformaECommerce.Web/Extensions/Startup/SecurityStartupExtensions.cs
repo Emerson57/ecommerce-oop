@@ -45,13 +45,6 @@ public static class SecurityStartupExtensions
             .Bind(configuration.GetSection(WebSecurityHeadersOptions.SectionName))
             .ValidateOnStart();
 
-        services
-            .AddOptions<RequestCorrelationOptions>()
-            .Bind(configuration.GetSection(RequestCorrelationOptions.SectionName))
-            .ValidateDataAnnotations()
-            .Validate(options => !string.IsNullOrWhiteSpace(options.CorrelationHeaderName), "La configuración de observabilidad requiere un header de correlación válido.")
-            .ValidateOnStart();
-
         services.AddScoped<AdminCookieSecurityService>();
         services.AddScoped<AdminCookieAuthenticationEvents>();
         services.AddScoped<CustomerCookieSecurityService>();

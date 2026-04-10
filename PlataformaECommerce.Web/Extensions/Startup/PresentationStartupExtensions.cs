@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using PlataformaECommerce.Web.Authorization;
-using PlataformaECommerce.Web.Configuration;
-using PlataformaECommerce.Web.Services.Products;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
@@ -55,31 +53,6 @@ public static class PresentationStartupExtensions
                     };
                 };
             });
-
-        services
-            .AddOptions<ClientExperienceOptions>()
-            .BindConfiguration(ClientExperienceOptions.SectionName)
-            .ValidateDataAnnotations()
-            .Validate(options => HexColorValidator.IsValid(options.PrimaryColor), "La configuración comercial requiere un color primario hexadecimal válido.")
-            .Validate(options => HexColorValidator.IsValid(options.AccentColor), "La configuración comercial requiere un color de acento hexadecimal válido.")
-            .Validate(options => HexColorValidator.IsValid(options.AdminSidebarStartColor), "La configuración comercial requiere un color inicial válido para el sidebar administrativo.")
-            .Validate(options => HexColorValidator.IsValid(options.AdminSidebarEndColor), "La configuración comercial requiere un color final válido para el sidebar administrativo.")
-            .ValidateOnStart();
-
-        services
-            .AddOptions<AdminUsersBackofficeOptions>()
-            .BindConfiguration(AdminUsersBackofficeOptions.SectionName);
-
-        services
-            .AddOptions<ProductImagesOptions>()
-            .BindConfiguration(ProductImagesOptions.SectionName)
-            .Validate(ProductImagesOptionsValidator.HasValidUploadsDirectory, "La configuración de imágenes de productos requiere un directorio de almacenamiento válido.")
-            .Validate(ProductImagesOptionsValidator.HasValidRequestPath, "La configuración de imágenes de productos requiere una ruta pública válida que comience con '/'.")
-            .Validate(ProductImagesOptionsValidator.HasValidMaxFileSize, "La configuración de imágenes de productos requiere un tamaño máximo de archivo mayor que cero.")
-            .Validate(ProductImagesOptionsValidator.HasAllowedExtensions, "La configuración de imágenes de productos requiere al menos una extensión permitida.")
-            .ValidateOnStart();
-
-        services.AddScoped<IProductImageStorageService, ProductImageStorageService>();
 
         CultureInfo[] supportedCultures =
         [
