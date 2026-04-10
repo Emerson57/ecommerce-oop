@@ -72,7 +72,8 @@ public class ProductImageStorageServiceTests
             UploadsDirectory = "uploads/products",
             RequestPath = "/uploads/products",
             MaxFileSizeInBytes = 5 * 1024 * 1024,
-            AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp"]
+            AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp"],
+            AllowedContentTypes = ["image/jpeg", "image/png", "image/webp"]
         };
 
         return new ProductImageStorageService(

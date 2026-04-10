@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 
 namespace PlataformaECommerce.Tests.Web.Integration;
 
@@ -114,6 +116,79 @@ public class SecurityAndObservabilityIntegrationTests
         var payload = await lastResponse.Content.ReadFromJsonAsync<RateLimitPayload>(cancellationToken: CancellationToken.None);
         Assert.That(payload?.Codigo, Is.EqualTo(429));
         Assert.That(payload?.Mensaje, Does.Contain("límite temporal"));
+    }
+
+    [Test]
+    public async Task Uploads_PublicosPermitidos_SeSirvenConTipoMimeRestringido()
+    {
+        string uploadsDirectory = $"uploads/integration-tests/{Guid.NewGuid():N}";
+        string fileName = "producto.webp";
+        string physicalDirectory = CreateUploadsDirectory(uploadsDirectory);
+        await File.WriteAllBytesAsync(Path.Combine(physicalDirectory, fileName), [1, 2, 3, 4], CancellationToken.None);
+
+        using WebApplicationFactory<Program> factory = CreateFactoryWithUploadsConfiguration(uploadsDirectory, "/integration-uploads");
+        using HttpClient client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        HttpResponseMessage response = await client.GetAsync($"/integration-uploads/{fileName}", CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("image/webp"));
+        Assert.That(response.Headers.TryGetValues("X-Content-Type-Options", out IEnumerable<string>? values), Is.True);
+        Assert.That(values?.Single(), Is.EqualTo("nosniff"));
+    }
+
+    [Test]
+    public async Task Uploads_ConExtensionNoPermitida_NoSeSirvenPublicamente()
+    {
+        string uploadsDirectory = $"uploads/integration-tests/{Guid.NewGuid():N}";
+        string fileName = "producto.txt";
+        string physicalDirectory = CreateUploadsDirectory(uploadsDirectory);
+        await File.WriteAllTextAsync(Path.Combine(physicalDirectory, fileName), "contenido de prueba", CancellationToken.None);
+
+        using WebApplicationFactory<Program> factory = CreateFactoryWithUploadsConfiguration(uploadsDirectory, "/integration-uploads");
+        using HttpClient client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        HttpResponseMessage response = await client.GetAsync($"/integration-uploads/{fileName}", CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    private WebApplicationFactory<Program> CreateFactoryWithUploadsConfiguration(string uploadsDirectory, string requestPath)
+    {
+        return _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, configBuilder) =>
+            {
+                configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Backoffice:ProductImages:UploadsDirectory"] = uploadsDirectory,
+                    ["Backoffice:ProductImages:RequestPath"] = requestPath,
+                    ["Backoffice:ProductImages:AllowedExtensions:0"] = ".jpg",
+                    ["Backoffice:ProductImages:AllowedExtensions:1"] = ".jpeg",
+                    ["Backoffice:ProductImages:AllowedExtensions:2"] = ".png",
+                    ["Backoffice:ProductImages:AllowedExtensions:3"] = ".webp",
+                    ["Backoffice:ProductImages:AllowedContentTypes:0"] = "image/jpeg",
+                    ["Backoffice:ProductImages:AllowedContentTypes:1"] = "image/png",
+                    ["Backoffice:ProductImages:AllowedContentTypes:2"] = "image/webp"
+                });
+            });
+        });
+    }
+
+    private static string CreateUploadsDirectory(string uploadsDirectory)
+    {
+        string webProjectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "PlataformaECommerce.Web"));
+        string physicalDirectory = Path.Combine(webProjectRoot, "wwwroot", uploadsDirectory.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(physicalDirectory);
+        return physicalDirectory;
     }
 
     private sealed record RateLimitPayload(string Mensaje, int Codigo, string TraceId);

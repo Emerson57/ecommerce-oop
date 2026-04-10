@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PlataformaECommerce.Web.Configuration;
+using PlataformaECommerce.Web.Extensions.Startup;
 
 namespace PlataformaECommerce.Web.Services.Products;
 
@@ -12,13 +13,6 @@ namespace PlataformaECommerce.Web.Services.Products;
 /// </summary>
 public sealed class ProductImageStorageService : IProductImageStorageService
 {
-    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "image/jpeg",
-        "image/png",
-        "image/webp"
-    };
-
     private readonly IWebHostEnvironment _webHostEnvironment;
     private readonly ProductImagesOptions _options;
     private readonly ILogger<ProductImageStorageService> _logger;
@@ -123,7 +117,7 @@ public sealed class ProductImageStorageService : IProductImageStorageService
             return ProductImageProcessResult.Failure("La imagen principal debe estar en formato JPG, PNG o WEBP.");
         }
 
-        if (string.IsNullOrWhiteSpace(uploadedImage.ContentType) || !AllowedContentTypes.Contains(uploadedImage.ContentType))
+        if (string.IsNullOrWhiteSpace(uploadedImage.ContentType) || !_options.AllowedContentTypes.Contains(uploadedImage.ContentType, StringComparer.OrdinalIgnoreCase))
         {
             return ProductImageProcessResult.Failure("El tipo de archivo seleccionado no corresponde a una imagen compatible para el catálogo.");
         }
@@ -174,11 +168,7 @@ public sealed class ProductImageStorageService : IProductImageStorageService
 
     private string GetUploadsPhysicalDirectory()
     {
-        string webRootPath = string.IsNullOrWhiteSpace(_webHostEnvironment.WebRootPath)
-            ? Path.Combine(_webHostEnvironment.ContentRootPath, "wwwroot")
-            : _webHostEnvironment.WebRootPath;
-
-        return Path.Combine(webRootPath, _options.UploadsDirectory.Replace('/', Path.DirectorySeparatorChar));
+        return ProductImageStoragePathResolver.ResolveUploadsPhysicalDirectory(_webHostEnvironment, _options);
     }
 
     private bool TryResolveManagedImagePhysicalPath(string? imageUrl, out string? physicalPath)

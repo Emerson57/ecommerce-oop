@@ -29,4 +29,14 @@ public sealed class ProductImagesOptions
     /// Extensiones admitidas para la carga de imágenes de producto.
     /// </summary>
     public List<string> AllowedExtensions { get; set; } = [".jpg", ".jpeg", ".png", ".webp"];
+
+    /// <summary>
+    /// Tipos MIME admitidos durante la validación y exposición de imágenes subidas.
+    /// </summary>
+    public List<string> AllowedContentTypes { get; set; } = ["image/jpeg", "image/png", "image/webp"];
+
+    /// <summary>
+    /// Valor opcional del header <c>Cache-Control</c> aplicado a uploads expuestos públicamente.
+    /// </summary>
+    public string? StaticFileCacheControlHeaderValue { get; set; }
 }

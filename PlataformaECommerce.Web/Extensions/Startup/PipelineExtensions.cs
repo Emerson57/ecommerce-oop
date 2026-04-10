@@ -47,7 +47,7 @@ public static class PipelineExtensions
         RequestLocalizationOptions requestLocalizationOptions = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
         app.UseRequestLocalization(requestLocalizationOptions);
         app.UseMiddleware<SecurityHeadersMiddleware>();
-        ProductImagesStaticFileConfigurator.UseConfiguredStaticFiles(app);
+        app.UseConfiguredUploadStaticFiles();
         app.UseRouting();
         app.UseRateLimiter();
         app.UseAuthentication();

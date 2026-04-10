@@ -29,6 +29,8 @@ public static class BackofficeStartupExtensions
             .Validate(ProductImagesOptionsValidator.HasValidRequestPath, "La configuración de imágenes de productos requiere una ruta pública válida que comience con '/'.")
             .Validate(ProductImagesOptionsValidator.HasValidMaxFileSize, "La configuración de imágenes de productos requiere un tamaño máximo de archivo mayor que cero.")
             .Validate(ProductImagesOptionsValidator.HasAllowedExtensions, "La configuración de imágenes de productos requiere al menos una extensión permitida.")
+            .Validate(ProductImagesOptionsValidator.HasAllowedContentTypes, "La configuración de imágenes de productos requiere al menos un tipo MIME permitido.")
+            .Validate(ProductImagesOptionsValidator.HasSafeStaticFileCacheControlHeader, "La configuración de imágenes de productos contiene un header Cache-Control inválido para la exposición pública de uploads.")
             .ValidateOnStart();
 
         services.AddScoped<IProductImageStorageService, ProductImageStorageService>();
