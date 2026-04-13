@@ -39,7 +39,7 @@ public class ConfigurationCompositionTests
                 EnvironmentName = Environments.Development
             });
 
-            builder.ConfigureApplicationConfiguration(Array.Empty<string>());
+            builder.ConfigureWebApplicationConfiguration(Array.Empty<string>());
 
             Assert.That(builder.Configuration["Jwt:SigningKey"], Is.EqualTo(environmentVariableValue));
         }
@@ -73,7 +73,7 @@ public class ConfigurationCompositionTests
                 EnvironmentName = Environments.Development
             });
 
-            builder.ConfigureApplicationConfiguration(Array.Empty<string>());
+            builder.ConfigureWebApplicationConfiguration(Array.Empty<string>());
 
             Assert.That(builder.Configuration["Jwt:SigningKey"], Is.EqualTo(secretAliasEnvironmentVariableValue));
         }
@@ -106,7 +106,7 @@ public class ConfigurationCompositionTests
                 EnvironmentName = Environments.Development
             });
 
-            builder.ConfigureApplicationConfiguration(Array.Empty<string>());
+            builder.ConfigureWebApplicationConfiguration(Array.Empty<string>());
 
             Assert.That(builder.Configuration["Jwt:SigningKey"], Is.EqualTo(runtimeEnvironmentVariableValue));
         }

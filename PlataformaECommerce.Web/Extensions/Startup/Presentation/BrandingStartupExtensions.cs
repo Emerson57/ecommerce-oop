@@ -21,10 +21,10 @@ public static class BrandingStartupExtensions
             .AddOptions<ClientExperienceOptions>()
             .Bind(configuration.GetSection(ClientExperienceOptions.SectionName))
             .ValidateDataAnnotations()
-            .Validate(options => HexColorValidator.IsValid(options.PrimaryColor), "La configuración comercial requiere un color primario hexadecimal válido.")
-            .Validate(options => HexColorValidator.IsValid(options.AccentColor), "La configuración comercial requiere un color de acento hexadecimal válido.")
-            .Validate(options => HexColorValidator.IsValid(options.AdminSidebarStartColor), "La configuración comercial requiere un color inicial válido para el sidebar administrativo.")
-            .Validate(options => HexColorValidator.IsValid(options.AdminSidebarEndColor), "La configuración comercial requiere un color final válido para el sidebar administrativo.")
+            .Validate(options => BrandingHexColorValidator.IsValid(options.PrimaryColor), "La configuración comercial requiere un color primario hexadecimal válido.")
+            .Validate(options => BrandingHexColorValidator.IsValid(options.AccentColor), "La configuración comercial requiere un color de acento hexadecimal válido.")
+            .Validate(options => BrandingHexColorValidator.IsValid(options.AdminSidebarStartColor), "La configuración comercial requiere un color inicial válido para el sidebar administrativo.")
+            .Validate(options => BrandingHexColorValidator.IsValid(options.AdminSidebarEndColor), "La configuración comercial requiere un color final válido para el sidebar administrativo.")
             .ValidateOnStart();
 
         return services;

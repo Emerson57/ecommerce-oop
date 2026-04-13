@@ -1,9 +1,9 @@
-using PlataformaECommerce.Web.Configuration;
 using Microsoft.AspNetCore.StaticFiles;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
-internal static class ProductImagesOptionsValidator
+internal static class BackofficeProductImagesOptionsValidator
 {
     public static bool HasValidUploadsDirectory(ProductImagesOptions options)
     {

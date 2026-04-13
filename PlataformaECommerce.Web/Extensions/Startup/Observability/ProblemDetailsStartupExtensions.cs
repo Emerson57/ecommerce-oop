@@ -19,7 +19,7 @@ public static class ProblemDetailsStartupExtensions
         services.AddProblemDetails(options =>
         {
             options.CustomizeProblemDetails = context =>
-                ProblemDetailsMetadataEnricher.Enrich(context.HttpContext, context.ProblemDetails);
+                ObservabilityProblemDetailsEnricher.Enrich(context.HttpContext, context.ProblemDetails);
         });
 
         return services;

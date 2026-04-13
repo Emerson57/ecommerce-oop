@@ -34,7 +34,7 @@ public sealed class ExceptionHandlingMiddleware
                 "Se produjo una excepción durante el procesamiento de la solicitud. StatusCode: {StatusCode}. TraceId: {TraceId}. CorrelationId: {CorrelationId}. Path: {Path}",
                 descriptor.StatusCode,
                 context.TraceIdentifier,
-                CorrelationIdResolver.Resolve(context),
+                RequestCorrelationContextResolver.Resolve(context),
                 context.Request.Path);
 
             if (descriptor.SuppressResponseBody)

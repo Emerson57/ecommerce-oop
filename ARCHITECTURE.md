@@ -441,3 +441,94 @@ Formalizar la secuencia de liberación a producción del módulo de identidad y 
 
 ### Alcance de la fase 10
 Esta fase cierra la implementación profesional de la solución llevando la arquitectura a un estado realmente operable en producción. Formaliza el procedimiento de migración, aprovisionamiento inicial, desactivación de bootstrap y verificación final del backoffice administrativo.
+
+## Fase 11. Estandarización del composition root y startup modular
+
+### Estado
+Implementada.
+
+### Objetivo
+Formalizar una convención estable para la composition root de `PlataformaECommerce.Web`, organizando el arranque por dominios operativos y reduciendo el acoplamiento entre configuración, registro de servicios, pipeline HTTP y mapeo de endpoints.
+
+### Decisiones oficiales
+
+1. La carpeta `Extensions/Startup` se organiza por dominio.
+   - Los artefactos de startup se distribuyen en `Platform`, `Security`, `Observability`, `Presentation` y `Operations`.
+   - La ubicación física de cada archivo debe reflejar su responsabilidad dominante dentro del arranque web.
+
+2. La convención de nombres del startup queda fijada.
+   - `Configure*` se reserva para la preparación del `WebApplicationBuilder`.
+   - `Add*Module` se reserva para el registro de servicios por dominio.
+   - `Use*Module` se reserva para fases explícitas del pipeline HTTP.
+   - `Map*Endpoints` se reserva para superficies HTTP agrupadas por dominio.
+
+3. `Program.cs` permanece mínimo y orientado al ciclo de vida.
+   - El punto de entrada solo crea el builder, delega la configuración del host, construye la app, ejecuta bootstrap y arranca el proceso.
+   - La composición detallada debe vivir fuera de `Program.cs`.
+
+4. El pipeline HTTP se orquesta desde un coordinador delgado.
+   - `PipelineExtensions` conserva únicamente la secuencia de alto nivel.
+   - La implementación concreta de cada fase se distribuye en extensiones por dominio para preservar SRP y facilitar revisiones operativas.
+
+5. El mapeo de endpoints se expresa por capacidades del host.
+   - Operaciones, seguridad, presentación y plataforma se mapean por separado.
+   - Esta agrupación debe mantenerse como estándar para nuevas superficies HTTP.
+
+### Estructura oficial de startup en `Web`
+
+- `Extensions/Startup/Platform`
+  - host builder
+  - configuración base del host
+  - bootstrap de aplicación
+  - inicialización runtime
+  - activación runtime
+  - composición de módulos
+  - fuentes de configuración
+- `Extensions/Startup/Security`
+  - autenticación y autorización
+  - antiforgery
+  - forwarded headers
+  - rate limiting
+  - activación runtime de forwarded headers
+  - activación runtime de rate limiting
+  - mapeo especializado de antiforgery
+  - fases de pipeline de seguridad
+- `Extensions/Startup/Observability`
+  - problem details
+  - correlación
+  - logging estructurado
+  - activaciones runtime de correlación, excepciones y request logging
+  - fases de pipeline de observabilidad
+- `Extensions/Startup/Presentation`
+  - Razor Pages y MVC
+  - branding y backoffice
+  - static files controlados
+  - activaciones runtime de localización, headers, static files y routing
+  - mapeo especializado de activos y páginas
+  - fases de pipeline de presentación
+- `Extensions/Startup/Operations`
+  - inicialización crítica
+  - health checks
+  - OpenAPI
+  - activación runtime de OpenAPI
+  - mapeo específico de health/readiness
+  - pipeline coordinator
+  - endpoint mapping
+
+### Implicaciones arquitectónicas
+- La composition root pasa a ser una arquitectura explícita y navegable, no una colección plana de extensiones.
+- El arranque de `Web` puede evolucionar por dominios sin perder claridad operativa.
+- Las revisiones de seguridad, observabilidad y operación se facilitan al existir fronteras claras dentro del startup.
+
+### Consecuencias prácticas
+- Todo archivo nuevo de startup debe ubicarse en el dominio correspondiente.
+- Nuevas capacidades de arranque deben respetar la convención `Configure*`, `Add*Module`, `Use*Module` y `Map*Endpoints`.
+- `Program.cs` no debe volver a absorber lógica de composición detallada.
+- Dentro de `Platform`, los coordinadores deben permanecer delgados y delegar configuración base, composición de módulos, inicialización runtime y activación runtime a archivos específicos.
+- Dentro de `Security`, los coordinadores deben delegar antiforgery, forwarded headers y rate limiting a piezas runtime o de endpoint especializadas.
+- Dentro de `Observability`, los coordinadores deben delegar correlación, manejo de excepciones y request logging a activaciones runtime específicas.
+- Dentro de `Presentation`, los coordinadores deben delegar localización, headers defensivos, static files, routing y mapping de activos o páginas a piezas runtime y de endpoint especializadas.
+- Dentro de `Operations`, los coordinadores deben delegar activación OpenAPI y mapeos operativos especializados a extensiones runtime específicas.
+
+### Alcance de la fase 11
+Esta fase formaliza el startup enterprise de la solución y lo deja preparado para crecer como SaaS comercial, con una convención estable, auditable y mantenible para composition root, pipeline y endpoint mapping.

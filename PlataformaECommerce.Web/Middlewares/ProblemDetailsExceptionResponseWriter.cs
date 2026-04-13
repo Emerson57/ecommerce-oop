@@ -29,7 +29,7 @@ internal static class ProblemDetailsExceptionResponseWriter
             Instance = context.Request.Path
         };
 
-        ProblemDetailsMetadataEnricher.Enrich(context, problemDetails);
+        ObservabilityProblemDetailsEnricher.Enrich(context, problemDetails);
 
         return context.Response.WriteAsJsonAsync(
             problemDetails,

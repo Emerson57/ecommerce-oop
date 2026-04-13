@@ -47,7 +47,7 @@ public static class SerilogStartupExtensions
             options.EnrichDiagnosticContext = static (diagnosticContext, httpContext) =>
             {
                 diagnosticContext.Set("TraceIdentifier", httpContext.TraceIdentifier);
-                diagnosticContext.Set("CorrelationId", CorrelationIdResolver.Resolve(httpContext));
+                diagnosticContext.Set("CorrelationId", RequestCorrelationContextResolver.Resolve(httpContext));
                 diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
                 diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
                 diagnosticContext.Set("RemoteIp", httpContext.Connection.RemoteIpAddress?.ToString());

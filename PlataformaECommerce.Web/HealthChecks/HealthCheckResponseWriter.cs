@@ -20,7 +20,7 @@ public static class HealthCheckResponseWriter
 
         context.Response.ContentType = "application/json";
 
-        string correlationId = CorrelationIdResolver.Resolve(context);
+        string correlationId = RequestCorrelationContextResolver.Resolve(context);
 
         var payload = new
         {

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
-internal static class ProblemDetailsMetadataEnricher
+internal static class ObservabilityProblemDetailsEnricher
 {
     public static void Enrich(HttpContext httpContext, ProblemDetails problemDetails)
     {
@@ -11,7 +11,7 @@ internal static class ProblemDetailsMetadataEnricher
         ArgumentNullException.ThrowIfNull(problemDetails);
 
         problemDetails.Extensions["traceId"] = httpContext.TraceIdentifier;
-        problemDetails.Extensions["correlationId"] = CorrelationIdResolver.Resolve(httpContext);
+        problemDetails.Extensions["correlationId"] = RequestCorrelationContextResolver.Resolve(httpContext);
         problemDetails.Extensions["timestampUtc"] = DateTime.UtcNow;
     }
 }

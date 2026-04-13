@@ -45,7 +45,7 @@ public static class PresentationStartupExtensions
                         detail: "Corrige los campos indicados e inténtalo nuevamente.",
                         instance: context.HttpContext.Request.Path);
 
-                    ProblemDetailsMetadataEnricher.Enrich(context.HttpContext, problemDetails);
+                    ObservabilityProblemDetailsEnricher.Enrich(context.HttpContext, problemDetails);
 
                     return new BadRequestObjectResult(problemDetails)
                     {

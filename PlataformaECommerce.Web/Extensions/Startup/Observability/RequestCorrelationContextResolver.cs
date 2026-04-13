@@ -4,7 +4,7 @@ using PlataformaECommerce.Web.Middlewares;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
-internal static class CorrelationIdResolver
+internal static class RequestCorrelationContextResolver
 {
     public static string Resolve(HttpContext httpContext)
     {

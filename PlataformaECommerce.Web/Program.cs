@@ -2,14 +2,10 @@ using PlataformaECommerce.Web.Extensions.Startup;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.ConfigureApplicationConfiguration(args);
-builder.ConfigureApplicationLogging();
-builder.Services.AddApplicationCompositionServices(builder.Configuration, builder.Environment);
+builder.ConfigureWebApplicationHost(args);
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
-await app.RunApplicationStartupInitializationAsync();
-app.UseApplicationPipeline();
-app.MapHttpEndpoints();
+await app.BootstrapWebApplicationAsync();
 
 app.Run();

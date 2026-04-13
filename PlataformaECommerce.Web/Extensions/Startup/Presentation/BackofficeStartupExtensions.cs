@@ -25,12 +25,12 @@ public static class BackofficeStartupExtensions
         services
             .AddOptions<ProductImagesOptions>()
             .Bind(configuration.GetSection(ProductImagesOptions.SectionName))
-            .Validate(ProductImagesOptionsValidator.HasValidUploadsDirectory, "La configuración de imágenes de productos requiere un directorio de almacenamiento válido.")
-            .Validate(ProductImagesOptionsValidator.HasValidRequestPath, "La configuración de imágenes de productos requiere una ruta pública válida que comience con '/'.")
-            .Validate(ProductImagesOptionsValidator.HasValidMaxFileSize, "La configuración de imágenes de productos requiere un tamaño máximo de archivo mayor que cero.")
-            .Validate(ProductImagesOptionsValidator.HasAllowedExtensions, "La configuración de imágenes de productos requiere al menos una extensión permitida.")
-            .Validate(ProductImagesOptionsValidator.HasAllowedContentTypes, "La configuración de imágenes de productos requiere al menos un tipo MIME permitido.")
-            .Validate(ProductImagesOptionsValidator.HasSafeStaticFileCacheControlHeader, "La configuración de imágenes de productos contiene un header Cache-Control inválido para la exposición pública de uploads.")
+            .Validate(BackofficeProductImagesOptionsValidator.HasValidUploadsDirectory, "La configuración de imágenes de productos requiere un directorio de almacenamiento válido.")
+            .Validate(BackofficeProductImagesOptionsValidator.HasValidRequestPath, "La configuración de imágenes de productos requiere una ruta pública válida que comience con '/'.")
+            .Validate(BackofficeProductImagesOptionsValidator.HasValidMaxFileSize, "La configuración de imágenes de productos requiere un tamaño máximo de archivo mayor que cero.")
+            .Validate(BackofficeProductImagesOptionsValidator.HasAllowedExtensions, "La configuración de imágenes de productos requiere al menos una extensión permitida.")
+            .Validate(BackofficeProductImagesOptionsValidator.HasAllowedContentTypes, "La configuración de imágenes de productos requiere al menos un tipo MIME permitido.")
+            .Validate(BackofficeProductImagesOptionsValidator.HasSafeStaticFileCacheControlHeader, "La configuración de imágenes de productos contiene un header Cache-Control inválido para la exposición pública de uploads.")
             .ValidateOnStart();
 
         services.AddScoped<IProductImageStorageService, ProductImageStorageService>();
