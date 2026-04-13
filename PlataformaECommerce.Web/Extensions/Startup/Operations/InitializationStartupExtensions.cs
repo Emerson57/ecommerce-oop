@@ -23,16 +23,11 @@ public static class InitializationStartupExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        services.AddSingleton<IValidateOptions<BootstrapSuperUserOptions>, BootstrapSuperUserOptionsValidator>();
-
         services
-            .AddOptions<BootstrapSuperUserOptions>()
-            .Bind(configuration.GetSection(BootstrapSuperUserOptions.SectionName))
-            .ValidateOnStart();
-
-        services.AddScoped<DevelopmentLegacyTenantDataNormalizer>();
-        services.AddScoped<SuperUserBootstrapService>();
-        services.AddScoped<SaaSPlatformInitializationService>();
+            .AddInitializationConfigurationValidation(configuration)
+            .AddInitializationInfrastructureVerificationTasks()
+            .AddInitializationBootstrapTasks()
+            .AddInitializationWarmupTasks();
 
         return services;
     }
@@ -47,10 +42,55 @@ public static class InitializationStartupExtensions
         ArgumentNullException.ThrowIfNull(app);
 
         await using AsyncServiceScope initializationScope = app.Services.CreateAsyncScope();
-        DevelopmentLegacyTenantDataNormalizer legacyTenantDataNormalizer = initializationScope.ServiceProvider.GetRequiredService<DevelopmentLegacyTenantDataNormalizer>();
-        SaaSPlatformInitializationService initializationService = initializationScope.ServiceProvider.GetRequiredService<SaaSPlatformInitializationService>();
+        StartupInitializationOrchestrator initializationOrchestrator = initializationScope.ServiceProvider.GetRequiredService<StartupInitializationOrchestrator>();
 
-        await legacyTenantDataNormalizer.NormalizeAsync(cancellationToken).ConfigureAwait(false);
-        await initializationService.InitializeAsync(cancellationToken).ConfigureAwait(false);
+        await initializationOrchestrator.RunAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static IServiceCollection AddInitializationConfigurationValidation(this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        services.AddSingleton<IValidateOptions<BootstrapSuperUserOptions>, BootstrapSuperUserOptionsValidator>();
+
+        services
+            .AddOptions<BootstrapSuperUserOptions>()
+            .Bind(configuration.GetSection(BootstrapSuperUserOptions.SectionName))
+            .ValidateOnStart();
+
+        return services;
+    }
+
+    private static IServiceCollection AddInitializationInfrastructureVerificationTasks(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<StartupInitializationOrchestrator>();
+        services.AddScoped<IStartupInitializationTask, InfrastructureVerificationStartupTask>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddInitializationBootstrapTasks(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<ConfiguredTenantProvisioningService>();
+        services.AddScoped<SuperUserBootstrapService>();
+        services.AddScoped<IStartupInitializationTask, TenantCatalogSynchronizationStartupTask>();
+        services.AddScoped<IStartupInitializationTask, TenantProvisioningStartupTask>();
+        services.AddScoped<IStartupInitializationTask, SuperUserBootstrapStartupTask>();
+
+        return services;
+    }
+
+    private static IServiceCollection AddInitializationWarmupTasks(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<IStartupInitializationTask, TenantCatalogWarmupStartupTask>();
+
+        return services;
     }
 }

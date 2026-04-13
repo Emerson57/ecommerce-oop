@@ -507,7 +507,11 @@ Formalizar una convención estable para la composition root de `PlataformaEComme
   - mapeo especializado de activos y páginas
   - fases de pipeline de presentación
 - `Extensions/Startup/Operations`
-  - inicialización crítica
+  - validación de configuración de startup
+  - verificación de infraestructura
+  - bootstrap único e idempotente
+  - warmup no destructivo
+  - mantenimiento explícito exclusivo de desarrollo
   - health checks
   - OpenAPI
   - activación runtime de OpenAPI
@@ -529,6 +533,9 @@ Formalizar una convención estable para la composition root de `PlataformaEComme
 - Dentro de `Observability`, los coordinadores deben delegar correlación, manejo de excepciones y request logging a activaciones runtime específicas.
 - Dentro de `Presentation`, los coordinadores deben delegar localización, headers defensivos, static files, routing y mapping de activos o páginas a piezas runtime y de endpoint especializadas.
 - Dentro de `Operations`, los coordinadores deben delegar activación OpenAPI y mapeos operativos especializados a extensiones runtime específicas.
+- Las tareas de startup deben separarse entre validación de configuración, verificación de infraestructura, bootstrap único, mantenimiento explícito de desarrollo y warmup no destructivo.
+- Ninguna tarea peligrosa de desarrollo debe ejecutarse automáticamente en cada arranque del host web.
+- Las tareas correctivas de desarrollo deben ejecutarse desde un proceso separado de mantenimiento y no desde `PlataformaECommerce.Web`.
 
 ### Alcance de la fase 11
 Esta fase formaliza el startup enterprise de la solución y lo deja preparado para crecer como SaaS comercial, con una convención estable, auditable y mantenible para composition root, pipeline y endpoint mapping.
@@ -606,3 +613,32 @@ El pipeline HTTP de `PlataformaECommerce.Web` debe activarse en este orden:
 ### Restricción operativa
 - No alterar este orden sin justificar impacto en trazabilidad, seguridad de transporte, autenticación o comportamiento detrás de proxy.
 - Cualquier cambio futuro del pipeline debe preservar esta secuencia o documentar explícitamente la nueva razón operativa.
+
+## Runbook técnico breve de mantenimiento explícito
+
+### Proceso separado oficial
+La normalización de datos legacy por tenant deja de ejecutarse desde el arranque de `PlataformaECommerce.Web` y pasa a ejecutarse únicamente desde `PlataformaECommerce.Maintenance`.
+
+### Uso previsto
+- Ejecutar solo en `Development`.
+- Usar cuando existan filas históricas sin `TenantId` después de migrar una base local antigua al modelo SaaS actual.
+- No usar como parte del arranque ordinario del sitio web.
+
+### Garantías operativas
+- El host web ya no ejecuta esta corrección en cada inicio.
+- El operador debe invocar el proceso de mantenimiento bajo intención explícita.
+- El proceso puede fijar un tenant concreto con `--tenant=<tenantId>` cuando la corrección requiera alcance controlado.
+
+### Comandos oficiales
+- `inspect-legacy-tenant-data [--tenant=<tenantId>]`: inspecciona de forma no destructiva si existen filas legacy pendientes.
+- `normalize-legacy-tenant-data [--tenant=<tenantId>]`: ejecuta la corrección explícita de filas legacy sin tenant.
+- `help`: muestra la lista actual de comandos soportados por `PlataformaECommerce.Maintenance`.
+
+### Estructura recomendada del proceso de mantenimiento
+- `Program.cs` debe permanecer como composition root mínima.
+- El parseo de argumentos debe vivir en `MaintenanceCommandRequest`.
+- El enrutamiento y alcance operativo debe vivir en `MaintenanceCommandDispatcher`.
+- La implementación concreta de comandos legacy debe vivir en `LegacyTenantMaintenanceCommands`.
+
+### Restricción operativa
+- Cualquier nueva tarea correctiva o destructiva debe seguir este mismo patrón: proceso separado, intención explícita y fuera del bootstrap HTTP del host web.

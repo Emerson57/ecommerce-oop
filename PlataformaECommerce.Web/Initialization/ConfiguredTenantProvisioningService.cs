@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Common.SaaS;
 using PlataformaECommerce.Application.Features.Categories.Commands;
@@ -12,15 +11,14 @@ using PlataformaECommerce.Application.Interfaces.Services.Categories;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Application.Interfaces.Services.Products;
 using PlataformaECommerce.Domain.Enums;
-using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Services.Categories;
 
 namespace PlataformaECommerce.Web.Initialization;
 
 /// <summary>
-/// Orquesta la sincronización y provisión inicial controlada de tenants SaaS durante el arranque web.
+/// Ejecuta la provisión idempotente de tenants configurados y sus semillas controladas durante el arranque.
 /// </summary>
-public sealed class SaaSPlatformInitializationService
+public sealed class ConfiguredTenantProvisioningService
 {
     private readonly ITenantCatalogProvisioningService _tenantCatalogProvisioningService;
     private readonly ITenantCatalogService _tenantCatalogService;
@@ -28,62 +26,38 @@ public sealed class SaaSPlatformInitializationService
     private readonly ICategoryApplicationService _categoryApplicationService;
     private readonly IProductQueryService _productQueryService;
     private readonly IProductCommandService _productCommandService;
-    private readonly SuperUserBootstrapService _superUserBootstrapService;
-    private readonly BootstrapSuperUserOptions _bootstrapOptions;
-    private readonly ILogger<SaaSPlatformInitializationService> _logger;
+    private readonly ILogger<ConfiguredTenantProvisioningService> _logger;
 
-    /// <summary>
-    /// Inicializa una nueva instancia de <see cref="SaaSPlatformInitializationService"/>.
-    /// </summary>
-    /// <param name="tenantCatalogProvisioningService">Servicio responsable de sincronizar y registrar el estado de provisión SaaS.</param>
-    /// <param name="tenantCatalogService">Servicio de lectura del catálogo SaaS efectivo.</param>
-    /// <param name="tenantContextAccessor">Accesor al tenant activo u overrideado durante el arranque.</param>
-    /// <param name="categoryApplicationService">Servicio de aplicación de categorías usado para seeds iniciales.</param>
-    /// <param name="productQueryService">Servicio de consulta de productos usado para detectar semillas previas.</param>
-    /// <param name="productCommandService">Servicio de escritura de productos usado para importar catálogo demo.</param>
-    /// <param name="superUserBootstrapService">Servicio de bootstrap del super usuario inicial.</param>
-    /// <param name="bootstrapOptions">Opciones de bootstrap del super usuario.</param>
-    /// <param name="logger">Registrador estructurado del proceso de inicialización.</param>
-    public SaaSPlatformInitializationService(
+    public ConfiguredTenantProvisioningService(
         ITenantCatalogProvisioningService tenantCatalogProvisioningService,
         ITenantCatalogService tenantCatalogService,
         ITenantContextAccessor tenantContextAccessor,
         ICategoryApplicationService categoryApplicationService,
         IProductQueryService productQueryService,
         IProductCommandService productCommandService,
-        SuperUserBootstrapService superUserBootstrapService,
-        IOptions<BootstrapSuperUserOptions> bootstrapOptions,
-        ILogger<SaaSPlatformInitializationService> logger)
+        ILogger<ConfiguredTenantProvisioningService> logger)
     {
-        ArgumentNullException.ThrowIfNull(bootstrapOptions);
-
         _tenantCatalogProvisioningService = tenantCatalogProvisioningService ?? throw new ArgumentNullException(nameof(tenantCatalogProvisioningService));
         _tenantCatalogService = tenantCatalogService ?? throw new ArgumentNullException(nameof(tenantCatalogService));
         _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
         _categoryApplicationService = categoryApplicationService ?? throw new ArgumentNullException(nameof(categoryApplicationService));
         _productQueryService = productQueryService ?? throw new ArgumentNullException(nameof(productQueryService));
         _productCommandService = productCommandService ?? throw new ArgumentNullException(nameof(productCommandService));
-        _superUserBootstrapService = superUserBootstrapService ?? throw new ArgumentNullException(nameof(superUserBootstrapService));
-        _bootstrapOptions = bootstrapOptions.Value;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
-    /// Ejecuta la sincronización y provisión inicial controlada del catálogo SaaS y de los tenants configurados.
+    /// Sincroniza el catálogo SaaS configurado hacia persistencia de manera idempotente.
     /// </summary>
-    /// <param name="cancellationToken">Token de cancelación asociado a la operación.</param>
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    public Task SynchronizeConfiguredCatalogAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Iniciando sincronización y provisión SaaS controlada del arranque web.");
-
-        await _tenantCatalogProvisioningService.SynchronizeConfiguredCatalogAsync(cancellationToken).ConfigureAwait(false);
-        await ProvisionConfiguredTenantsAsync(cancellationToken).ConfigureAwait(false);
-        await BootstrapConfiguredSuperUserAsync(cancellationToken).ConfigureAwait(false);
-
-        _logger.LogInformation("Finalizó la sincronización y provisión SaaS controlada del arranque web.");
+        return _tenantCatalogProvisioningService.SynchronizeConfiguredCatalogAsync(cancellationToken);
     }
 
-    private async Task ProvisionConfiguredTenantsAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Ejecuta la provisión idempotente de tenants configurados, incluyendo semillas controladas cuando aplique.
+    /// </summary>
+    public async Task ProvisionConfiguredTenantsAsync(CancellationToken cancellationToken = default)
     {
         IReadOnlyCollection<TenantDefinition> tenants = await _tenantCatalogService
             .GetConfiguredTenantsAsync(cancellationToken)
@@ -228,18 +202,6 @@ public sealed class SaaSPlatformInitializationService
             tenant.TenantId);
 
         await EnsureBaseCategoriesProvisionedAsync(tenant, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task BootstrapConfiguredSuperUserAsync(CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(_bootstrapOptions.TenantId))
-        {
-            await _superUserBootstrapService.BootstrapAsync(cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        using IDisposable tenantScope = _tenantContextAccessor.BeginTenantScope(_bootstrapOptions.TenantId);
-        await _superUserBootstrapService.BootstrapAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static IReadOnlyCollection<ImportProductRowCommand> BuildDemoCatalogRows(TenantDefinition tenant)

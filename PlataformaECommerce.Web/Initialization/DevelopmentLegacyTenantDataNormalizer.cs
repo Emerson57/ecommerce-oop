@@ -7,7 +7,7 @@ namespace PlataformaECommerce.Web.Initialization;
 /// <summary>
 /// Normaliza filas legacy sin tenant en bases locales antiguas para que respeten el aislamiento SaaS actual.
 /// </summary>
-internal sealed class DevelopmentLegacyTenantDataNormalizer
+public sealed class DevelopmentLegacyTenantDataNormalizer
 {
     private static readonly EventId NoLegacyRowsDetectedEvent = new(41001, nameof(NoLegacyRowsDetectedEvent));
     private static readonly EventId LegacyRowsNormalizedEvent = new(41002, nameof(LegacyRowsNormalizedEvent));
@@ -17,6 +17,9 @@ internal sealed class DevelopmentLegacyTenantDataNormalizer
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ILogger<DevelopmentLegacyTenantDataNormalizer> _logger;
 
+    /// <summary>
+    /// Inicializa una nueva instancia de <see cref="DevelopmentLegacyTenantDataNormalizer"/>.
+    /// </summary>
     public DevelopmentLegacyTenantDataNormalizer(
         ECommerceDbContext dbContext,
         ITenantContextAccessor tenantContextAccessor,
@@ -29,23 +32,77 @@ internal sealed class DevelopmentLegacyTenantDataNormalizer
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task NormalizeAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Inspecciona de forma no destructiva si existen filas legacy sin tenant para el contexto actual.
+    /// </summary>
+    public async Task<LegacyTenantNormalizationInspectionResult> InspectAsync(CancellationToken cancellationToken = default)
     {
         if (!_hostEnvironment.IsDevelopment())
+        {
+            return new LegacyTenantNormalizationInspectionResult(
+                TenantId: null,
+                EnvironmentAllowsExecution: false,
+                TenantResolved: false,
+                Products: 0,
+                Categories: 0,
+                Users: 0,
+                Orders: 0,
+                OrderItems: 0,
+                Carts: 0,
+                CartItems: 0);
+        }
+
+        if (!_tenantContextAccessor.IsAvailable || string.IsNullOrWhiteSpace(_tenantContextAccessor.TenantId))
+        {
+            return new LegacyTenantNormalizationInspectionResult(
+                TenantId: null,
+                EnvironmentAllowsExecution: true,
+                TenantResolved: false,
+                Products: 0,
+                Categories: 0,
+                Users: 0,
+                Orders: 0,
+                OrderItems: 0,
+                Carts: 0,
+                CartItems: 0);
+        }
+
+        string tenantId = _tenantContextAccessor.TenantId.Trim();
+        LegacyTenantRowCounts legacyCounts = await CountLegacyRowsAsync(cancellationToken).ConfigureAwait(false);
+
+        return new LegacyTenantNormalizationInspectionResult(
+            tenantId,
+            EnvironmentAllowsExecution: true,
+            TenantResolved: true,
+            legacyCounts.Products,
+            legacyCounts.Categories,
+            legacyCounts.Users,
+            legacyCounts.Orders,
+            legacyCounts.OrderItems,
+            legacyCounts.Carts,
+            legacyCounts.CartItems);
+    }
+
+    /// <summary>
+    /// Ejecuta de forma explícita la normalización de filas legacy sin tenant para entornos de desarrollo.
+    /// </summary>
+    public async Task NormalizeAsync(CancellationToken cancellationToken = default)
+    {
+        LegacyTenantNormalizationInspectionResult inspectionResult = await InspectAsync(cancellationToken).ConfigureAwait(false);
+        if (!inspectionResult.EnvironmentAllowsExecution)
         {
             _logger.LogDebug("La normalización de datos legacy por tenant se omite fuera de Development.");
             return;
         }
 
-        if (!_tenantContextAccessor.IsAvailable || string.IsNullOrWhiteSpace(_tenantContextAccessor.TenantId))
+        if (!inspectionResult.TenantResolved || string.IsNullOrWhiteSpace(inspectionResult.TenantId))
         {
             _logger.LogWarning("Se omitió la normalización de datos legacy por tenant porque no se pudo resolver un tenant activo en Development.");
             return;
         }
 
-        string tenantId = _tenantContextAccessor.TenantId.Trim();
-        LegacyTenantRowCounts legacyCounts = await CountLegacyRowsAsync(cancellationToken).ConfigureAwait(false);
-        if (!legacyCounts.HasLegacyRows)
+        string tenantId = inspectionResult.TenantId;
+        if (!inspectionResult.HasLegacyRows)
         {
             _logger.LogInformation(
                 NoLegacyRowsDetectedEvent,
@@ -57,13 +114,13 @@ internal sealed class DevelopmentLegacyTenantDataNormalizer
         _logger.LogWarning(
             "Se detectaron filas legacy sin tenant en Development. Se normalizarán hacia el tenant '{TenantId}'. Products: {Products}. Categories: {Categories}. Users: {Users}. Orders: {Orders}. OrderItems: {OrderItems}. Carts: {Carts}. CartItems: {CartItems}.",
             tenantId,
-            legacyCounts.Products,
-            legacyCounts.Categories,
-            legacyCounts.Users,
-            legacyCounts.Orders,
-            legacyCounts.OrderItems,
-            legacyCounts.Carts,
-            legacyCounts.CartItems);
+            inspectionResult.Products,
+            inspectionResult.Categories,
+            inspectionResult.Users,
+            inspectionResult.Orders,
+            inspectionResult.OrderItems,
+            inspectionResult.Carts,
+            inspectionResult.CartItems);
 
         await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
 
