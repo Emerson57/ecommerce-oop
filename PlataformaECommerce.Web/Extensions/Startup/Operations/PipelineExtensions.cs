@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Builder;
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
 /// <summary>
-/// Centraliza la construcción del pipeline HTTP en fases explícitas de diagnóstico, seguridad, routing y autorización.
+/// Centraliza la construcción del pipeline HTTP en una secuencia explícita orientada a trazabilidad, seguridad y operación real.
 /// </summary>
 public static class PipelineExtensions
 {
@@ -16,8 +16,9 @@ public static class PipelineExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.UseSecurityPerimeterModule();
+        app.UseForwardedHeadersRuntimeActivation();
         app.UseObservabilityModule();
+        app.UseSecurityPerimeterModule();
         app.UseOperationsModule();
         app.UsePresentationModule();
         app.UseSecurityAccessControlModule();

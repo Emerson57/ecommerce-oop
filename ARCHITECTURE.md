@@ -532,3 +532,77 @@ Formalizar una convención estable para la composition root de `PlataformaEComme
 
 ### Alcance de la fase 11
 Esta fase formaliza el startup enterprise de la solución y lo deja preparado para crecer como SaaS comercial, con una convención estable, auditable y mantenible para composition root, pipeline y endpoint mapping.
+
+## Runbook técnico breve del pipeline HTTP
+
+### Orden operativo oficial
+El pipeline HTTP de `PlataformaECommerce.Web` debe activarse en este orden:
+
+1. `ForwardedHeaders`
+2. `Correlation ID`
+3. `Exception handling`
+4. `Request logging`
+5. `HSTS`
+6. `HTTPS redirection`
+7. `OpenAPI runtime` en `Development`
+8. `Localization`
+9. `Security headers`
+10. `Static files`
+11. `Routing`
+12. `Authentication`
+13. `Rate limiting`
+14. `Authorization`
+15. `Endpoint mapping`
+
+### Motivo de cada posición
+
+1. `ForwardedHeaders`
+   - Debe ejecutarse primero para corregir esquema, host e IP real cuando la aplicación opera detrás de proxy o balanceador.
+   - Todo middleware posterior debe trabajar sobre el contexto HTTP ya normalizado.
+
+2. `Correlation ID`
+   - Debe ejecutarse al inicio para que el resto del pipeline comparta el mismo identificador de trazabilidad.
+
+3. `Exception handling`
+   - Debe envolver el resto del pipeline funcional para transformar fallos en respuestas seguras y observables.
+   - Debe ejecutarse después de la correlación para emitir errores con el mismo identificador de seguimiento.
+
+4. `Request logging`
+   - Debe ocurrir temprano para registrar duración, resultado y contexto enriquecido de toda la solicitud.
+
+5. `HSTS`
+   - En entornos no locales debe emitirse antes de servir contenido para endurecer la política de transporte seguro del navegador.
+
+6. `HTTPS redirection`
+   - Debe ejecutarse antes de UI, archivos o endpoints funcionales para forzar el canal seguro cuanto antes.
+
+7. `OpenAPI runtime`
+   - Se expone solo en `Development` y después del endurecimiento básico de transporte, sin afectar la ruta productiva.
+
+8. `Localization`
+   - Debe ejecutarse antes de la UI y de respuestas dependientes de cultura para fijar idioma y formato efectivos.
+
+9. `Security headers`
+   - Debe ejecutarse antes de entregar contenido para proteger páginas y respuestas HTTP con headers defensivos.
+
+10. `Static files`
+    - Debe ir antes de `Routing` para resolver activos rápidamente sin pasar por el pipeline completo de endpoints.
+
+11. `Routing`
+    - Debe ejecutarse antes de autenticación, rate limiting y autorización para que el sistema conozca la superficie HTTP seleccionada.
+
+12. `Authentication`
+    - Debe ejecutarse antes de `Rate limiting` y `Authorization` para disponer del usuario autenticado en políticas y particiones.
+
+13. `Rate limiting`
+    - Debe ejecutarse después de autenticación para poder particionar por actor autenticado cuando aplique.
+
+14. `Authorization`
+    - Debe ejecutarse después de autenticación y limitación de tráfico para aplicar políticas sobre identidad ya resuelta.
+
+15. `Endpoint mapping`
+    - Debe permanecer al final del bootstrap HTTP como cierre natural de la composición del host.
+
+### Restricción operativa
+- No alterar este orden sin justificar impacto en trazabilidad, seguridad de transporte, autenticación o comportamiento detrás de proxy.
+- Cualquier cambio futuro del pipeline debe preservar esta secuencia o documentar explícitamente la nueva razón operativa.

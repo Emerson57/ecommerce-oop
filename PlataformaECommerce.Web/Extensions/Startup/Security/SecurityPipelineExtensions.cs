@@ -8,7 +8,7 @@ namespace PlataformaECommerce.Web.Extensions.Startup;
 public static class SecurityPipelineExtensions
 {
     /// <summary>
-    /// Activa la capa perimetral de transporte seguro y normalización de headers reenviados.
+    /// Activa la capa perimetral de transporte seguro una vez normalizado el contexto de proxy.
     /// </summary>
     public static WebApplication UseSecurityPerimeterModule(this WebApplication app)
     {
