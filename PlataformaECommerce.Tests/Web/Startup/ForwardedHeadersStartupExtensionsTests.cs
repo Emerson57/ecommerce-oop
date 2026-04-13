@@ -13,14 +13,14 @@ namespace PlataformaECommerce.Tests.Web.Startup;
 public class ForwardedHeadersStartupExtensionsTests
 {
     [Test]
-    public void AddConfiguredForwardedHeaders_DevelopmentConRedesLoopback_ConfiguraOpcionesSeguras()
+    public void AddForwardedHeadersSupport_DevelopmentConRedesLoopback_ConfiguraOpcionesSeguras()
     {
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(enabled: true, trustedNetworks: ["127.0.0.0/8", "::1/128"]);
         FakeHostEnvironment hostEnvironment = new(Environments.Development);
 
         services.AddLogging();
-        services.AddConfiguredForwardedHeaders(configuration, hostEnvironment);
+        services.AddForwardedHeadersSupport(configuration, hostEnvironment);
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
         ForwardedHeadersSecurityOptions securityOptions = serviceProvider.GetRequiredService<IOptions<ForwardedHeadersSecurityOptions>>().Value;
@@ -33,14 +33,14 @@ public class ForwardedHeadersStartupExtensionsTests
     }
 
     [Test]
-    public void AddConfiguredForwardedHeaders_ProductionHabilitadoSinConfianzaExplicita_LanzaOptionsValidationException()
+    public void AddForwardedHeadersSupport_ProductionHabilitadoSinConfianzaExplicita_LanzaOptionsValidationException()
     {
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(enabled: true);
         FakeHostEnvironment hostEnvironment = new(Environments.Production);
 
         services.AddLogging();
-        services.AddConfiguredForwardedHeaders(configuration, hostEnvironment);
+        services.AddForwardedHeadersSupport(configuration, hostEnvironment);
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
@@ -51,14 +51,14 @@ public class ForwardedHeadersStartupExtensionsTests
     }
 
     [Test]
-    public void AddConfiguredForwardedHeaders_ProductionConProxyConfiable_ConfiguraKnownProxies()
+    public void AddForwardedHeadersSupport_ProductionConProxyConfiable_ConfiguraKnownProxies()
     {
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(enabled: true, trustedProxies: ["10.10.0.5"]);
         FakeHostEnvironment hostEnvironment = new(Environments.Production);
 
         services.AddLogging();
-        services.AddConfiguredForwardedHeaders(configuration, hostEnvironment);
+        services.AddForwardedHeadersSupport(configuration, hostEnvironment);
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
         ForwardedHeadersOptions forwardedHeadersOptions = serviceProvider.GetRequiredService<IOptions<ForwardedHeadersOptions>>().Value;

@@ -12,7 +12,7 @@ public static class ObservabilityStartupExtensions
     /// <summary>
     /// Registra opciones tipadas de observabilidad requeridas por el pipeline web.
     /// </summary>
-    public static IServiceCollection AddConfiguredObservability(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddObservabilityConfiguration(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);

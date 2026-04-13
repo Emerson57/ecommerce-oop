@@ -18,7 +18,7 @@ public static class InitializationStartupExtensions
     /// <param name="services">Colección de servicios a configurar.</param>
     /// <param name="configuration">Configuración raíz utilizada por la inicialización.</param>
     /// <returns>La misma colección de servicios para encadenamiento fluido.</returns>
-    public static IServiceCollection AddConfiguredInitialization(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInitializationServices(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -42,7 +42,7 @@ public static class InitializationStartupExtensions
     /// </summary>
     /// <param name="app">Aplicación web ya construida.</param>
     /// <param name="cancellationToken">Token de cancelación opcional.</param>
-    public static async Task RunCriticalInitializationAsync(this WebApplication app, CancellationToken cancellationToken = default)
+    public static async Task RunCriticalApplicationInitializationAsync(this WebApplication app, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(app);
 

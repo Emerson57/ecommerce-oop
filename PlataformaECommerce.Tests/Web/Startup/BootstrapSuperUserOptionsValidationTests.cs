@@ -10,12 +10,12 @@ namespace PlataformaECommerce.Tests.Web.Startup;
 public class BootstrapSuperUserOptionsValidationTests
 {
     [Test]
-    public void AddConfiguredInitialization_BootstrapDeshabilitado_PermiteConfiguracionVacia()
+    public void AddInitializationServices_BootstrapDeshabilitado_PermiteConfiguracionVacia()
     {
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(enabled: false);
 
-        services.AddConfiguredInitialization(configuration);
+        services.AddInitializationServices(configuration);
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
         BootstrapSuperUserOptions options = serviceProvider.GetRequiredService<IOptions<BootstrapSuperUserOptions>>().Value;
@@ -24,12 +24,12 @@ public class BootstrapSuperUserOptionsValidationTests
     }
 
     [Test]
-    public void AddConfiguredInitialization_BootstrapHabilitadoSinPassword_LanzaOptionsValidationException()
+    public void AddInitializationServices_BootstrapHabilitadoSinPassword_LanzaOptionsValidationException()
     {
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(enabled: true, password: " ");
 
-        services.AddConfiguredInitialization(configuration);
+        services.AddInitializationServices(configuration);
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
 
@@ -41,12 +41,12 @@ public class BootstrapSuperUserOptionsValidationTests
     }
 
     [Test]
-    public void AddConfiguredInitialization_BootstrapHabilitadoConEmailInvalido_LanzaOptionsValidationException()
+    public void AddInitializationServices_BootstrapHabilitadoConEmailInvalido_LanzaOptionsValidationException()
     {
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(enabled: true, email: "correo-invalido");
 
-        services.AddConfiguredInitialization(configuration);
+        services.AddInitializationServices(configuration);
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
 

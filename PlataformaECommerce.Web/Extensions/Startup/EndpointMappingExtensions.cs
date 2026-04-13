@@ -14,7 +14,7 @@ public static class EndpointMappingExtensions
     /// </summary>
     /// <param name="app">Aplicación web a configurar.</param>
     /// <returns>La misma aplicación web para encadenamiento fluido.</returns>
-    public static WebApplication MapConfiguredEndpoints(this WebApplication app)
+    public static WebApplication MapApplicationEndpoints(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
@@ -30,7 +30,7 @@ public static class EndpointMappingExtensions
             ResponseWriter = HealthCheckResponseWriter.WriteJsonAsync
         }).AllowAnonymous();
 
-        app.MapConfiguredAntiforgeryEndpoints();
+        app.MapAntiforgeryTokenEndpoints();
 
         app.MapStaticAssets();
         app.MapRazorPages()

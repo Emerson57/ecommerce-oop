@@ -18,7 +18,7 @@ public static class HealthChecksStartupExtensions
     /// <param name="services">Colección de servicios a configurar.</param>
     /// <param name="configuration">Configuración raíz para health checks condicionados.</param>
     /// <returns>La misma colección de servicios para encadenamiento fluido.</returns>
-    public static IServiceCollection AddConfiguredHealthChecks(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddHealthChecksServices(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);

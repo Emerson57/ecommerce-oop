@@ -17,7 +17,7 @@ public static class PresentationStartupExtensions
     /// </summary>
     /// <param name="services">Colección de servicios a configurar.</param>
     /// <returns>La misma colección de servicios para encadenamiento fluido.</returns>
-    public static IServiceCollection AddConfiguredPresentation(this IServiceCollection services)
+    public static IServiceCollection AddPresentationServices(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 

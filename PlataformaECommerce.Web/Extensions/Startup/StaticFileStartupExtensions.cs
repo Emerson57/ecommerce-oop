@@ -17,7 +17,7 @@ public static class StaticFileStartupExtensions
     /// </summary>
     /// <param name="app">Aplicación web a configurar.</param>
     /// <returns>La misma aplicación web para encadenamiento fluido.</returns>
-    public static WebApplication UseConfiguredUploadStaticFiles(this WebApplication app)
+    public static WebApplication UseUploadStaticFiles(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 

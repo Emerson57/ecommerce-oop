@@ -21,7 +21,7 @@ public static class ForwardedHeadersStartupExtensions
     /// <param name="configuration">Configuración raíz de la aplicación.</param>
     /// <param name="hostEnvironment">Entorno actual de ejecución.</param>
     /// <returns>La misma colección de servicios para encadenamiento fluido.</returns>
-    public static IServiceCollection AddConfiguredForwardedHeaders(
+    public static IServiceCollection AddForwardedHeadersSupport(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment hostEnvironment)
@@ -47,7 +47,7 @@ public static class ForwardedHeadersStartupExtensions
     /// </summary>
     /// <param name="app">Aplicación web a configurar.</param>
     /// <returns>La misma aplicación web para encadenamiento fluido.</returns>
-    public static WebApplication UseConfiguredForwardedHeaders(this WebApplication app)
+    public static WebApplication UseForwardedHeadersSupport(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 

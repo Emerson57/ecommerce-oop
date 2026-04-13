@@ -16,7 +16,7 @@ public static class SerilogStartupExtensions
     /// <param name="hostBuilder">Builder del host a configurar.</param>
     /// <param name="configuration">Configuración raíz actual.</param>
     /// <returns>El mismo builder del host para encadenamiento fluido.</returns>
-    public static IHostBuilder AddConfiguredSerilog(this IHostBuilder hostBuilder, IConfiguration configuration)
+    public static IHostBuilder ConfigureSerilogLogging(this IHostBuilder hostBuilder, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(hostBuilder);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -38,7 +38,7 @@ public static class SerilogStartupExtensions
     /// </summary>
     /// <param name="app">Aplicación web a configurar.</param>
     /// <returns>La misma aplicación web para encadenamiento fluido.</returns>
-    public static WebApplication UseConfiguredSerilogRequestLogging(this WebApplication app)
+    public static WebApplication UseSerilogRequestLoggingDiagnostics(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 

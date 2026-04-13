@@ -13,7 +13,7 @@ public static class BackofficeStartupExtensions
     /// <summary>
     /// Registra opciones y servicios propios del backoffice sin mezclar otras preocupaciones de UI.
     /// </summary>
-    public static IServiceCollection AddConfiguredBackoffice(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddBackofficeConfiguration(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);

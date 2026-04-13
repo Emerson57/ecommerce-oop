@@ -18,7 +18,7 @@ public static class RateLimitingStartupExtensions
     /// <param name="services">Colección de servicios a configurar.</param>
     /// <param name="configuration">Configuración raíz desde la cual se leen las opciones.</param>
     /// <returns>La misma colección de servicios para encadenamiento fluido.</returns>
-    public static IServiceCollection AddConfiguredRateLimiting(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddRateLimitingPolicies(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);

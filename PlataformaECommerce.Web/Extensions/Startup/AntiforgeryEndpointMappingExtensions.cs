@@ -13,7 +13,7 @@ public static class AntiforgeryEndpointMappingExtensions
     /// <summary>
     /// Mapea un endpoint same-origin para obtener un token antiforgery reutilizable en solicitudes AJAX o JSON protegidas por cookies.
     /// </summary>
-    public static IEndpointConventionBuilder MapConfiguredAntiforgeryEndpoints(this IEndpointRouteBuilder endpoints)
+    public static IEndpointConventionBuilder MapAntiforgeryTokenEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 

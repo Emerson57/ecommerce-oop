@@ -18,14 +18,14 @@ public static class PipelineExtensions
     /// </summary>
     /// <param name="app">Aplicación web a configurar.</param>
     /// <returns>La misma aplicación web para encadenamiento fluido.</returns>
-    public static WebApplication UseConfiguredPipeline(this WebApplication app)
+    public static WebApplication UseApplicationRequestPipeline(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.UseConfiguredForwardedHeaders();
+        app.UseForwardedHeadersSupport();
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseMiddleware<RequestCorrelationMiddleware>();
-        app.UseConfiguredSerilogRequestLogging();
+        app.UseSerilogRequestLoggingDiagnostics();
 
         if (app.Environment.IsDevelopment())
         {
@@ -47,7 +47,7 @@ public static class PipelineExtensions
         RequestLocalizationOptions requestLocalizationOptions = app.Services.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
         app.UseRequestLocalization(requestLocalizationOptions);
         app.UseMiddleware<SecurityHeadersMiddleware>();
-        app.UseConfiguredUploadStaticFiles();
+        app.UseUploadStaticFiles();
         app.UseRouting();
         app.UseRateLimiter();
         app.UseAuthentication();

@@ -12,7 +12,7 @@ public static class BrandingStartupExtensions
     /// <summary>
     /// Registra y valida la configuración de experiencia comercial activa.
     /// </summary>
-    public static IServiceCollection AddConfiguredBranding(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddBrandingConfiguration(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);

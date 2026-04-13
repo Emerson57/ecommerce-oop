@@ -22,7 +22,7 @@ public static class SecurityStartupExtensions
     /// <param name="configuration">Configuración raíz disponible para las opciones tipadas.</param>
     /// <param name="hostEnvironment">Entorno actual de ejecución.</param>
     /// <returns>La misma colección de servicios para encadenamiento fluido.</returns>
-    public static IServiceCollection AddConfiguredSecurity(
+    public static IServiceCollection AddSecurityServices(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment hostEnvironment)

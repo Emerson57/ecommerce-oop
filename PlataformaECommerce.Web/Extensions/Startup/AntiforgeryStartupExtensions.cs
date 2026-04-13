@@ -15,7 +15,7 @@ public static class AntiforgeryStartupExtensions
     /// <summary>
     /// Registra opciones y servicios antiforgery con una política homogénea para web interactiva.
     /// </summary>
-    public static IServiceCollection AddConfiguredAntiforgery(
+    public static IServiceCollection AddAntiforgeryProtection(
         this IServiceCollection services,
         IConfiguration configuration,
         IHostEnvironment hostEnvironment)

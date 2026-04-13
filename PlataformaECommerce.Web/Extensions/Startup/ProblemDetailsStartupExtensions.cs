@@ -12,7 +12,7 @@ public static class ProblemDetailsStartupExtensions
     /// </summary>
     /// <param name="services">Colección de servicios a configurar.</param>
     /// <returns>La misma colección de servicios para encadenamiento fluido.</returns>
-    public static IServiceCollection AddConfiguredProblemDetails(this IServiceCollection services)
+    public static IServiceCollection AddProblemDetailsHandling(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
