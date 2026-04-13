@@ -23,6 +23,8 @@ internal static class Program
             if (commandRequest.ShowHelp)
             {
                 LegacyTenantMaintenanceCommands.WriteHelp(Console.Out);
+                SaaSBootstrapMaintenanceCommands.WriteHelp(Console.Out);
+                Console.Out.WriteLine($"  {LegacyTenantMaintenanceCommands.Help}                                           Muestra esta ayuda.");
                 return 0;
             }
 

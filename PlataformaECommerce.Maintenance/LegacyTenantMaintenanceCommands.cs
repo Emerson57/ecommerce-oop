@@ -17,6 +17,29 @@ internal static class LegacyTenantMaintenanceCommands
             || string.Equals(commandName, InspectLegacyTenantData, StringComparison.Ordinal);
     }
 
+    public static bool RequiresDevelopmentEnvironment(string commandName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(commandName);
+        return IsSupported(commandName);
+    }
+
+    public static bool RequiresExclusiveLock(string commandName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(commandName);
+        return string.Equals(commandName, NormalizeLegacyTenantData, StringComparison.Ordinal);
+    }
+
+    public static string GetLockResource(MaintenanceCommandRequest commandRequest)
+    {
+        ArgumentNullException.ThrowIfNull(commandRequest);
+
+        return commandRequest.CommandName switch
+        {
+            NormalizeLegacyTenantData => BuildTenantScopedResource("maintenance:normalize-legacy-tenant-data", commandRequest.TenantOverride),
+            _ => throw new InvalidOperationException($"El comando legacy '{commandRequest.CommandName}' no requiere lock soportado.")
+        };
+    }
+
     public static bool IsHelpToken(string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
@@ -51,7 +74,15 @@ internal static class LegacyTenantMaintenanceCommands
         writer.WriteLine("PlataformaECommerce.Maintenance commands:");
         writer.WriteLine($"  {NormalizeLegacyTenantData} [--tenant=<tenantId>]  Ejecuta la corrección explícita de filas legacy sin tenant.");
         writer.WriteLine($"  {InspectLegacyTenantData} [--tenant=<tenantId>]    Inspecciona de forma no destructiva si existen filas legacy pendientes.");
-        writer.WriteLine($"  {Help}                                           Muestra esta ayuda.");
+    }
+
+    private static string BuildTenantScopedResource(string prefix, string? tenantOverride)
+    {
+        string normalizedTenant = string.IsNullOrWhiteSpace(tenantOverride)
+            ? "all-tenants"
+            : tenantOverride.Trim().ToLowerInvariant();
+
+        return $"{prefix}:{normalizedTenant}";
     }
 
     private static async Task InspectLegacyTenantDataAsync(

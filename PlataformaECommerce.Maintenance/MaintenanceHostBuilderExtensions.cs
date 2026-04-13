@@ -47,7 +47,11 @@ internal static class MaintenanceHostBuilderExtensions
         services
             .AddApplicationServices()
             .AddInfrastructure(configuration, hostEnvironment)
+            .AddScoped<ConfiguredTenantProvisioningService>()
+            .AddScoped<SaaSBootstrapStatusInspectionService>()
             .AddScoped<DevelopmentLegacyTenantDataNormalizer>()
+            .AddScoped<SuperUserBootstrapService>()
+            .AddScoped<SqlServerMaintenanceCommandLock>()
             .AddScoped<MaintenanceCommandDispatcher>();
 
         return services;

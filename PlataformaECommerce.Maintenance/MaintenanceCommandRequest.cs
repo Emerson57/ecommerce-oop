@@ -8,25 +8,23 @@ internal sealed record MaintenanceCommandRequest(string CommandName, string? Ten
 
         if (args.Any(LegacyTenantMaintenanceCommands.IsHelpToken))
         {
-            return new MaintenanceCommandRequest(LegacyTenantMaintenanceCommands.Help, null, showHelp: true);
+            return new MaintenanceCommandRequest(LegacyTenantMaintenanceCommands.Help, null, ShowHelp: true);
         }
 
-        string? commandName = args.FirstOrDefault(argument => !argument.StartsWith('-', StringComparison.Ordinal));
+        string? commandName = args.FirstOrDefault(argument => !argument.StartsWith("-", StringComparison.Ordinal));
         if (string.IsNullOrWhiteSpace(commandName))
         {
-            return new MaintenanceCommandRequest(
-                LegacyTenantMaintenanceCommands.NormalizeLegacyTenantData,
-                ResolveTenantOverride(args),
-                showHelp: false);
+            return new MaintenanceCommandRequest(LegacyTenantMaintenanceCommands.Help, null, ShowHelp: true);
         }
 
         string normalizedCommand = commandName.Trim().ToLowerInvariant();
-        if (!LegacyTenantMaintenanceCommands.IsSupported(normalizedCommand))
+        if (!LegacyTenantMaintenanceCommands.IsSupported(normalizedCommand)
+            && !SaaSBootstrapMaintenanceCommands.IsSupported(normalizedCommand))
         {
             throw new InvalidOperationException($"El comando de mantenimiento '{commandName}' no existe. Usa 'help' para listar comandos válidos.");
         }
 
-        return new MaintenanceCommandRequest(normalizedCommand, ResolveTenantOverride(args), showHelp: false);
+        return new MaintenanceCommandRequest(normalizedCommand, ResolveTenantOverride(args), ShowHelp: false);
     }
 
     private static string? ResolveTenantOverride(string[] args)

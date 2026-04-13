@@ -617,7 +617,7 @@ El pipeline HTTP de `PlataformaECommerce.Web` debe activarse en este orden:
 ## Runbook técnico breve de mantenimiento explícito
 
 ### Proceso separado oficial
-La normalización de datos legacy por tenant deja de ejecutarse desde el arranque de `PlataformaECommerce.Web` y pasa a ejecutarse únicamente desde `PlataformaECommerce.Maintenance`.
+La normalización de datos legacy por tenant y cualquier bootstrap funcional SaaS dejan de ejecutarse desde el arranque de `PlataformaECommerce.Web` y pasan a ejecutarse únicamente desde `PlataformaECommerce.Maintenance`.
 
 ### Uso previsto
 - Ejecutar solo en `Development`.
@@ -628,10 +628,16 @@ La normalización de datos legacy por tenant deja de ejecutarse desde el arranqu
 - El host web ya no ejecuta esta corrección en cada inicio.
 - El operador debe invocar el proceso de mantenimiento bajo intención explícita.
 - El proceso puede fijar un tenant concreto con `--tenant=<tenantId>` cuando la corrección requiera alcance controlado.
+- Los comandos mutantes de bootstrap o seed se ejecutan bajo lock exclusivo sobre SQL Server para evitar carreras entre varias instancias o ejecuciones simultáneas.
 
 ### Comandos oficiales
 - `inspect-legacy-tenant-data [--tenant=<tenantId>]`: inspecciona de forma no destructiva si existen filas legacy pendientes.
 - `normalize-legacy-tenant-data [--tenant=<tenantId>]`: ejecuta la corrección explícita de filas legacy sin tenant.
+- `readiness/bootstrap-status [--tenant=<tenantId>]`: inspecciona por tenant si ya existen sync, seed y bootstrap persistidos sin mutar datos.
+- `sync-saas-catalog [--tenant=<tenantId>]`: sincroniza el catálogo SaaS persistente desde configuración.
+- `seed-configured-tenants [--tenant=<tenantId>]`: ejecuta la siembra funcional configurada para tenants.
+- `bootstrap-superuser [--tenant=<tenantId>]`: ejecuta el bootstrap explícito del superusuario inicial.
+- `run-saas-bootstrap [--tenant=<tenantId>]`: ejecuta sync, seed funcional y bootstrap en una sola operación protegida.
 - `help`: muestra la lista actual de comandos soportados por `PlataformaECommerce.Maintenance`.
 
 ### Estructura recomendada del proceso de mantenimiento
@@ -639,6 +645,8 @@ La normalización de datos legacy por tenant deja de ejecutarse desde el arranqu
 - El parseo de argumentos debe vivir en `MaintenanceCommandRequest`.
 - El enrutamiento y alcance operativo debe vivir en `MaintenanceCommandDispatcher`.
 - La implementación concreta de comandos legacy debe vivir en `LegacyTenantMaintenanceCommands`.
+- La implementación concreta de bootstrap SaaS debe vivir en `SaaSBootstrapMaintenanceCommands`.
 
 ### Restricción operativa
 - Cualquier nueva tarea correctiva o destructiva debe seguir este mismo patrón: proceso separado, intención explícita y fuera del bootstrap HTTP del host web.
+- En despliegues multi-instancia, el host web solo puede ejecutar validación, verificación técnica y warmup; sync, seed y bootstrap funcional deben ejecutarse como comandos separados bajo exclusión mutua.

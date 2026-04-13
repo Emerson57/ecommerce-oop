@@ -26,7 +26,6 @@ public static class InitializationStartupExtensions
         services
             .AddInitializationConfigurationValidation(configuration)
             .AddInitializationInfrastructureVerificationTasks()
-            .AddInitializationBootstrapTasks()
             .AddInitializationWarmupTasks();
 
         return services;
@@ -71,20 +70,6 @@ public static class InitializationStartupExtensions
 
         return services;
     }
-
-    private static IServiceCollection AddInitializationBootstrapTasks(this IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        services.AddScoped<ConfiguredTenantProvisioningService>();
-        services.AddScoped<SuperUserBootstrapService>();
-        services.AddScoped<IStartupInitializationTask, TenantCatalogSynchronizationStartupTask>();
-        services.AddScoped<IStartupInitializationTask, TenantProvisioningStartupTask>();
-        services.AddScoped<IStartupInitializationTask, SuperUserBootstrapStartupTask>();
-
-        return services;
-    }
-
     private static IServiceCollection AddInitializationWarmupTasks(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
