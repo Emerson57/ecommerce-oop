@@ -124,12 +124,39 @@ public class AuthorizationPoliciesTests
         AuthorizationPolicies.ConfigureAdminCookie(options);
 
         Assert.That(options.Cookie.Name, Is.EqualTo(AuthorizationPolicies.AdminCookieName));
+        Assert.That(options.Cookie.Path, Is.EqualTo("/"));
         Assert.That(options.Cookie.IsEssential, Is.True);
         Assert.That(options.Cookie.HttpOnly, Is.True);
-        Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Strict));
+        Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Lax));
         Assert.That(options.Cookie.SecurePolicy, Is.EqualTo(CookieSecurePolicy.Always));
         Assert.That(options.ExpireTimeSpan, Is.EqualTo(TimeSpan.FromHours(8)));
         Assert.That(options.SlidingExpiration, Is.True);
+    }
+
+    [Test]
+    public void ConfigureAdminCookie_ConDominioCompartido_AplicaCookieDomain()
+    {
+        CookieAuthenticationOptions options = new();
+
+        AuthorizationPolicies.ConfigureAdminCookie(options, new WebAuthenticationCookiesOptions
+        {
+            SharedCookieDomain = ".plataforma.com"
+        });
+
+        Assert.That(options.Cookie.Domain, Is.EqualTo(".plataforma.com"));
+    }
+
+    [Test]
+    public void ConfigureCustomerCookie_ConDominioCompartido_AplicaCookieDomain()
+    {
+        CookieAuthenticationOptions options = new();
+
+        AuthorizationPolicies.ConfigureCustomerCookie(options, new WebAuthenticationCookiesOptions
+        {
+            SharedCookieDomain = ".plataforma.com"
+        });
+
+        Assert.That(options.Cookie.Domain, Is.EqualTo(".plataforma.com"));
     }
 
     [Test]
@@ -140,9 +167,10 @@ public class AuthorizationPoliciesTests
         AuthorizationPolicies.ConfigureCustomerCookie(options);
 
         Assert.That(options.Cookie.Name, Is.EqualTo(AuthorizationPolicies.CustomerCookieName));
+        Assert.That(options.Cookie.Path, Is.EqualTo("/"));
         Assert.That(options.Cookie.IsEssential, Is.True);
         Assert.That(options.Cookie.HttpOnly, Is.True);
-        Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Strict));
+        Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Lax));
         Assert.That(options.Cookie.SecurePolicy, Is.EqualTo(CookieSecurePolicy.Always));
         Assert.That(options.ExpireTimeSpan, Is.EqualTo(TimeSpan.FromHours(8)));
         Assert.That(options.SlidingExpiration, Is.True);

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
@@ -7,6 +8,7 @@ using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
 using PlataformaECommerce.Web.Authorization;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Tests.Web.Authorization;
 
@@ -18,7 +20,7 @@ public class CustomerCookieSecurityServiceTests
     {
         Cliente customer = CreateCustomer();
         FakeUserRepository userRepository = new(customer);
-        CustomerCookieSecurityService service = new(userRepository, new FakeTenantContextAccessor("tenant-demo"));
+        CustomerCookieSecurityService service = new(userRepository, new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions()));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(customer),
@@ -35,7 +37,7 @@ public class CustomerCookieSecurityServiceTests
     [Test]
     public async Task IsPrincipalValidAsync_ClaimsDeClienteSinActorPersistido_RetornaFalse()
     {
-        CustomerCookieSecurityService service = new(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"));
+        CustomerCookieSecurityService service = new(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions()));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(CreateCustomer()),

@@ -39,6 +39,7 @@ public static class AntiforgeryStartupExtensions
         services.AddAntiforgery(options =>
         {
             options.Cookie.Name = configuredOptions.CookieName.Trim();
+            options.Cookie.Path = "/";
             options.Cookie.HttpOnly = true;
             options.Cookie.IsEssential = true;
             options.Cookie.SameSite = SameSiteMode.Strict;

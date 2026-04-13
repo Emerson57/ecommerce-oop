@@ -35,6 +35,14 @@ public static class OpenApiStartupExtensions
                 Description = "Endpoints administrativos protegidos para gestión integral del catálogo."
             });
 
+            options.AddSecurityDefinition("AdminCookie", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.ApiKey,
+                In = ParameterLocation.Header,
+                Name = "Cookie",
+                Description = "Cookie administrativa del backoffice emitida por la aplicación web."
+            });
+
             options.DocInclusionPredicate((documentName, apiDescription) =>
             {
                 string? groupName = apiDescription.GroupName;

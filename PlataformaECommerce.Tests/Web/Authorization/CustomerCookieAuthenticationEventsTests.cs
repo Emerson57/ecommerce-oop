@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Web.Authorization;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Tests.Web.Authorization;
 
@@ -33,7 +35,7 @@ public class CustomerCookieAuthenticationEventsTests
             new AuthenticationProperties(),
             AuthorizationPolicies.CustomerCookieScheme);
         CookieValidatePrincipalContext context = new(httpContext, scheme, options, ticket);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")));
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())));
 
         await events.ValidatePrincipal(context);
 
@@ -48,7 +50,7 @@ public class CustomerCookieAuthenticationEventsTests
         httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")));
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())));
 
         await events.RedirectToLogin(context);
 
@@ -63,7 +65,7 @@ public class CustomerCookieAuthenticationEventsTests
         httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")));
+        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())));
 
         await events.RedirectToAccessDenied(context);
 

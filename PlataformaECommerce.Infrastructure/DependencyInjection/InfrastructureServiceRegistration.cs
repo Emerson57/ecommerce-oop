@@ -1,6 +1,7 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -112,6 +113,7 @@ public static class InfrastructureServiceRegistration
             .AddOptions<DataProtectionKeyManagementSettings>()
             .Bind(configuration.GetSection(DataProtectionKeyManagementSettings.SectionName))
             .ValidateDataAnnotations()
+            .Validate(settings => HasValidDataProtectionSettings(settings), "La configuración de Data Protection requiere un ApplicationName compartido y una vida útil válida para despliegues multi-instancia.")
             .ValidateOnStart();
 
         services
@@ -233,7 +235,8 @@ public static class InfrastructureServiceRegistration
 
         services
             .AddDataProtection()
-            .SetApplicationName(dataProtectionSettings.ApplicationName)
+            .SetApplicationName(dataProtectionSettings.ApplicationName.Trim())
+            .SetDefaultKeyLifetime(TimeSpan.FromDays(dataProtectionSettings.KeyLifetimeDays))
             .PersistKeysToDbContext<ECommerceDbContext>();
         services.TryAddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.TryAddSingleton<IPasswordResetTokenService, PasswordResetTokenService>();
@@ -267,6 +270,17 @@ public static class InfrastructureServiceRegistration
                     ClockSkew = TimeSpan.FromMinutes(1)
                 };
             });
+    }
+
+    private static bool HasValidDataProtectionSettings(DataProtectionKeyManagementSettings settings)
+    {
+        if (settings is null)
+        {
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(settings.ApplicationName)
+            && settings.KeyLifetimeDays is >= 7 and <= 365;
     }
 
     private static bool HasValidMongoDbSettings(MongoDbSettings settings, IHostEnvironment hostEnvironment)

@@ -34,6 +34,20 @@ internal static class ForwardedHeadersSecurityOptionsValidator
             return false;
         }
 
+        if (options.TrustForwardedHost)
+        {
+            if (options.AllowedHosts.Count == 0)
+            {
+                return false;
+            }
+
+            bool allowedHostsAreValid = options.AllowedHosts.All(IsValidAllowedHost);
+            if (!allowedHostsAreValid)
+            {
+                return false;
+            }
+        }
+
         return options.TrustedNetworks.All(network =>
             ForwardedHeadersConfigurationParser.TryParseNetwork(network, out _));
     }
@@ -43,7 +57,26 @@ internal static class ForwardedHeadersSecurityOptionsValidator
         ArgumentNullException.ThrowIfNull(hostEnvironment);
 
         return hostEnvironment.IsDevelopment()
-            ? "La configuración de ForwardedHeadersSecurity es inválida. Cuando Enabled=true debes definir proxies o redes confiables válidas para el entorno local."
-            : "La configuración de ForwardedHeadersSecurity es inválida. En entornos no locales, cuando Enabled=true debes definir explícitamente proxies o redes confiables válidas antes de confiar en headers reenviados.";
+            ? "La configuración de ForwardedHeadersSecurity es inválida. Cuando Enabled=true debes definir proxies o redes confiables válidas para el entorno local y, si habilitas TrustForwardedHost, también AllowedHosts válidos."
+            : "La configuración de ForwardedHeadersSecurity es inválida. En entornos no locales, cuando Enabled=true debes definir explícitamente proxies o redes confiables válidas antes de confiar en headers reenviados y, si habilitas TrustForwardedHost, también AllowedHosts válidos.";
+    }
+
+    private static bool IsValidAllowedHost(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        string candidate = value.Trim();
+        if (candidate.Contains("://", StringComparison.Ordinal)
+            || candidate.Contains('/', StringComparison.Ordinal)
+            || candidate.Contains('\\', StringComparison.Ordinal)
+            || candidate.Contains(':', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return Uri.CheckHostName(candidate) == UriHostNameType.Dns;
     }
 }

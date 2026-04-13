@@ -29,6 +29,11 @@ public sealed class ForwardedHeadersSecurityOptions
     public bool RequireHeaderSymmetry { get; set; } = true;
 
     /// <summary>
+    /// Indica si la aplicación puede confiar en `X-Forwarded-Host` cuando proviene de proxies confiables.
+    /// </summary>
+    public bool TrustForwardedHost { get; set; }
+
+    /// <summary>
     /// Lista explícita de direcciones IP de proxies confiables.
     /// </summary>
     public List<string> TrustedProxies { get; set; } = [];
@@ -37,4 +42,9 @@ public sealed class ForwardedHeadersSecurityOptions
     /// Lista explícita de redes confiables en formato CIDR.
     /// </summary>
     public List<string> TrustedNetworks { get; set; } = [];
+
+    /// <summary>
+    /// Lista explícita de hosts públicos permitidos cuando se acepta `X-Forwarded-Host`.
+    /// </summary>
+    public List<string> AllowedHosts { get; set; } = [];
 }

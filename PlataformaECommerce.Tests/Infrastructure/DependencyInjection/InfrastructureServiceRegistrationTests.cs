@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Infrastructure.Configurations;
@@ -23,10 +25,14 @@ public class InfrastructureServiceRegistrationTests
 
         using ServiceProvider serviceProvider = services.BuildServiceProvider();
         DataProtectionKeyManagementSettings dataProtectionSettings = serviceProvider.GetRequiredService<IOptions<DataProtectionKeyManagementSettings>>().Value;
+        DataProtectionOptions runtimeDataProtectionOptions = serviceProvider.GetRequiredService<IOptions<DataProtectionOptions>>().Value;
+        KeyManagementOptions keyManagementOptions = serviceProvider.GetRequiredService<IOptions<KeyManagementOptions>>().Value;
         JwtSettings settings = serviceProvider.GetRequiredService<IOptions<JwtSettings>>().Value;
         ITokenService tokenService = serviceProvider.GetRequiredService<ITokenService>();
 
         Assert.That(dataProtectionSettings.ApplicationName, Is.EqualTo("PlataformaECommerce.Tests"));
+        Assert.That(runtimeDataProtectionOptions.ApplicationDiscriminator, Is.EqualTo("PlataformaECommerce.Tests"));
+        Assert.That(keyManagementOptions.NewKeyLifetime, Is.EqualTo(TimeSpan.FromDays(30)));
         Assert.That(settings.SigningKey, Is.Not.Null.And.Not.Empty);
         Assert.That(settings.SigningKey.Length, Is.GreaterThanOrEqualTo(32));
         Assert.That(tokenService, Is.Not.Null);
@@ -82,6 +88,7 @@ public class InfrastructureServiceRegistrationTests
         {
             ["ConnectionStrings:DefaultConnection"] = "Server=tcp:sql.integration.internal,1433;Database=PlataformaECommerceTests;Encrypt=True;TrustServerCertificate=True;",
             ["DataProtection:ApplicationName"] = "PlataformaECommerce.Tests",
+            ["DataProtection:KeyLifetimeDays"] = "30",
             ["MongoDb:Enabled"] = mongoEnabled.ToString(),
             ["MongoDb:ConnectionString"] = mongoConnectionString,
             ["MongoDb:DatabaseName"] = "PlataformaECommerceAuditDb",

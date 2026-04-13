@@ -32,31 +32,52 @@ public sealed class SecurityHeadersMiddleware
     /// <summary>
     /// Ejecuta el middleware y agrega headers antes de enviar la respuesta.
     /// </summary>
-    public Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        context.Response.OnStarting(static state =>
+        {
+            (HttpContext httpContext, WebSecurityHeadersOptions options, IWebHostEnvironment environment) = ((HttpContext, WebSecurityHeadersOptions, IWebHostEnvironment))state;
+            ApplyHeaders(httpContext, options, environment);
+            return Task.CompletedTask;
+        }, (context, _options, _environment));
+
+        await _next(context).ConfigureAwait(false);
+
+        if (!context.Response.HasStarted)
+        {
+            ApplyHeaders(context, _options, _environment);
+        }
+    }
+
+    private static void ApplyHeaders(HttpContext context, WebSecurityHeadersOptions options, IWebHostEnvironment environment)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(environment);
+
         IHeaderDictionary headers = context.Response.Headers;
 
-        if (_options.ContentSecurityPolicy.Enabled)
+        if (options.ContentSecurityPolicy.Enabled)
         {
             string nonce = ContentSecurityPolicyNonceAccessor.GetOrCreateNonce(context);
-            string contentSecurityPolicy = ContentSecurityPolicyBuilder.Build(_options.ContentSecurityPolicy, _environment, nonce);
-            string contentSecurityPolicyHeaderName = _options.ContentSecurityPolicy.UseReportOnlyInDevelopment && _environment.IsDevelopment()
+            string contentSecurityPolicy = ContentSecurityPolicyBuilder.Build(options.ContentSecurityPolicy, environment, nonce);
+            string contentSecurityPolicyHeaderName = options.ContentSecurityPolicy.UseReportOnlyInDevelopment && environment.IsDevelopment()
                 ? "Content-Security-Policy-Report-Only"
                 : "Content-Security-Policy";
 
             headers[contentSecurityPolicyHeaderName] = contentSecurityPolicy;
         }
 
-        headers["Permissions-Policy"] = _options.PermissionsPolicy;
-        headers["Referrer-Policy"] = _options.ReferrerPolicy;
-        headers["X-Frame-Options"] = _options.FrameOptions;
-        headers["X-Content-Type-Options"] = _options.ContentTypeOptions;
-        headers["Cross-Origin-Opener-Policy"] = _options.CrossOriginOpenerPolicy;
-        headers["Cross-Origin-Resource-Policy"] = _options.CrossOriginResourcePolicy;
+        headers["Permissions-Policy"] = options.PermissionsPolicy;
+        headers["Referrer-Policy"] = options.ReferrerPolicy;
+        headers["X-Frame-Options"] = options.FrameOptions;
+        headers["X-Content-Type-Options"] = options.ContentTypeOptions;
+        headers["Cross-Origin-Opener-Policy"] = options.CrossOriginOpenerPolicy;
+        headers["Cross-Origin-Resource-Policy"] = options.CrossOriginResourcePolicy;
         headers["X-Permitted-Cross-Domain-Policies"] = "none";
-
-        return _next(context);
+        headers["Origin-Agent-Cluster"] = "?1";
+        headers.Remove("Server");
     }
 }

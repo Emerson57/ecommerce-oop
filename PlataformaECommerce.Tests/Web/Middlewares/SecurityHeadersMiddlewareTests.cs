@@ -24,6 +24,7 @@ public class SecurityHeadersMiddlewareTests
 
         Assert.That(httpContext.Response.Headers["X-Content-Type-Options"].ToString(), Is.EqualTo("nosniff"));
         Assert.That(httpContext.Response.Headers["X-Frame-Options"].ToString(), Is.EqualTo("DENY"));
+        Assert.That(httpContext.Response.Headers["Origin-Agent-Cluster"].ToString(), Is.EqualTo("?1"));
         Assert.That(httpContext.Response.Headers["Content-Security-Policy"].ToString(), Does.Contain("frame-ancestors 'none'"));
         Assert.That(httpContext.Response.Headers["Content-Security-Policy"].ToString(), Does.Not.Contain("'unsafe-inline'"));
     }

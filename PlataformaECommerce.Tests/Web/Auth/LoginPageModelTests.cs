@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Results;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
@@ -17,6 +18,7 @@ using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
 using PlataformaECommerce.Web.Authorization;
+using PlataformaECommerce.Web.Configuration;
 using PlataformaECommerce.Web.Pages.Auth;
 
 namespace PlataformaECommerce.Tests.Web.Auth;
@@ -175,15 +177,62 @@ public class LoginPageModelTests
         Assert.That(pageModel.PendingEmailConfirmationAddress, Is.EqualTo("cliente@plataforma.com"));
     }
 
+    [Test]
+    public async Task OnPostAsync_RememberMe_UsaVidaAbsolutaConfiguradaParaSesionPersistente()
+    {
+        Cliente customer = new("Cliente Demo", new Email("cliente@plataforma.com"), "hash-seguro-cliente-2026");
+        customer.ConfirmarCorreoElectronico();
+        FakeAuthenticationService authenticationService = new();
+        WebAuthenticationCookiesOptions cookieOptions = new()
+        {
+            SessionIdleTimeoutMinutes = 120,
+            PersistentSessionAbsoluteLifetimeHours = 72,
+            SlidingExpiration = true
+        };
+        LoginModel pageModel = CreatePageModel(customer, authenticationService, cookieOptions);
+        pageModel.Input.Email = "cliente@plataforma.com";
+        pageModel.Input.Password = "Password#2026";
+        pageModel.Input.RememberMe = true;
+
+        _ = await pageModel.OnPostAsync(CancellationToken.None);
+
+        Assert.That(authenticationService.LastAuthenticationProperties?.IsPersistent, Is.True);
+        Assert.That(authenticationService.LastAuthenticationProperties?.AllowRefresh, Is.True);
+        Assert.That(
+            authenticationService.LastAuthenticationProperties?.ExpiresUtc - authenticationService.LastAuthenticationProperties?.IssuedUtc,
+            Is.EqualTo(TimeSpan.FromHours(72)).Within(TimeSpan.FromSeconds(1)));
+    }
+
     private static LoginModel CreatePageModel(Usuario user, FakeAuthenticationService authenticationService)
     {
         FakeAuthApplicationService authApplicationService = new(user);
-        return CreatePageModel(authApplicationService, authenticationService);
+        return CreatePageModel(authApplicationService, authenticationService, new WebAuthenticationCookiesOptions());
     }
 
     private static LoginModel CreatePageModel(FakeAuthApplicationService authApplicationService, FakeAuthenticationService authenticationService)
     {
-        LoginModel pageModel = new(authApplicationService, new FakeTenantContextAccessor("tenant-demo"), NullLogger<LoginModel>.Instance);
+        return CreatePageModel(authApplicationService, authenticationService, new WebAuthenticationCookiesOptions());
+    }
+
+    private static LoginModel CreatePageModel(
+        Usuario user,
+        FakeAuthenticationService authenticationService,
+        WebAuthenticationCookiesOptions cookieOptions)
+    {
+        FakeAuthApplicationService authApplicationService = new(user);
+        return CreatePageModel(authApplicationService, authenticationService, cookieOptions);
+    }
+
+    private static LoginModel CreatePageModel(
+        FakeAuthApplicationService authApplicationService,
+        FakeAuthenticationService authenticationService,
+        WebAuthenticationCookiesOptions cookieOptions)
+    {
+        LoginModel pageModel = new(
+            authApplicationService,
+            new FakeTenantContextAccessor("tenant-demo"),
+            Options.Create(cookieOptions),
+            NullLogger<LoginModel>.Instance);
 
         ServiceCollection services = new();
         services.AddSingleton<IAuthenticationService>(authenticationService);
@@ -314,6 +363,7 @@ public class LoginPageModelTests
     {
         public ClaimsPrincipal? SignedInPrincipal { get; private set; }
         public string? LastSignInScheme { get; private set; }
+        public AuthenticationProperties? LastAuthenticationProperties { get; private set; }
 
         public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme)
             => Task.FromResult(AuthenticateResult.NoResult());
@@ -334,6 +384,7 @@ public class LoginPageModelTests
 
             LastSignInScheme = scheme;
             SignedInPrincipal = principal;
+            LastAuthenticationProperties = properties;
             return Task.CompletedTask;
         }
 

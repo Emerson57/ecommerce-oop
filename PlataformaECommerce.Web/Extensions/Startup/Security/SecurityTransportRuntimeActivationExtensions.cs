@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Options;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
@@ -14,7 +16,11 @@ public static class SecurityTransportRuntimeActivationExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        if (!app.Environment.IsDevelopment())
+        WebTransportSecurityOptions transportSecurityOptions = app.Services
+            .GetRequiredService<IOptions<WebTransportSecurityOptions>>()
+            .Value;
+
+        if (!app.Environment.IsDevelopment() && transportSecurityOptions.HstsEnabled)
         {
             app.UseHsts();
         }

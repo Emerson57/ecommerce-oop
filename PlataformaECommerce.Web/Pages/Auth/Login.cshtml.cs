@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Features.Auth.Commands;
 using PlataformaECommerce.Application.Features.Auth.DTOs;
@@ -30,6 +31,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
     {
         private readonly IAuthApplicationService _authApplicationService;
         private readonly ITenantContextAccessor _tenantContextAccessor;
+        private readonly WebAuthenticationCookiesOptions _authenticationCookiesOptions;
         private readonly ILogger<LoginModel> _logger;
 
         /// <summary>
@@ -37,14 +39,19 @@ namespace PlataformaECommerce.Web.Pages.Auth
         /// </summary>
         /// <param name="authApplicationService">Servicio de aplicación de autenticación.</param>
         /// <param name="tenantContextAccessor">Accesor al tenant activo para emitir una identidad acotada al contexto resuelto.</param>
+        /// <param name="authenticationCookiesOptions">Opciones endurecidas de expiración y persistencia de cookies autenticadas.</param>
         /// <param name="logger">Registrador estructurado del flujo de autenticación web.</param>
         public LoginModel(
             IAuthApplicationService authApplicationService,
             ITenantContextAccessor tenantContextAccessor,
+            IOptions<WebAuthenticationCookiesOptions> authenticationCookiesOptions,
             ILogger<LoginModel> logger)
         {
+            ArgumentNullException.ThrowIfNull(authenticationCookiesOptions);
+
             _authApplicationService = authApplicationService ?? throw new ArgumentNullException(nameof(authApplicationService));
             _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
+            _authenticationCookiesOptions = authenticationCookiesOptions.Value;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -192,13 +199,16 @@ namespace PlataformaECommerce.Web.Pages.Auth
         private AuthenticationProperties CreateAuthenticationProperties()
         {
             DateTimeOffset issuedAtUtc = DateTimeOffset.UtcNow;
+            TimeSpan absoluteLifetime = Input.RememberMe
+                ? TimeSpan.FromHours(_authenticationCookiesOptions.PersistentSessionAbsoluteLifetimeHours)
+                : TimeSpan.FromMinutes(_authenticationCookiesOptions.SessionIdleTimeoutMinutes);
 
             return new AuthenticationProperties
             {
                 IsPersistent = Input.RememberMe,
-                AllowRefresh = true,
+                AllowRefresh = _authenticationCookiesOptions.SlidingExpiration,
                 IssuedUtc = issuedAtUtc,
-                ExpiresUtc = issuedAtUtc.AddHours(Input.RememberMe ? 24 : 8)
+                ExpiresUtc = issuedAtUtc.Add(absoluteLifetime)
             };
         }
 

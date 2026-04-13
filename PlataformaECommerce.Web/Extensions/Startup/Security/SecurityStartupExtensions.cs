@@ -31,14 +31,45 @@ public static class SecurityStartupExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(hostEnvironment);
 
+        services.AddSingleton<IValidateOptions<WebAuthenticationCookiesOptions>, WebAuthenticationCookiesOptionsValidator>();
+        services.AddSingleton<IValidateOptions<WebTransportSecurityOptions>, WebTransportSecurityOptionsValidator>();
+        services.AddSingleton<IValidateOptions<WebOpenApiSecurityOptions>, WebOpenApiSecurityOptionsValidator>();
         services.AddSingleton<IValidateOptions<WebSecurityHeadersOptions>, WebSecurityHeadersOptionsValidator>();
+
+        WebAuthenticationCookiesOptions authenticationCookiesOptions = configuration
+            .GetSection(WebAuthenticationCookiesOptions.SectionName)
+            .Get<WebAuthenticationCookiesOptions>()
+            ?? new WebAuthenticationCookiesOptions();
+
+        WebTransportSecurityOptions transportSecurityOptions = configuration
+            .GetSection(WebTransportSecurityOptions.SectionName)
+            .Get<WebTransportSecurityOptions>()
+            ?? new WebTransportSecurityOptions();
 
         services.AddHsts(options =>
         {
-            options.Preload = true;
-            options.IncludeSubDomains = true;
-            options.MaxAge = TimeSpan.FromDays(365);
+            options.Preload = transportSecurityOptions.Preload;
+            options.IncludeSubDomains = transportSecurityOptions.IncludeSubDomains;
+            options.MaxAge = TimeSpan.FromDays(transportSecurityOptions.HstsMaxAgeDays);
         });
+
+        services
+            .AddOptions<WebAuthenticationCookiesOptions>()
+            .Bind(configuration.GetSection(WebAuthenticationCookiesOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
+            .AddOptions<WebTransportSecurityOptions>()
+            .Bind(configuration.GetSection(WebTransportSecurityOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services
+            .AddOptions<WebOpenApiSecurityOptions>()
+            .Bind(configuration.GetSection(WebOpenApiSecurityOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services
             .AddOptions<WebSecurityHeadersOptions>()
@@ -61,8 +92,8 @@ public static class SecurityStartupExtensions
             {
                 options.ForwardDefaultSelector = AuthorizationPolicies.ResolveApplicationCookieScheme;
             })
-            .AddCookie(AuthorizationPolicies.AdminCookieScheme, AuthorizationPolicies.ConfigureAdminCookie)
-            .AddCookie(AuthorizationPolicies.CustomerCookieScheme, AuthorizationPolicies.ConfigureCustomerCookie);
+            .AddCookie(AuthorizationPolicies.AdminCookieScheme, options => AuthorizationPolicies.ConfigureAdminCookie(options, authenticationCookiesOptions))
+            .AddCookie(AuthorizationPolicies.CustomerCookieScheme, options => AuthorizationPolicies.ConfigureCustomerCookie(options, authenticationCookiesOptions));
 
         services.AddAuthorization(AuthorizationPolicies.ConfigureBackofficePolicies);
 

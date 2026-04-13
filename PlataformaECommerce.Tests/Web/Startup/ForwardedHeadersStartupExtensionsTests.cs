@@ -54,7 +54,11 @@ public class ForwardedHeadersStartupExtensionsTests
     public void AddForwardedHeadersSupport_ProductionConProxyConfiable_ConfiguraKnownProxies()
     {
         ServiceCollection services = new();
-        IConfiguration configuration = BuildConfiguration(enabled: true, trustedProxies: ["10.10.0.5"]);
+        IConfiguration configuration = BuildConfiguration(
+            enabled: true,
+            trustedProxies: ["10.10.0.5"],
+            trustForwardedHost: true,
+            allowedHosts: ["admin.plataforma.com", "shop.plataforma.com"]);
         FakeHostEnvironment hostEnvironment = new(Environments.Production);
 
         services.AddLogging();
@@ -66,20 +70,43 @@ public class ForwardedHeadersStartupExtensionsTests
         Assert.That(forwardedHeadersOptions.KnownProxies.Select(proxy => proxy.ToString()), Is.EquivalentTo(new[] { "10.10.0.5" }));
         Assert.That(forwardedHeadersOptions.KnownNetworks, Is.Empty);
         Assert.That(forwardedHeadersOptions.RequireHeaderSymmetry, Is.True);
+        Assert.That(forwardedHeadersOptions.ForwardedHeaders.HasFlag(ForwardedHeaders.XForwardedHost), Is.True);
+        Assert.That(forwardedHeadersOptions.AllowedHosts, Is.EquivalentTo(new[] { "admin.plataforma.com", "shop.plataforma.com" }));
+    }
+
+    [Test]
+    public void AddForwardedHeadersSupport_ProductionConForwardedHostSinAllowedHosts_LanzaOptionsValidationException()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = BuildConfiguration(enabled: true, trustedProxies: ["10.10.0.5"], trustForwardedHost: true);
+        FakeHostEnvironment hostEnvironment = new(Environments.Production);
+
+        services.AddLogging();
+        services.AddForwardedHeadersSupport(configuration, hostEnvironment);
+
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        OptionsValidationException exception = Assert.Throws<OptionsValidationException>(() =>
+            _ = serviceProvider.GetRequiredService<IOptions<ForwardedHeadersSecurityOptions>>().Value)!;
+
+        Assert.That(exception.Message, Does.Contain("AllowedHosts"));
     }
 
     private static IConfiguration BuildConfiguration(
         bool enabled,
         string[]? trustedProxies = null,
         string[]? trustedNetworks = null,
+        string[]? allowedHosts = null,
         int forwardLimit = 1,
-        bool requireHeaderSymmetry = true)
+        bool requireHeaderSymmetry = true,
+        bool trustForwardedHost = false)
     {
         Dictionary<string, string?> values = new(StringComparer.Ordinal)
         {
             [$"{ForwardedHeadersSecurityOptions.SectionName}:Enabled"] = enabled.ToString(),
             [$"{ForwardedHeadersSecurityOptions.SectionName}:ForwardLimit"] = forwardLimit.ToString(),
-            [$"{ForwardedHeadersSecurityOptions.SectionName}:RequireHeaderSymmetry"] = requireHeaderSymmetry.ToString()
+            [$"{ForwardedHeadersSecurityOptions.SectionName}:RequireHeaderSymmetry"] = requireHeaderSymmetry.ToString(),
+            [$"{ForwardedHeadersSecurityOptions.SectionName}:TrustForwardedHost"] = trustForwardedHost.ToString()
         };
 
         if (trustedProxies is not null)
@@ -95,6 +122,14 @@ public class ForwardedHeadersStartupExtensionsTests
             for (int index = 0; index < trustedNetworks.Length; index++)
             {
                 values[$"{ForwardedHeadersSecurityOptions.SectionName}:TrustedNetworks:{index}"] = trustedNetworks[index];
+            }
+        }
+
+        if (allowedHosts is not null)
+        {
+            for (int index = 0; index < allowedHosts.Length; index++)
+            {
+                values[$"{ForwardedHeadersSecurityOptions.SectionName}:AllowedHosts:{index}"] = allowedHosts[index];
             }
         }
 

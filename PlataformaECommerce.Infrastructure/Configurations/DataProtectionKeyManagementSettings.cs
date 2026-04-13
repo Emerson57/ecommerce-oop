@@ -17,4 +17,10 @@ public sealed class DataProtectionKeyManagementSettings
     /// </summary>
     [Required(AllowEmptyStrings = false)]
     public string ApplicationName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Obtiene o establece la vida útil por defecto de las claves emitidas para el anillo compartido.
+    /// </summary>
+    [Range(7, 365)]
+    public int KeyLifetimeDays { get; set; } = 90;
 }

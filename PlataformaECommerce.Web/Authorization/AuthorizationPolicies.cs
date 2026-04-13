@@ -4,6 +4,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.Authorization;
 
@@ -198,15 +199,33 @@ public static class AuthorizationPolicies
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        ConfigureAdminCookie(options, new WebAuthenticationCookiesOptions());
+    }
+
+    /// <summary>
+    /// Configura la cookie de autenticación administrativa del backoffice utilizando opciones endurecidas.
+    /// </summary>
+    /// <param name="options">Opciones de autenticación por cookies.</param>
+    /// <param name="cookieOptions">Opciones endurecidas de autenticación web.</param>
+    public static void ConfigureAdminCookie(CookieAuthenticationOptions options, WebAuthenticationCookiesOptions cookieOptions)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(cookieOptions);
+
         options.Cookie.Name = AdminCookieName;
-        options.Cookie.IsEssential = true;
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.Path = "/";
+        options.Cookie.Domain = string.IsNullOrWhiteSpace(cookieOptions.SharedCookieDomain)
+            ? null
+            : cookieOptions.SharedCookieDomain.Trim();
+        options.Cookie.IsEssential = cookieOptions.IsEssential;
+        options.Cookie.HttpOnly = cookieOptions.HttpOnly;
+        options.Cookie.SameSite = cookieOptions.SameSite;
+        options.Cookie.SecurePolicy = cookieOptions.SecurePolicy;
         options.LoginPath = "/Auth/Login";
         options.AccessDeniedPath = "/Auth/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(cookieOptions.SessionIdleTimeoutMinutes);
+        options.SlidingExpiration = cookieOptions.SlidingExpiration;
+        options.ReturnUrlParameter = "returnUrl";
         options.EventsType = typeof(AdminCookieAuthenticationEvents);
     }
 
@@ -218,15 +237,33 @@ public static class AuthorizationPolicies
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        ConfigureCustomerCookie(options, new WebAuthenticationCookiesOptions());
+    }
+
+    /// <summary>
+    /// Configura la cookie de autenticación utilizada por clientes con opciones endurecidas.
+    /// </summary>
+    /// <param name="options">Opciones de autenticación por cookies.</param>
+    /// <param name="cookieOptions">Opciones endurecidas de autenticación web.</param>
+    public static void ConfigureCustomerCookie(CookieAuthenticationOptions options, WebAuthenticationCookiesOptions cookieOptions)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(cookieOptions);
+
         options.Cookie.Name = CustomerCookieName;
-        options.Cookie.IsEssential = true;
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.Path = "/";
+        options.Cookie.Domain = string.IsNullOrWhiteSpace(cookieOptions.SharedCookieDomain)
+            ? null
+            : cookieOptions.SharedCookieDomain.Trim();
+        options.Cookie.IsEssential = cookieOptions.IsEssential;
+        options.Cookie.HttpOnly = cookieOptions.HttpOnly;
+        options.Cookie.SameSite = cookieOptions.SameSite;
+        options.Cookie.SecurePolicy = cookieOptions.SecurePolicy;
         options.LoginPath = "/Auth/Login";
         options.AccessDeniedPath = "/Auth/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(cookieOptions.SessionIdleTimeoutMinutes);
+        options.SlidingExpiration = cookieOptions.SlidingExpiration;
+        options.ReturnUrlParameter = "returnUrl";
         options.EventsType = typeof(CustomerCookieAuthenticationEvents);
     }
 

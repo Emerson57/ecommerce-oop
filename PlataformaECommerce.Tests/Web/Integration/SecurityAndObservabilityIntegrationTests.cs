@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 
@@ -119,6 +120,45 @@ public class SecurityAndObservabilityIntegrationTests
     }
 
     [Test]
+    public async Task SwaggerUi_Development_EstaDisponible()
+    {
+        HttpResponseMessage response = await _client.GetAsync("/swagger/index.html", CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task SwaggerUi_Staging_SinAutenticacion_RedireccionaALogin()
+    {
+        using WebApplicationFactory<Program> factory = CreateFactoryWithOpenApiSecurityEnvironment("Staging");
+        using HttpClient client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        HttpResponseMessage response = await client.GetAsync("/swagger/index.html", CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        Assert.That(response.Headers.Location?.OriginalString, Does.Contain("/Auth/Login"));
+    }
+
+    [Test]
+    public async Task OpenApiJson_Staging_SinAutenticacion_Retorna401()
+    {
+        using WebApplicationFactory<Program> factory = CreateFactoryWithOpenApiSecurityEnvironment("Staging");
+        using HttpClient client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        HttpResponseMessage response = await client.GetAsync("/swagger/public/swagger.json", CancellationToken.None);
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
+
+    [Test]
     public async Task Uploads_PublicosPermitidos_SeSirvenConTipoMimeRestringido()
     {
         string uploadsDirectory = $"uploads/integration-tests/{Guid.NewGuid():N}";
@@ -178,6 +218,29 @@ public class SecurityAndObservabilityIntegrationTests
                     ["Backoffice:ProductImages:AllowedContentTypes:0"] = "image/jpeg",
                     ["Backoffice:ProductImages:AllowedContentTypes:1"] = "image/png",
                     ["Backoffice:ProductImages:AllowedContentTypes:2"] = "image/webp"
+                });
+            });
+        });
+    }
+
+    private WebApplicationFactory<Program> CreateFactoryWithOpenApiSecurityEnvironment(string environmentName)
+    {
+        return _factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment(environmentName);
+            builder.ConfigureAppConfiguration((_, configBuilder) =>
+            {
+                configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=PlataformaECommerceTests;User Id=sa;Password=StrongPassword#2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;",
+                    ["MongoDb:Enabled"] = bool.FalseString,
+                    ["Jwt:Issuer"] = "PlataformaECommerce.Tests",
+                    ["Jwt:Audience"] = "PlataformaECommerce.Tests.Clients",
+                    ["Jwt:SigningKey"] = "IntegrationTestsSigningKey_With32Chars!",
+                    ["DataProtection:ApplicationName"] = "PlataformaECommerce.Tests",
+                    ["OpenApiSecurity:EnabledInQualityAssurance"] = bool.TrueString,
+                    ["OpenApiSecurity:RequireAuthorizationOutsideDevelopment"] = bool.TrueString,
+                    ["OpenApiSecurity:RequiredPolicy"] = "SuperUserOnly"
                 });
             });
         });

@@ -24,10 +24,16 @@ internal sealed class ForwardedHeadersOptionsSetup : IConfigureOptions<Forwarded
         }
 
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        if (securityOptions.TrustForwardedHost)
+        {
+            options.ForwardedHeaders |= ForwardedHeaders.XForwardedHost;
+        }
+
         options.ForwardLimit = securityOptions.ForwardLimit;
         options.RequireHeaderSymmetry = securityOptions.RequireHeaderSymmetry;
         options.KnownNetworks.Clear();
         options.KnownProxies.Clear();
+        options.AllowedHosts.Clear();
 
         foreach (string trustedProxy in securityOptions.TrustedProxies)
         {
@@ -43,6 +49,11 @@ internal sealed class ForwardedHeadersOptionsSetup : IConfigureOptions<Forwarded
             {
                 options.KnownNetworks.Add(network);
             }
+        }
+
+        foreach (string allowedHost in securityOptions.AllowedHosts)
+        {
+            options.AllowedHosts.Add(allowedHost.Trim());
         }
     }
 }

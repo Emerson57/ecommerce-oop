@@ -17,6 +17,12 @@ internal sealed class WebAntiforgeryOptionsValidator : IValidateOptions<WebAntif
         ValidateRequiredValue(failures, options.FormFieldName, $"{WebAntiforgeryOptions.SectionName}:FormFieldName");
         ValidateRequiredValue(failures, options.HeaderName, $"{WebAntiforgeryOptions.SectionName}:HeaderName");
 
+        if (!string.IsNullOrWhiteSpace(options.CookieName)
+            && !options.CookieName.StartsWith("__Host-", StringComparison.Ordinal))
+        {
+            failures.Add($"La configuración '{WebAntiforgeryOptions.SectionName}:CookieName' debe usar el prefijo '__Host-' para evitar fijación de cookie entre subdominios.");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

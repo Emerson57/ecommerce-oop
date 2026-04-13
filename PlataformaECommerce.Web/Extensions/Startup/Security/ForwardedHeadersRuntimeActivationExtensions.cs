@@ -41,10 +41,12 @@ public static class ForwardedHeadersRuntimeActivationExtensions
         }
 
         logger.LogInformation(
-            "Forwarded headers habilitado con {TrustedProxyCount} proxies confiables, {TrustedNetworkCount} redes confiables y ForwardLimit {ForwardLimit}.",
+            "Forwarded headers habilitado con {TrustedProxyCount} proxies confiables, {TrustedNetworkCount} redes confiables, ForwardLimit {ForwardLimit}, TrustForwardedHost {TrustForwardedHost} y {AllowedHostCount} hosts permitidos.",
             options.TrustedProxies.Count,
             options.TrustedNetworks.Count,
-            options.ForwardLimit);
+            options.ForwardLimit,
+            options.TrustForwardedHost,
+            options.AllowedHosts.Count);
 
         app.UseForwardedHeaders();
         return app;
