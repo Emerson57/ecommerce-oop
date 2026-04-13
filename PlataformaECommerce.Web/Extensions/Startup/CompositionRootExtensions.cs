@@ -19,6 +19,7 @@ public static class CompositionRootExtensions
         builder.Configuration
             .AddModularConfigurationSources(builder.Environment)
             .AddLocalDevelopmentConfigurationSources(builder.Environment)
+            .AddSecretAliasConfigurationSources()
             .AddRuntimeOverrideConfigurationSources(args);
 
         return builder;

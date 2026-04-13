@@ -53,4 +53,67 @@ public class ConfigurationCompositionTests
             }
         }
     }
+
+    [Test]
+    public void ConfigureApplicationConfiguration_Development_SecretAliasEnvironmentVariableProjectsJwtSigningKey()
+    {
+        const string secretAliasEnvironmentVariableName = "Secrets__Security__JwtSigningKey";
+        string secretAliasEnvironmentVariableValue = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + new string('y', 32);
+        string? originalSecretAliasEnvironmentVariableValue = Environment.GetEnvironmentVariable(secretAliasEnvironmentVariableName);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(secretAliasEnvironmentVariableName, secretAliasEnvironmentVariableValue);
+
+            WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                Args = Array.Empty<string>(),
+                ApplicationName = typeof(Program).Assembly.FullName,
+                ContentRootPath = AppContext.BaseDirectory,
+                EnvironmentName = Environments.Development
+            });
+
+            builder.ConfigureApplicationConfiguration(Array.Empty<string>());
+
+            Assert.That(builder.Configuration["Jwt:SigningKey"], Is.EqualTo(secretAliasEnvironmentVariableValue));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(secretAliasEnvironmentVariableName, originalSecretAliasEnvironmentVariableValue);
+        }
+    }
+
+    [Test]
+    public void ConfigureApplicationConfiguration_Development_RuntimeEnvironmentVariableOverridesSecretAlias()
+    {
+        const string secretAliasEnvironmentVariableName = "Secrets__Security__JwtSigningKey";
+        const string runtimeEnvironmentVariableName = "Jwt__SigningKey";
+        string secretAliasEnvironmentVariableValue = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + new string('a', 32);
+        string runtimeEnvironmentVariableValue = Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + new string('b', 32);
+        string? originalSecretAliasEnvironmentVariableValue = Environment.GetEnvironmentVariable(secretAliasEnvironmentVariableName);
+        string? originalRuntimeEnvironmentVariableValue = Environment.GetEnvironmentVariable(runtimeEnvironmentVariableName);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(secretAliasEnvironmentVariableName, secretAliasEnvironmentVariableValue);
+            Environment.SetEnvironmentVariable(runtimeEnvironmentVariableName, runtimeEnvironmentVariableValue);
+
+            WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                Args = Array.Empty<string>(),
+                ApplicationName = typeof(Program).Assembly.FullName,
+                ContentRootPath = AppContext.BaseDirectory,
+                EnvironmentName = Environments.Development
+            });
+
+            builder.ConfigureApplicationConfiguration(Array.Empty<string>());
+
+            Assert.That(builder.Configuration["Jwt:SigningKey"], Is.EqualTo(runtimeEnvironmentVariableValue));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(secretAliasEnvironmentVariableName, originalSecretAliasEnvironmentVariableValue);
+            Environment.SetEnvironmentVariable(runtimeEnvironmentVariableName, originalRuntimeEnvironmentVariableValue);
+        }
+    }
 }

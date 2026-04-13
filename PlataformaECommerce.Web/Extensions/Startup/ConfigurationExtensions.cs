@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
@@ -60,6 +61,37 @@ public static class ConfigurationExtensions
             .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
             .AddJsonFile($"appsettings.{hostEnvironment.EnvironmentName}.local.json", optional: true, reloadOnChange: true)
             .AddUserSecrets<global::Program>(optional: true, reloadOnChange: true);
+
+        return configuration;
+    }
+
+    /// <summary>
+    /// Proyecta alias de secretos con nombres profesionales hacia las claves runtime esperadas por la aplicación,
+    /// permitiendo consumir User Secrets, variables de entorno o secret managers sin acoplar la lógica funcional.
+    /// </summary>
+    /// <param name="configuration">Administrador de configuración de la aplicación.</param>
+    /// <returns>El mismo administrador de configuración para encadenamiento fluido.</returns>
+    public static ConfigurationManager AddSecretAliasConfigurationSources(this ConfigurationManager configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        Dictionary<string, string?> secretOverrides = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach ((string sourcePath, string destinationPath) in SecretConfigurationAliases.Mappings)
+        {
+            string? secretValue = configuration[sourcePath];
+            if (string.IsNullOrWhiteSpace(secretValue))
+            {
+                continue;
+            }
+
+            secretOverrides[destinationPath] = secretValue;
+        }
+
+        if (secretOverrides.Count > 0)
+        {
+            configuration.AddInMemoryCollection(secretOverrides);
+        }
 
         return configuration;
     }
