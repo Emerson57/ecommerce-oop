@@ -35,7 +35,9 @@ public class CustomerCookieAuthenticationEventsTests
             new AuthenticationProperties(),
             AuthorizationPolicies.CustomerCookieScheme);
         CookieValidatePrincipalContext context = new(httpContext, scheme, options, ticket);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())));
+        CustomerCookieAuthenticationEvents events = new(
+            new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
+            NullLogger<CustomerCookieAuthenticationEvents>.Instance);
 
         await events.ValidatePrincipal(context);
 
@@ -50,7 +52,9 @@ public class CustomerCookieAuthenticationEventsTests
         httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())));
+        CustomerCookieAuthenticationEvents events = new(
+            new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
+            NullLogger<CustomerCookieAuthenticationEvents>.Instance);
 
         await events.RedirectToLogin(context);
 
@@ -65,7 +69,9 @@ public class CustomerCookieAuthenticationEventsTests
         httpContext.Request.Path = "/api/orders";
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
-        CustomerCookieAuthenticationEvents events = new(new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())));
+        CustomerCookieAuthenticationEvents events = new(
+            new CustomerCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
+            NullLogger<CustomerCookieAuthenticationEvents>.Instance);
 
         await events.RedirectToAccessDenied(context);
 

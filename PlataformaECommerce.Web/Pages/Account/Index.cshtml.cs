@@ -24,9 +24,7 @@ namespace PlataformaECommerce.Web.Pages.Account;
 /// reutilizando los casos de uso de consulta, actualización básica y cambio autenticado
 /// de contraseña sin exponer lógica de negocio en la capa web.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.CustomerOnly,
-    AuthenticationSchemes = AuthorizationPolicies.CustomerCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.CustomerOnly)]
 public sealed class IndexModel : PageModel
 {
     private const string AccountSource = "Web.Account.Index";

@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
@@ -8,7 +7,6 @@ using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
 using PlataformaECommerce.Domain.ValueObjects;
 using PlataformaECommerce.Web.Authorization;
-using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Tests.Web.Authorization;
 
@@ -20,15 +18,11 @@ public class CustomerCookieSecurityServiceTests
     {
         Cliente customer = CreateCustomer();
         FakeUserRepository userRepository = new(customer);
-        CustomerCookieSecurityService service = new(userRepository, new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions()));
+        CustomerCookieSecurityService service = new(userRepository, new FakeTenantContextAccessor("tenant-demo"));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(customer),
-            new AuthenticationProperties
-            {
-                IssuedUtc = DateTimeOffset.UtcNow.AddMinutes(-5),
-                IsPersistent = false
-            },
+            CreateAuthenticationProperties(DateTimeOffset.UtcNow.AddHours(1)),
             CancellationToken.None);
 
         Assert.That(result, Is.True);
@@ -37,15 +31,11 @@ public class CustomerCookieSecurityServiceTests
     [Test]
     public async Task IsPrincipalValidAsync_ClaimsDeClienteSinActorPersistido_RetornaFalse()
     {
-        CustomerCookieSecurityService service = new(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions()));
+        CustomerCookieSecurityService service = new(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"));
 
         bool result = await service.IsPrincipalValidAsync(
             CreatePrincipal(CreateCustomer()),
-            new AuthenticationProperties
-            {
-                IssuedUtc = DateTimeOffset.UtcNow.AddMinutes(-5),
-                IsPersistent = false
-            },
+            CreateAuthenticationProperties(DateTimeOffset.UtcNow.AddHours(1)),
             CancellationToken.None);
 
         Assert.That(result, Is.False);
@@ -73,6 +63,18 @@ public class CustomerCookieSecurityServiceTests
             new Claim(AuthorizationPolicies.PrimaryRoleClaimType, RolUsuario.Cliente.ToString()),
             new Claim(AuthorizationPolicies.SuperUserClaimType, bool.FalseString)
         ], AuthorizationPolicies.CustomerCookieScheme));
+    }
+
+    private static AuthenticationProperties CreateAuthenticationProperties(DateTimeOffset absoluteExpirationUtc)
+    {
+        return new AuthenticationProperties
+        {
+            IssuedUtc = DateTimeOffset.UtcNow.AddMinutes(-5),
+            Items =
+            {
+                ["auth:absolute-expiration-utc"] = absoluteExpirationUtc.ToString("O")
+            }
+        };
     }
 
     private sealed class FakeTenantContextAccessor(string tenantId) : ITenantContextAccessor

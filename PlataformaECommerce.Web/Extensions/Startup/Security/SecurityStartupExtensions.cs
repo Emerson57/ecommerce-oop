@@ -86,6 +86,7 @@ public static class SecurityStartupExtensions
                 options.DefaultScheme = AuthorizationPolicies.AppCookieScheme;
                 options.DefaultAuthenticateScheme = AuthorizationPolicies.AppCookieScheme;
                 options.DefaultChallengeScheme = AuthorizationPolicies.AppCookieScheme;
+                options.DefaultForbidScheme = AuthorizationPolicies.AppCookieScheme;
                 options.DefaultSignOutScheme = AuthorizationPolicies.AppCookieScheme;
             })
             .AddPolicyScheme(AuthorizationPolicies.AppCookieScheme, "Application cookie selector", options =>
@@ -95,7 +96,11 @@ public static class SecurityStartupExtensions
             .AddCookie(AuthorizationPolicies.AdminCookieScheme, options => AuthorizationPolicies.ConfigureAdminCookie(options, authenticationCookiesOptions))
             .AddCookie(AuthorizationPolicies.CustomerCookieScheme, options => AuthorizationPolicies.ConfigureCustomerCookie(options, authenticationCookiesOptions));
 
-        services.AddAuthorization(AuthorizationPolicies.ConfigureBackofficePolicies);
+        services.AddAuthorization(options =>
+        {
+            options.DefaultPolicy = AuthorizationPolicies.CreateDefaultAuthenticatedPolicy();
+            AuthorizationPolicies.ConfigureApplicationPolicies(options);
+        });
 
         return services;
     }

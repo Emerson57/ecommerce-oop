@@ -23,9 +23,7 @@ namespace PlataformaECommerce.Web.Controllers;
 [ApiController]
 [Route("api/admin/products")]
 [ApiExplorerSettings(GroupName = SwaggerGroups.Admin)]
-[Authorize(
-    Policy = AuthorizationPolicies.AdminOnly,
-    AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 [EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
 public sealed class AdminProductsController : ControllerBase
 {

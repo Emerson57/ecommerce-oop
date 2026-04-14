@@ -22,9 +22,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Users;
 /// Esta página captura únicamente los datos del alta administrativa, delegando validación estructural,
 /// autorización, reglas de negocio, persistencia y auditoría a la capa Application.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.SuperUserOnly,
-    AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.SuperUserOnly)]
 [EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
 public sealed class CreateModel : PageModel
 {

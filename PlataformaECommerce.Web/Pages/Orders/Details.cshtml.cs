@@ -22,9 +22,7 @@ namespace PlataformaECommerce.Web.Pages.Orders;
 /// Esta página consulta el pedido desde Application reforzando la pertenencia del pedido
 /// al cliente autenticado para evitar exposición cruzada de información sensible.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.CustomerOnly,
-    AuthenticationSchemes = AuthorizationPolicies.CustomerCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.CustomerOnly)]
 public sealed class DetailsModel : PageModel
 {
     private const string OrderDetailsSource = "Web.Orders.Details";

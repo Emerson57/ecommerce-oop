@@ -74,6 +74,11 @@ public static class AuthorizationPolicies
     public const string SuperUserClaimType = SecurityClaimTypes.IsSuperUser;
 
     /// <summary>
+    /// Claim reservado para permisos finos emitidos a futuro por la plataforma.
+    /// </summary>
+    public const string PermissionClaimType = SecurityClaimTypes.Permission;
+
+    /// <summary>
     /// Obtiene el conjunto de roles considerados administrativos para el backoffice.
     /// </summary>
     public static IReadOnlyCollection<string> AdministrativeRoles { get; } = RolUsuarioExtensions.RolesAdministrativos
@@ -192,6 +197,49 @@ public static class AuthorizationPolicies
     }
 
     /// <summary>
+    /// Determina si el principal autenticado posee un permiso fino específico.
+    /// </summary>
+    public static bool HasPermission(ClaimsPrincipal? principal, string permission)
+    {
+        if (principal?.Identity?.IsAuthenticated != true)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(permission))
+        {
+            throw new ArgumentException("El permiso es obligatorio.", nameof(permission));
+        }
+
+        return principal.Claims.Any(claim =>
+            string.Equals(claim.Type, PermissionClaimType, StringComparison.Ordinal)
+            && string.Equals(claim.Value, permission.Trim(), StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Construye el nombre estándar de una política basada en permisos finos.
+    /// </summary>
+    public static string CreatePermissionPolicyName(string permission)
+    {
+        if (string.IsNullOrWhiteSpace(permission))
+        {
+            throw new ArgumentException("El permiso es obligatorio.", nameof(permission));
+        }
+
+        return $"Permission:{permission.Trim()}";
+    }
+
+    /// <summary>
+    /// Crea la política autenticada por defecto para superficies protegidas por cookies.
+    /// </summary>
+    public static AuthorizationPolicy CreateDefaultAuthenticatedPolicy()
+    {
+        return new AuthorizationPolicyBuilder(AppCookieScheme)
+            .RequireAuthenticatedUser()
+            .Build();
+    }
+
+    /// <summary>
     /// Configura la cookie de autenticación administrativa del backoffice.
     /// </summary>
     /// <param name="options">Opciones de autenticación por cookies.</param>
@@ -212,21 +260,12 @@ public static class AuthorizationPolicies
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(cookieOptions);
 
-        options.Cookie.Name = AdminCookieName;
-        options.Cookie.Path = "/";
-        options.Cookie.Domain = string.IsNullOrWhiteSpace(cookieOptions.SharedCookieDomain)
-            ? null
-            : cookieOptions.SharedCookieDomain.Trim();
-        options.Cookie.IsEssential = cookieOptions.IsEssential;
-        options.Cookie.HttpOnly = cookieOptions.HttpOnly;
-        options.Cookie.SameSite = cookieOptions.SameSite;
-        options.Cookie.SecurePolicy = cookieOptions.SecurePolicy;
-        options.LoginPath = "/Auth/Login";
-        options.AccessDeniedPath = "/Auth/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(cookieOptions.SessionIdleTimeoutMinutes);
-        options.SlidingExpiration = cookieOptions.SlidingExpiration;
-        options.ReturnUrlParameter = "returnUrl";
-        options.EventsType = typeof(AdminCookieAuthenticationEvents);
+        ConfigureCookie(
+            options,
+            cookieOptions,
+            cookieOptions.Administrative,
+            AdminCookieName,
+            typeof(AdminCookieAuthenticationEvents));
     }
 
     /// <summary>
@@ -250,21 +289,25 @@ public static class AuthorizationPolicies
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(cookieOptions);
 
-        options.Cookie.Name = CustomerCookieName;
-        options.Cookie.Path = "/";
-        options.Cookie.Domain = string.IsNullOrWhiteSpace(cookieOptions.SharedCookieDomain)
-            ? null
-            : cookieOptions.SharedCookieDomain.Trim();
-        options.Cookie.IsEssential = cookieOptions.IsEssential;
-        options.Cookie.HttpOnly = cookieOptions.HttpOnly;
-        options.Cookie.SameSite = cookieOptions.SameSite;
-        options.Cookie.SecurePolicy = cookieOptions.SecurePolicy;
-        options.LoginPath = "/Auth/Login";
-        options.AccessDeniedPath = "/Auth/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(cookieOptions.SessionIdleTimeoutMinutes);
-        options.SlidingExpiration = cookieOptions.SlidingExpiration;
-        options.ReturnUrlParameter = "returnUrl";
-        options.EventsType = typeof(CustomerCookieAuthenticationEvents);
+        ConfigureCookie(
+            options,
+            cookieOptions,
+            cookieOptions.Customer,
+            CustomerCookieName,
+            typeof(CustomerCookieAuthenticationEvents));
+    }
+
+    /// <summary>
+    /// Obtiene el perfil de expiración aplicable al esquema de autenticación suministrado.
+    /// </summary>
+    public static WebAuthenticationCookieProfileOptions GetCookieProfile(string authenticationScheme, WebAuthenticationCookiesOptions cookieOptions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(authenticationScheme);
+        ArgumentNullException.ThrowIfNull(cookieOptions);
+
+        return string.Equals(authenticationScheme, AdminCookieScheme, StringComparison.Ordinal)
+            ? cookieOptions.Administrative
+            : cookieOptions.Customer;
     }
 
     /// <summary>
@@ -283,36 +326,73 @@ public static class AuthorizationPolicies
 
         return context.Request.Cookies.ContainsKey(CustomerCookieName)
             ? CustomerCookieScheme
-            : CustomerCookieScheme;
+            : ShouldUseAdministrativeScheme(context.Request.Path)
+                ? AdminCookieScheme
+                : CustomerCookieScheme;
     }
 
     /// <summary>
     /// Registra las políticas del backoffice administrativo.
     /// </summary>
     /// <param name="options">Opciones de autorización de ASP.NET Core.</param>
-    public static void ConfigureBackofficePolicies(AuthorizationOptions options)
+    public static void ConfigureApplicationPolicies(AuthorizationOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         options.AddPolicy(AdminOnly, policy =>
         {
-            policy.AuthenticationSchemes.Add(AdminCookieScheme);
-            policy.RequireAuthenticatedUser();
+            ConfigureProtectedPolicy(policy);
             policy.RequireAssertion(context => IsAdministrativePrincipal(context.User));
         });
 
         options.AddPolicy(CustomerOnly, policy =>
         {
-            policy.AuthenticationSchemes.Add(CustomerCookieScheme);
-            policy.RequireAuthenticatedUser();
+            ConfigureProtectedPolicy(policy);
             policy.RequireAssertion(context => IsCustomerPrincipal(context.User));
         });
 
         options.AddPolicy(SuperUserOnly, policy =>
         {
-            policy.AuthenticationSchemes.Add(AdminCookieScheme);
-            policy.RequireAuthenticatedUser();
+            ConfigureProtectedPolicy(policy);
             policy.RequireAssertion(context => IsSuperUserPrincipal(context.User));
         });
+    }
+
+    private static void ConfigureCookie(
+        CookieAuthenticationOptions options,
+        WebAuthenticationCookiesOptions cookieOptions,
+        WebAuthenticationCookieProfileOptions sessionProfile,
+        string cookieName,
+        Type eventsType)
+    {
+        options.Cookie.Name = cookieName;
+        options.Cookie.Path = "/";
+        options.Cookie.Domain = string.IsNullOrWhiteSpace(cookieOptions.SharedCookieDomain)
+            ? null
+            : cookieOptions.SharedCookieDomain.Trim();
+        options.Cookie.IsEssential = cookieOptions.IsEssential;
+        options.Cookie.HttpOnly = cookieOptions.HttpOnly;
+        options.Cookie.SameSite = cookieOptions.SameSite;
+        options.Cookie.SecurePolicy = cookieOptions.SecurePolicy;
+        options.LoginPath = "/Auth/Login";
+        options.LogoutPath = "/Auth/Logout";
+        options.AccessDeniedPath = "/Auth/AccessDenied";
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(sessionProfile.SessionIdleTimeoutMinutes);
+        options.SlidingExpiration = cookieOptions.SlidingExpiration;
+        options.ReturnUrlParameter = "returnUrl";
+        options.EventsType = eventsType;
+    }
+
+    private static void ConfigureProtectedPolicy(AuthorizationPolicyBuilder policy)
+    {
+        policy.AuthenticationSchemes.Add(AppCookieScheme);
+        policy.RequireAuthenticatedUser();
+    }
+
+    private static bool ShouldUseAdministrativeScheme(PathString path)
+    {
+        string requestPath = path.Value ?? string.Empty;
+        return requestPath.StartsWith("/Admin", StringComparison.OrdinalIgnoreCase)
+            || requestPath.StartsWith("/api/admin", StringComparison.OrdinalIgnoreCase);
     }
 }

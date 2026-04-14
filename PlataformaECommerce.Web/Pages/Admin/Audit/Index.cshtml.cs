@@ -17,9 +17,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Audit
     /// agregado, módulo, actor, correlación y rango temporal, facilitando tareas de
     /// soporte, seguimiento operativo e investigación funcional.
     /// </remarks>
-    [Authorize(
-        Policy = AuthorizationPolicies.AdminOnly,
-        AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
     public sealed class IndexModel : PageModel
     {
         private const int MaxVisiblePageLinks = 5;

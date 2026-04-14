@@ -80,7 +80,7 @@ public class AuthorizationPoliciesTests
             .SingleOrDefault();
 
         Assert.That(attribute?.Policy, Is.EqualTo(AuthorizationPolicies.SuperUserOnly));
-        Assert.That(attribute?.AuthenticationSchemes, Is.EqualTo(AuthorizationPolicies.AdminCookieScheme));
+        Assert.That(attribute?.AuthenticationSchemes, Is.Null.Or.Empty);
     }
 
     [Test]
@@ -129,7 +129,7 @@ public class AuthorizationPoliciesTests
         Assert.That(options.Cookie.HttpOnly, Is.True);
         Assert.That(options.Cookie.SameSite, Is.EqualTo(SameSiteMode.Lax));
         Assert.That(options.Cookie.SecurePolicy, Is.EqualTo(CookieSecurePolicy.Always));
-        Assert.That(options.ExpireTimeSpan, Is.EqualTo(TimeSpan.FromHours(8)));
+        Assert.That(options.ExpireTimeSpan, Is.EqualTo(TimeSpan.FromHours(1)));
         Assert.That(options.SlidingExpiration, Is.True);
     }
 
@@ -184,7 +184,7 @@ public class AuthorizationPoliciesTests
             .SingleOrDefault();
 
         Assert.That(attribute?.Policy, Is.EqualTo(AuthorizationPolicies.CustomerOnly));
-        Assert.That(attribute?.AuthenticationSchemes, Is.EqualTo(AuthorizationPolicies.CustomerCookieScheme));
+        Assert.That(attribute?.AuthenticationSchemes, Is.Null.Or.Empty);
     }
 
     [Test]
@@ -195,7 +195,7 @@ public class AuthorizationPoliciesTests
             .SingleOrDefault();
 
         Assert.That(attribute?.Policy, Is.EqualTo(AuthorizationPolicies.SuperUserOnly));
-        Assert.That(attribute?.AuthenticationSchemes, Is.EqualTo(AuthorizationPolicies.AdminCookieScheme));
+        Assert.That(attribute?.AuthenticationSchemes, Is.Null.Or.Empty);
     }
 
     private static ClaimsPrincipal CreatePrincipal(string primaryRole, string[] roles, bool isSuperUser)

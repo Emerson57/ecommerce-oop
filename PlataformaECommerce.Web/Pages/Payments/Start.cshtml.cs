@@ -12,9 +12,7 @@ namespace PlataformaECommerce.Web.Pages.Payments;
 /// <summary>
 /// Inicia una sesión de checkout externa para un pedido del cliente autenticado.
 /// </summary>
-[Authorize(
-    Policy = AuthorizationPolicies.CustomerOnly,
-    AuthenticationSchemes = AuthorizationPolicies.CustomerCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.CustomerOnly)]
 public sealed class StartModel : PageModel
 {
     private const string PaymentStartSource = "Web.Payments.Start";

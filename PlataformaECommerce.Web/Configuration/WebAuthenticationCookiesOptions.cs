@@ -15,16 +15,24 @@ public sealed class WebAuthenticationCookiesOptions
     public const string SectionName = "AuthenticationCookies";
 
     /// <summary>
-    /// Tiempo máximo de inactividad permitido para una sesión autenticada antes de expirar.
+    /// Perfil de expiración y persistencia aplicado a la cookie administrativa.
     /// </summary>
-    [Range(5, 1440)]
-    public int SessionIdleTimeoutMinutes { get; set; } = 480;
+    [Required]
+    public WebAuthenticationCookieProfileOptions Administrative { get; set; } = new()
+    {
+        SessionIdleTimeoutMinutes = 60,
+        PersistentSessionAbsoluteLifetimeHours = 8
+    };
 
     /// <summary>
-    /// Vida útil absoluta máxima permitida para sesiones persistentes.
+    /// Perfil de expiración y persistencia aplicado a la cookie de clientes.
     /// </summary>
-    [Range(1, 168)]
-    public int PersistentSessionAbsoluteLifetimeHours { get; set; } = 24;
+    [Required]
+    public WebAuthenticationCookieProfileOptions Customer { get; set; } = new()
+    {
+        SessionIdleTimeoutMinutes = 480,
+        PersistentSessionAbsoluteLifetimeHours = 24
+    };
 
     /// <summary>
     /// Indica si la cookie puede renovarse automáticamente mientras la sesión siga activa.

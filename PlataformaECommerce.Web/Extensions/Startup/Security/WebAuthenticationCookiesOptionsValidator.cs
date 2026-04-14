@@ -14,14 +14,22 @@ internal sealed class WebAuthenticationCookiesOptionsValidator : IValidateOption
 
         List<string> failures = [];
 
-        if (options.SessionIdleTimeoutMinutes < 5)
+        ValidateCookieProfile(failures, "Administrative", options.Administrative);
+        ValidateCookieProfile(failures, "Customer", options.Customer);
+
+        if (!options.HttpOnly)
         {
-            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:SessionIdleTimeoutMinutes' debe ser igual o mayor a 5.");
+            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:HttpOnly' debe permanecer habilitada para cookies autenticadas.");
         }
 
-        if (options.PersistentSessionAbsoluteLifetimeHours * 60 < options.SessionIdleTimeoutMinutes)
+        if (options.SecurePolicy != Microsoft.AspNetCore.Http.CookieSecurePolicy.Always)
         {
-            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:PersistentSessionAbsoluteLifetimeHours' debe ser mayor o igual que la expiración por inactividad.");
+            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:SecurePolicy' debe ser 'Always' para evitar transporte inseguro de credenciales.");
+        }
+
+        if (options.SameSite == Microsoft.AspNetCore.Http.SameSiteMode.Unspecified)
+        {
+            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:SameSite' debe ser explícita para evitar comportamiento ambiguo entre navegadores.");
         }
 
         if (options.SameSite == Microsoft.AspNetCore.Http.SameSiteMode.None
@@ -39,6 +47,28 @@ internal sealed class WebAuthenticationCookiesOptionsValidator : IValidateOption
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    private static void ValidateCookieProfile(
+        ICollection<string> failures,
+        string profileName,
+        WebAuthenticationCookieProfileOptions? profile)
+    {
+        if (profile is null)
+        {
+            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:{profileName}' es obligatoria.");
+            return;
+        }
+
+        if (profile.SessionIdleTimeoutMinutes < 5)
+        {
+            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:{profileName}:SessionIdleTimeoutMinutes' debe ser igual o mayor a 5.");
+        }
+
+        if (profile.PersistentSessionAbsoluteLifetimeHours * 60 < profile.SessionIdleTimeoutMinutes)
+        {
+            failures.Add($"La configuración '{WebAuthenticationCookiesOptions.SectionName}:{profileName}:PersistentSessionAbsoluteLifetimeHours' debe ser mayor o igual que la expiración por inactividad.");
+        }
     }
 
     private static bool IsValidSharedCookieDomain(string value)

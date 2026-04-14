@@ -185,8 +185,11 @@ public class LoginPageModelTests
         FakeAuthenticationService authenticationService = new();
         WebAuthenticationCookiesOptions cookieOptions = new()
         {
-            SessionIdleTimeoutMinutes = 120,
-            PersistentSessionAbsoluteLifetimeHours = 72,
+            Customer = new WebAuthenticationCookieProfileOptions
+            {
+                SessionIdleTimeoutMinutes = 120,
+                PersistentSessionAbsoluteLifetimeHours = 72
+            },
             SlidingExpiration = true
         };
         LoginModel pageModel = CreatePageModel(customer, authenticationService, cookieOptions);

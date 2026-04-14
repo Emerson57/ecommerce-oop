@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace PlataformaECommerce.Web.Authorization;
 
@@ -10,14 +11,18 @@ namespace PlataformaECommerce.Web.Authorization;
 public sealed class CustomerCookieAuthenticationEvents : CookieAuthenticationEvents
 {
     private readonly CustomerCookieSecurityService _securityService;
+    private readonly ILogger<CustomerCookieAuthenticationEvents> _logger;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="CustomerCookieAuthenticationEvents"/>.
     /// </summary>
     /// <param name="securityService">Servicio de validación de sesión de clientes.</param>
-    public CustomerCookieAuthenticationEvents(CustomerCookieSecurityService securityService)
+    public CustomerCookieAuthenticationEvents(
+        CustomerCookieSecurityService securityService,
+        ILogger<CustomerCookieAuthenticationEvents> logger)
     {
         _securityService = securityService ?? throw new ArgumentNullException(nameof(securityService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc />
@@ -31,6 +36,11 @@ public sealed class CustomerCookieAuthenticationEvents : CookieAuthenticationEve
 
         if (!isValid)
         {
+            _logger.LogWarning(
+                "Se revocó una sesión de cliente inválida. UserId: {UserId}. RemoteIp: {RemoteIp}.",
+                context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                context.HttpContext.Connection.RemoteIpAddress?.ToString());
+
             context.RejectPrincipal();
             await context.HttpContext.SignOutAsync(AuthorizationPolicies.CustomerCookieScheme).ConfigureAwait(false);
         }
@@ -41,7 +51,7 @@ public sealed class CustomerCookieAuthenticationEvents : CookieAuthenticationEve
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (IsApiRequest(context.HttpContext.Request))
+        if (CookieAuthenticationRequestClassifier.ShouldReturnStatusCode(context.HttpContext.Request))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
@@ -55,19 +65,12 @@ public sealed class CustomerCookieAuthenticationEvents : CookieAuthenticationEve
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (IsApiRequest(context.HttpContext.Request))
+        if (CookieAuthenticationRequestClassifier.ShouldReturnStatusCode(context.HttpContext.Request))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
         }
 
         return base.RedirectToAccessDenied(context);
-    }
-
-    private static bool IsApiRequest(HttpRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        return request.Path.StartsWithSegments("/api");
     }
 }

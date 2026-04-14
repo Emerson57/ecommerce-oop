@@ -1,12 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Repositories.Users;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Domain.Entities.Users;
 using PlataformaECommerce.Domain.Enums;
-using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Web.Authorization;
 
@@ -23,7 +21,6 @@ public sealed class AdminCookieSecurityService
 {
     private readonly IUserRepository _userRepository;
     private readonly ITenantContextAccessor _tenantContextAccessor;
-    private readonly WebAuthenticationCookiesOptions _cookieOptions;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="AdminCookieSecurityService"/>.
@@ -32,14 +29,10 @@ public sealed class AdminCookieSecurityService
     /// <param name="tenantContextAccessor">Accesor al tenant resuelto para la solicitud actual.</param>
     public AdminCookieSecurityService(
         IUserRepository userRepository,
-        ITenantContextAccessor tenantContextAccessor,
-        IOptions<WebAuthenticationCookiesOptions> cookieOptions)
+        ITenantContextAccessor tenantContextAccessor)
     {
-        ArgumentNullException.ThrowIfNull(cookieOptions);
-
         _userRepository = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
         _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
-        _cookieOptions = cookieOptions.Value;
     }
 
     /// <summary>
@@ -59,7 +52,7 @@ public sealed class AdminCookieSecurityService
             return false;
         }
 
-        if (!HasValidSessionLifetime(properties, _cookieOptions))
+        if (!CookieAuthenticationSessionProperties.HasValidAbsoluteLifetime(properties))
         {
             return false;
         }
@@ -92,25 +85,18 @@ public sealed class AdminCookieSecurityService
             : null;
     }
 
-    private static bool HasValidSessionLifetime(AuthenticationProperties? properties, WebAuthenticationCookiesOptions cookieOptions)
+    private static bool HasConsistentAdministrativeClaims(Administrador actor, ClaimsPrincipal principal)
     {
-        ArgumentNullException.ThrowIfNull(cookieOptions);
-
-        DateTimeOffset? issuedUtc = properties?.IssuedUtc;
-        if (!issuedUtc.HasValue)
+        if (!string.Equals(principal.FindFirstValue(ClaimTypes.Email), actor.CorreoElectronico.Value, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        TimeSpan allowedLifetime = properties?.IsPersistent == true
-            ? TimeSpan.FromHours(cookieOptions.PersistentSessionAbsoluteLifetimeHours)
-            : TimeSpan.FromMinutes(cookieOptions.SessionIdleTimeoutMinutes);
+        if (!string.Equals(principal.Identity?.Name, actor.Nombre, StringComparison.Ordinal))
+        {
+            return false;
+        }
 
-        return DateTimeOffset.UtcNow <= issuedUtc.Value.Add(allowedLifetime);
-    }
-
-    private static bool HasConsistentAdministrativeClaims(Administrador actor, ClaimsPrincipal principal)
-    {
         string? primaryRole = principal.FindFirstValue(AuthorizationPolicies.PrimaryRoleClaimType);
         if (!string.Equals(primaryRole, actor.Rol.ToString(), StringComparison.Ordinal))
         {

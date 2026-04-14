@@ -52,7 +52,7 @@ public sealed class AdminCookieAuthenticationEvents : CookieAuthenticationEvents
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (IsApiRequest(context.HttpContext.Request))
+        if (CookieAuthenticationRequestClassifier.ShouldReturnStatusCode(context.HttpContext.Request))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return Task.CompletedTask;
@@ -66,19 +66,12 @@ public sealed class AdminCookieAuthenticationEvents : CookieAuthenticationEvents
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (IsApiRequest(context.HttpContext.Request))
+        if (CookieAuthenticationRequestClassifier.ShouldReturnStatusCode(context.HttpContext.Request))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
         }
 
         return base.RedirectToAccessDenied(context);
-    }
-
-    private static bool IsApiRequest(HttpRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        return request.Path.StartsWithSegments("/api");
     }
 }

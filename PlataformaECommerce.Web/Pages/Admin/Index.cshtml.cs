@@ -16,9 +16,7 @@ namespace PlataformaECommerce.Web.Pages.Admin;
 /// Esta página actúa como punto de entrada del panel interno y resume el acceso
 /// operativo hacia auditoría, catálogo y futuros módulos administrativos.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.AdminOnly,
-    AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public sealed class IndexModel : PageModel
 {
     private readonly IAdminDashboardService _adminDashboardService;

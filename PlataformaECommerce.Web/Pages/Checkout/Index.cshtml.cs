@@ -22,9 +22,7 @@ namespace PlataformaECommerce.Web.Pages.Checkout;
 /// Esta página consolida la experiencia de checkout reutilizando los módulos de carrito y pedidos,
 /// permitiendo confirmar la compra desde Razor Pages sin duplicar reglas de negocio en la UI.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.CustomerOnly,
-    AuthenticationSchemes = AuthorizationPolicies.CustomerCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.CustomerOnly)]
 public sealed class IndexModel : PageModel
 {
     private const string CheckoutSource = "Web.Checkout.Index";

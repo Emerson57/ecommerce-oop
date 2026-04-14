@@ -23,9 +23,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Users;
 /// Esta página concentra la consulta segura de usuarios del sistema y expone la acción
 /// controlada de restablecimiento administrativo de contraseña para sesiones de super usuario.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.SuperUserOnly,
-    AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.SuperUserOnly)]
 [EnableRateLimiting(RateLimitingOptions.AdministrationPolicyName)]
 public sealed class IndexModel : PageModel
 {

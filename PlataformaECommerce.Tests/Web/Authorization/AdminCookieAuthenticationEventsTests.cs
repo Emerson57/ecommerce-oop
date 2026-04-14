@@ -4,11 +4,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Web.Authorization;
-using PlataformaECommerce.Web.Configuration;
 
 namespace PlataformaECommerce.Tests.Web.Authorization;
 
@@ -37,7 +35,7 @@ public class AdminCookieAuthenticationEventsTests
             AuthorizationPolicies.AdminCookieScheme);
         CookieValidatePrincipalContext context = new(httpContext, scheme, options, ticket);
         AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())),
+            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
             NullLogger<AdminCookieAuthenticationEvents>.Instance);
 
         await events.ValidatePrincipal(context);
@@ -54,7 +52,7 @@ public class AdminCookieAuthenticationEventsTests
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
         AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())),
+            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
             NullLogger<AdminCookieAuthenticationEvents>.Instance);
 
         await events.RedirectToLogin(context);
@@ -71,7 +69,7 @@ public class AdminCookieAuthenticationEventsTests
 
         RedirectContext<CookieAuthenticationOptions> context = CreateRedirectContext(httpContext);
         AdminCookieAuthenticationEvents events = new(
-            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo"), Options.Create(new WebAuthenticationCookiesOptions())),
+            new AdminCookieSecurityService(new FakeUserRepository(), new FakeTenantContextAccessor("tenant-demo")),
             NullLogger<AdminCookieAuthenticationEvents>.Instance);
 
         await events.RedirectToAccessDenied(context);

@@ -18,9 +18,7 @@ namespace PlataformaECommerce.Web.Pages.Cart;
 /// Esta página reutiliza los casos de uso existentes del módulo de carrito para mostrar,
 /// crear y modificar el carrito activo del cliente sin exponer lógica de dominio en la UI.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.CustomerOnly,
-    AuthenticationSchemes = AuthorizationPolicies.CustomerCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.CustomerOnly)]
 public sealed class IndexModel : PageModel
 {
     private const string CartSource = "Web.Cart.Index";

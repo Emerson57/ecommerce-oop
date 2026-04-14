@@ -29,4 +29,9 @@ public static class SecurityClaimTypes
     /// Claim que representa el tenant efectivo asociado al contexto autenticado.
     /// </summary>
     public const string TenantId = "tenant_id";
+
+    /// <summary>
+    /// Claim reservado para permisos finos emitidos por la plataforma.
+    /// </summary>
+    public const string Permission = "permission";
 }

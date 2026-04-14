@@ -14,9 +14,7 @@ namespace PlataformaECommerce.Web.Pages.Admin.Operations;
 /// <summary>
 /// Expone la ficha operativa del cliente activo, soporte y trazabilidad del backoffice.
 /// </summary>
-[Authorize(
-    Policy = AuthorizationPolicies.AdminOnly,
-    AuthenticationSchemes = AuthorizationPolicies.AdminCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]
 public sealed class IndexModel : PageModel
 {
     private readonly RequestCorrelationOptions _requestCorrelationOptions;

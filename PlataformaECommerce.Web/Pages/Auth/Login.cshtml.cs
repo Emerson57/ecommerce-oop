@@ -125,7 +125,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 return Page();
             }
 
-            if (!TryBuildAuthenticatedSession(result.Value.User, _tenantContextAccessor.TenantId, out ClaimsPrincipal? principal, out string authenticationScheme, out string redirectPage))
+            if (!AuthenticatedSessionFactory.TryCreate(result.Value.User, _tenantContextAccessor.TenantId, out AuthenticatedSession? authenticatedSession))
             {
                 _logger.LogWarning(
                     "Se rechazó la emisión de sesión autenticada por inconsistencia de identidad. UserId: {UserId}. Email: {Email}. Role: {Role}. IsSuperUser: {IsSuperUser}",
@@ -138,16 +138,16 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 return Page();
             }
 
-            LogAuthenticationSuccess(result.Value.User, authenticationScheme, redirectPage);
+            LogAuthenticationSuccess(result.Value.User, authenticatedSession.AuthenticationScheme, authenticatedSession.RedirectPage);
 
-            AuthenticationProperties authenticationProperties = CreateAuthenticationProperties();
+            AuthenticationProperties authenticationProperties = CreateAuthenticationProperties(authenticatedSession.AuthenticationScheme);
 
             await HttpContext.SignOutAsync(AuthorizationPolicies.AdminCookieScheme);
             await HttpContext.SignOutAsync(AuthorizationPolicies.CustomerCookieScheme);
 
             await HttpContext.SignInAsync(
-                authenticationScheme,
-                principal!,
+                authenticatedSession.AuthenticationScheme,
+                authenticatedSession.Principal,
                 authenticationProperties);
 
             if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
@@ -155,7 +155,7 @@ namespace PlataformaECommerce.Web.Pages.Auth
                 return LocalRedirect(ReturnUrl);
             }
 
-            return RedirectToPage(redirectPage);
+            return RedirectToPage(authenticatedSession.RedirectPage);
         }
 
         private void LogAuthenticationSuccess(CurrentUserDto user, string authenticationScheme, string redirectPage)
@@ -196,195 +196,13 @@ namespace PlataformaECommerce.Web.Pages.Auth
             };
         }
 
-        private AuthenticationProperties CreateAuthenticationProperties()
+        private AuthenticationProperties CreateAuthenticationProperties(string authenticationScheme)
         {
-            DateTimeOffset issuedAtUtc = DateTimeOffset.UtcNow;
-            TimeSpan absoluteLifetime = Input.RememberMe
-                ? TimeSpan.FromHours(_authenticationCookiesOptions.PersistentSessionAbsoluteLifetimeHours)
-                : TimeSpan.FromMinutes(_authenticationCookiesOptions.SessionIdleTimeoutMinutes);
-
-            return new AuthenticationProperties
-            {
-                IsPersistent = Input.RememberMe,
-                AllowRefresh = _authenticationCookiesOptions.SlidingExpiration,
-                IssuedUtc = issuedAtUtc,
-                ExpiresUtc = issuedAtUtc.Add(absoluteLifetime)
-            };
-        }
-
-        private static bool TryBuildAuthenticatedSession(
-            CurrentUserDto user,
-            string tenantId,
-            out ClaimsPrincipal? principal,
-            out string authenticationScheme,
-            out string redirectPage)
-        {
-            ArgumentNullException.ThrowIfNull(user);
-
-            if (string.IsNullOrWhiteSpace(tenantId))
-            {
-                principal = null;
-                authenticationScheme = string.Empty;
-                redirectPage = string.Empty;
-                return false;
-            }
-
-            if (TryBuildAdministrativePrincipal(user, tenantId, out principal))
-            {
-                authenticationScheme = AuthorizationPolicies.AdminCookieScheme;
-                redirectPage = "/Admin/Index";
-                return true;
-            }
-
-            if (TryBuildCustomerPrincipal(user, tenantId, out principal))
-            {
-                authenticationScheme = AuthorizationPolicies.CustomerCookieScheme;
-                redirectPage = "/Index";
-                return true;
-            }
-
-            authenticationScheme = string.Empty;
-            redirectPage = string.Empty;
-            principal = null;
-            return false;
-        }
-
-        private static bool TryBuildAdministrativePrincipal(CurrentUserDto user, string tenantId, out ClaimsPrincipal? principal)
-        {
-            ArgumentNullException.ThrowIfNull(user);
-
-            principal = null;
-
-            if (!TryResolvePrimaryAdministrativeRole(user, out RolUsuario primaryRole))
-            {
-                return false;
-            }
-
-            List<string> roles = user.Roles
-                .Where(RolUsuarioExtensions.EsValorDeRolAdministrativo)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-
-            foreach (string effectiveRole in primaryRole.ObtenerRolesEfectivos())
-            {
-                if (!roles.Contains(effectiveRole, StringComparer.Ordinal))
-                {
-                    roles.Add(effectiveRole);
-                }
-            }
-
-            List<Claim> claims =
-            [
-                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new(ClaimTypes.Name, user.DisplayName),
-                new(ClaimTypes.Email, user.Email),
-                new(SecurityClaimTypes.TenantId, tenantId.Trim()),
-                new(SecurityClaimTypes.PrimaryRole, primaryRole.ToString()),
-                new(SecurityClaimTypes.AdminArea, user.Area ?? "Operaciones"),
-                new(SecurityClaimTypes.IsSuperUser, user.IsSuperUser.ToString())
-            ];
-
-            foreach (string role in roles)
-            {
-                claims.Add(new Claim(ClaimTypes.Role, role));
-            }
-
-            ClaimsIdentity identity = new(claims, AuthorizationPolicies.AdminCookieScheme);
-            principal = new ClaimsPrincipal(identity);
-            return true;
-        }
-
-        private static bool TryBuildCustomerPrincipal(CurrentUserDto user, string tenantId, out ClaimsPrincipal? principal)
-        {
-            ArgumentNullException.ThrowIfNull(user);
-
-            principal = null;
-
-            if (!TryResolveCustomerRole(user, out RolUsuario primaryRole))
-            {
-                return false;
-            }
-
-            List<Claim> claims =
-            [
-                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new(ClaimTypes.Name, user.DisplayName),
-                new(ClaimTypes.Email, user.Email),
-                new(SecurityClaimTypes.TenantId, tenantId.Trim()),
-                new(SecurityClaimTypes.PrimaryRole, primaryRole.ToString()),
-                new(SecurityClaimTypes.IsSuperUser, bool.FalseString),
-                new(ClaimTypes.Role, primaryRole.ToString())
-            ];
-
-            ClaimsIdentity identity = new(claims, AuthorizationPolicies.CustomerCookieScheme);
-            principal = new ClaimsPrincipal(identity);
-            return true;
-        }
-
-        private static bool TryResolvePrimaryAdministrativeRole(CurrentUserDto user, out RolUsuario primaryRole)
-        {
-            if (user.IsSuperUser)
-            {
-                primaryRole = RolUsuario.SuperUsuario;
-                return string.Equals(user.Role, RolUsuario.SuperUsuario.ToString(), StringComparison.Ordinal)
-                    || user.Roles.Any(role => string.Equals(role, RolUsuario.SuperUsuario.ToString(), StringComparison.Ordinal));
-            }
-
-            if (Enum.TryParse(user.Role, ignoreCase: true, out RolUsuario parsedRole)
-                && parsedRole.EsAdministrativo())
-            {
-                if (parsedRole == RolUsuario.SuperUsuario)
-                {
-                    primaryRole = default;
-                    return false;
-                }
-
-                primaryRole = parsedRole;
-                return true;
-            }
-
-            if (AuthorizationPolicies.IsAdministrativeUser(user.Roles))
-            {
-                if (user.Roles.Any(role => string.Equals(role, RolUsuario.SuperUsuario.ToString(), StringComparison.Ordinal)))
-                {
-                    primaryRole = default;
-                    return false;
-                }
-
-                primaryRole = RolUsuario.Administrador;
-                return true;
-            }
-
-            primaryRole = default;
-            return false;
-        }
-
-        private static bool TryResolveCustomerRole(CurrentUserDto user, out RolUsuario primaryRole)
-        {
-            ArgumentNullException.ThrowIfNull(user);
-
-            if (user.IsSuperUser)
-            {
-                primaryRole = default;
-                return false;
-            }
-
-            if (Enum.TryParse(user.Role, ignoreCase: true, out RolUsuario parsedRole)
-                && parsedRole == RolUsuario.Cliente)
-            {
-                primaryRole = parsedRole;
-                return user.Roles.Count == 0 || user.Roles.All(role => string.Equals(role, RolUsuario.Cliente.ToString(), StringComparison.Ordinal));
-            }
-
-            bool hasOnlyCustomerRoles = user.Roles.Count > 0 && user.Roles.All(role => string.Equals(role, RolUsuario.Cliente.ToString(), StringComparison.Ordinal));
-            if (hasOnlyCustomerRoles)
-            {
-                primaryRole = RolUsuario.Cliente;
-                return true;
-            }
-
-            primaryRole = default;
-            return false;
+            WebAuthenticationCookieProfileOptions cookieProfile = AuthorizationPolicies.GetCookieProfile(authenticationScheme, _authenticationCookiesOptions);
+            return CookieAuthenticationSessionProperties.Create(
+                cookieProfile,
+                Input.RememberMe,
+                _authenticationCookiesOptions.SlidingExpiration);
         }
 
         /// <summary>

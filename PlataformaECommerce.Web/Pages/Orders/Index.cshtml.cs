@@ -19,9 +19,7 @@ namespace PlataformaECommerce.Web.Pages.Orders;
 /// orientado al cliente, manteniendo aislamiento respecto del backoffice y filtrando
 /// únicamente los pedidos pertenecientes a la cuenta autenticada.
 /// </remarks>
-[Authorize(
-    Policy = AuthorizationPolicies.CustomerOnly,
-    AuthenticationSchemes = AuthorizationPolicies.CustomerCookieScheme)]
+[Authorize(Policy = AuthorizationPolicies.CustomerOnly)]
 public sealed class IndexModel : PageModel
 {
     private const string OrdersSource = "Web.Orders.Index";
