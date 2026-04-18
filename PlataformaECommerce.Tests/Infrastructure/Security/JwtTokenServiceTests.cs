@@ -59,7 +59,8 @@ public class JwtTokenServiceTests
         {
             Issuer = "PlataformaECommerce.Tests",
             Audience = "PlataformaECommerce.Tests.Clients",
-            SigningKey = "PlataformaECommerce.Tests.Signing.Key.2026!",
+            // Generate a test-only signing key at runtime to avoid committing secrets
+            SigningKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(48)),
             AccessTokenExpirationMinutes = 30,
             RefreshTokenExpirationDays = 7,
             RequireHttpsMetadata = false

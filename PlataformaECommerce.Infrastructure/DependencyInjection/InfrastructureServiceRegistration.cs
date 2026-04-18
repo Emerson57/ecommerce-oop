@@ -106,6 +106,7 @@ public static class InfrastructureServiceRegistration
         services
             .AddOptions<JwtSettings>()
             .Bind(configuration.GetSection(JwtSettings.SectionName))
+            .ValidateDataAnnotations()
             .Validate(settings => HasValidJwtSettings(settings, hostEnvironment), BuildJwtValidationMessage(hostEnvironment))
             .ValidateOnStart();
 

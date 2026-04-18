@@ -16,8 +16,9 @@ public static class PlatformHostConfigurationExtensions
         builder.Configuration
             .AddModularConfigurationSources(builder.Environment)
             .AddLocalDevelopmentConfigurationSources(builder.Environment)
-            .AddSecretAliasConfigurationSources()
-            .AddRuntimeOverrideConfigurationSources(args);
+            // Apply runtime overrides (environment variables, command line) before resolving secret aliases
+            .AddRuntimeOverrideConfigurationSources(args)
+            .AddSecretAliasConfigurationSources();
 
         return builder;
     }
