@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Git pre-commit hook (POSIX shell)
+# This hook runs the repository secret scanner and fails the commit if secrets are detected.
+# It is intended to be used with `git config core.hooksPath .githooks` (see scripts/install-git-hooks.ps1)
+
+set -euo pipefail
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+HOOK_DIR="$REPO_ROOT/.githooks"
+
+echo "[pre-commit] Running repository secret scan..."
+
+# Prefer bash scanner if available
+if [ -x "$REPO_ROOT/scripts/secret-scan.sh" ]; then
+  "$REPO_ROOT/scripts/secret-scan.sh" "$REPO_ROOT"
+  EXIT_CODE=$?
+else
+  # Try PowerShell Core if installed
+  if command -v pwsh >/dev/null 2>&1; then
+    pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass "$REPO_ROOT/scripts/secret-scan.ps1" -Path "$REPO_ROOT"
+    EXIT_CODE=$?
+  elif command -v powershell.exe >/dev/null 2>&1; then
+    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$REPO_ROOT/scripts/secret-scan.ps1" -Path "$REPO_ROOT"
+    EXIT_CODE=$?
+  else
+    echo "No scanner available (neither scripts/secret-scan.sh nor pwsh). Skipping secret scan." >&2
+    EXIT_CODE=0
+  fi
+fi
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "Commit blocked: secret scan failed. Fix the reported issues or update the scanner config if this is a false positive." >&2
+  exit $EXIT_CODE
+fi
+
+exit 0

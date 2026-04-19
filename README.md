@@ -326,3 +326,28 @@ PlataformaECommerce es hoy una base profesional para un producto de comercio ele
 - preparación SaaS;
 - pruebas automatizadas;
 - composition root y startup organizados de forma mantenible.
+
+## CI Secret Scan
+
+This repository includes a minimal secret-scanner to prevent accidental inclusion of secrets in CI/publish artifacts.
+
+Files added:
+- `scripts/secret-scan.ps1` - PowerShell scanner for Windows CI.
+- `scripts/secret-scan.sh` - Bash scanner for Linux CI.
+- `.github/workflows/secret-scan.yml` - example GitHub Actions workflow that runs the scanner.
+
+How it works:
+- Scans repository files for heuristic patterns: JWT signing keys, connection strings, "Password=" entries, user ids, server/database strings and files ending with `.local.json`.
+- Fails the CI job if likely secrets are detected.
+
+Usage locally:
+- Windows: `pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass .\\scripts\\secret-scan.ps1 -Path .`
+- Linux/macOS: `./scripts/secret-scan.sh .`
+
+Limitations:
+- Heuristic-based: may produce false positives or false negatives. Review findings manually.
+- Not a replacement for secret scanning tools like TruffleHog, GitLeaks or commercial scanners.
+- Does not remove secrets from git history.
+- Should be combined with repository policies (branch protection) and secrets management best practices.
+
+Add the scanner as a step in your own pipelines (Azure Pipelines, GitLab CI, etc) by invoking the relevant script before build/publish steps.

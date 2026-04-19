@@ -1,0 +1,12 @@
+repos:
+  - repo: local
+    hooks:
+      - id: secret-scan
+        name: secret-scan
+        entry: bash -c './scripts/secret-scan.sh . || (pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass ./scripts/secret-scan.ps1 -Path .)'
+        language: system
+        files: '\.(json|config|xml|env|txt|ya?ml|ps1|sh|cs|ini)$'
+        stages: [commit]
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: ''
+    hooks: []
