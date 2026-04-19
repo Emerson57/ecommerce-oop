@@ -1,4 +1,6 @@
 using PlataformaECommerce.Application.Features.Products.Commands;
+using PlataformaECommerce.Application.Features.Products.DTOs;
+using PlataformaECommerce.Application.Features.Products.Mappings;
 using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Features.Products.Services;
 using PlataformaECommerce.Application.Features.Products.Validators;

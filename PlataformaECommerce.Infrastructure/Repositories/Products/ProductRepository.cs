@@ -133,8 +133,10 @@ public sealed class ProductRepository : IProductRepository
                 CurrentDiscountPercentage = p.DescuentoPromocionalActual,
                 Slug = p.Slug,
                 MainImageUrl = p.ImagenPrincipalUrl,
-                ImageGallery = string.IsNullOrEmpty(p.GaleriaImagenesSerializadas) ? Array.Empty<string>() : System.Text.Json.JsonSerializer.Deserialize<string[]>(p.GaleriaImagenesSerializadas)!,
-                ProductType = Enum.TryParse<TipoProducto>(p.TipoProducto, true, out var tt) ? tt : TipoProducto.Fisico,
+                // Avoid JSON deserialization inside EF projection to keep translation to SQL.
+                // For listings we return empty gallery and keep heavy fields for detail endpoints.
+                ImageGallery = Array.Empty<string>(),
+                ProductType = p.TipoProducto != null && p.TipoProducto.ToLower() == "digital" ? TipoProducto.Digital : TipoProducto.Fisico,
                 CategoryId = p.CategoriaId,
                 SubcategoryId = p.SubcategoriaId,
                 CreatedAtUtc = p.FechaCreacionUtc,
