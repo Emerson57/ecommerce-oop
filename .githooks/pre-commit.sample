@@ -1,0 +1,16 @@
+#!/bin/sh
+# Sample pre-commit hook to prevent committing local secrets
+# Usage: copy to .git/hooks/pre-commit and make it executable
+
+echo "Running pre-commit checks for local secret files..."
+for file in "$(git diff --cached --name-only)"; do
+  case "$file" in
+    *.local.json|*.Local.json|secrets.json|*.secrets.json)
+      echo "ERROR: Attempt to commit a local secret file: $file"
+      echo "Remove it or add it to .gitignore before committing."
+      exit 1
+      ;;
+  esac
+done
+
+exit 0

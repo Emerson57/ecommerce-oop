@@ -57,6 +57,7 @@ public static class ConfigurationExtensions
             return configuration;
         }
 
+        // Load local overlay files only in Development and mark them optional to avoid startup failures
         configuration
             .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
             .AddJsonFile($"appsettings.{hostEnvironment.EnvironmentName}.local.json", optional: true, reloadOnChange: true)

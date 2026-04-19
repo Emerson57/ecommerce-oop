@@ -20,6 +20,15 @@ appsettings.*.secrets.json
 **/appsettings.Local.json
 **/appsettings.*.local.json
 **/appsettings.*.secrets.json
+# Specific local and user secrets patterns
+**/appsettings.*.Local.json
+**/appsettings.*.local.json
+**/secrets.json
+**/*.secrets.json
+secrets.json
+*.Local.json
+*.local.json
+appsettings.*.local.*
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
