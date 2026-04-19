@@ -53,68 +53,8 @@ public sealed class ProductQueryService : IProductQueryService
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        IEnumerable<Producto> products = await _productRepository.GetAllAsync(cancellationToken);
-
-        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
-        {
-            string term = query.SearchTerm.Trim();
-            products = products.Where(product =>
-                product.Nombre.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                product.Descripcion.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                product.Sku.Value.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                product.Slug.Contains(term, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (query.ProductType.HasValue)
-        {
-            products = products.Where(product => product.TipoProducto == query.ProductType.Value);
-        }
-
-        if (query.CategoryId.HasValue)
-        {
-            products = products.Where(product => product.CategoriaId == query.CategoryId.Value || product.SubcategoriaId == query.CategoryId.Value);
-        }
-
-        if (query.IsActive.HasValue)
-        {
-            products = products.Where(product => product.Activo == query.IsActive.Value);
-        }
-
-        if (query.IsFeatured.HasValue)
-        {
-            products = products.Where(product => product.Destacado == query.IsFeatured.Value);
-        }
-
-        if (query.HasStock.HasValue)
-        {
-            products = query.HasStock.Value
-                ? products.Where(product => product.Stock > 0)
-                : products.Where(product => product.Stock <= 0);
-        }
-
-        if (query.MinPrice.HasValue)
-        {
-            products = products.Where(product => product.Precio.Amount >= query.MinPrice.Value);
-        }
-
-        if (query.MaxPrice.HasValue)
-        {
-            products = products.Where(product => product.Precio.Amount <= query.MaxPrice.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Currency))
-        {
-            string currency = query.Currency.Trim().ToUpperInvariant();
-            products = products.Where(product => product.Precio.Currency.Equals(currency, StringComparison.OrdinalIgnoreCase));
-        }
-
-        products = ProductServiceSupport.ApplySorting(products, query);
-
-        int totalCount = products.Count();
-        IReadOnlyCollection<ProductDto> items = products
-            .Skip(query.Offset)
-            .Take(query.NormalizedPageSize)
-            .ToProductDtos();
+        // Delegate filtering, sorting and paging to repository to execute in SQL via EF Core
+        (IReadOnlyCollection<ProductDto> items, int totalCount) = await _productRepository.QueryProductsAsync(query, cancellationToken);
 
         int totalPages = totalCount == 0
             ? 0

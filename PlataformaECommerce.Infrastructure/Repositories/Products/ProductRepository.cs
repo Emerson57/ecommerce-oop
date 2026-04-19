@@ -4,6 +4,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using System.Threading;
+using PlataformaECommerce.Application.Features.Products.DTOs;
+using PlataformaECommerce.Application.Features.Products.Queries;
 using PlataformaECommerce.Application.Interfaces.Repositories.Products;
 using PlataformaECommerce.Domain.Entities.Products;
 using PlataformaECommerce.Domain.Enums;
@@ -32,6 +35,122 @@ public sealed class ProductRepository : IProductRepository
     public ProductRepository(ECommerceDbContext context)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
+    }
+
+    /// <inheritdoc />
+    public async Task<(IReadOnlyCollection<ProductDto> Items, int TotalCount)> QueryProductsAsync(
+        GetProductsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        IQueryable<ProductEntity> q = _context.Products.AsNoTracking();
+
+        // Filters
+        if (!string.IsNullOrWhiteSpace(query.SearchTerm))
+        {
+            string term = query.SearchTerm.Trim();
+            q = q.Where(p => p.Nombre.Contains(term) || p.Descripcion.Contains(term) || p.Sku.Contains(term) || p.Slug.Contains(term));
+        }
+
+        if (query.ProductType.HasValue)
+        {
+            string type = query.ProductType.Value.ToString();
+            q = q.Where(p => p.TipoProducto == type);
+        }
+
+        if (query.CategoryId.HasValue)
+        {
+            Guid cat = query.CategoryId.Value;
+            q = q.Where(p => p.CategoriaId == cat || p.SubcategoriaId == cat);
+        }
+
+        if (query.IsActive.HasValue)
+        {
+            q = q.Where(p => p.Activo == query.IsActive.Value);
+        }
+
+        if (query.IsFeatured.HasValue)
+        {
+            q = q.Where(p => p.Destacado == query.IsFeatured.Value);
+        }
+
+        if (query.HasStock.HasValue)
+        {
+            q = query.HasStock.Value ? q.Where(p => p.Stock > 0) : q.Where(p => p.Stock <= 0);
+        }
+
+        if (query.MinPrice.HasValue)
+        {
+            q = q.Where(p => p.Precio >= query.MinPrice.Value);
+        }
+
+        if (query.MaxPrice.HasValue)
+        {
+            q = q.Where(p => p.Precio <= query.MaxPrice.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Currency))
+        {
+            string currency = query.Currency.Trim().ToUpperInvariant();
+            q = q.Where(p => p.Moneda.ToUpper() == currency);
+        }
+
+        // Total count before pagination
+        int total = await q.CountAsync(cancellationToken);
+
+        // Sorting
+        q = query.SortBy?.ToLowerInvariant() switch
+        {
+            "price" => query.SortDescending ? q.OrderByDescending(p => p.Precio) : q.OrderBy(p => p.Precio),
+            "createdat" => query.SortDescending ? q.OrderByDescending(p => p.FechaCreacionUtc) : q.OrderBy(p => p.FechaCreacionUtc),
+            "updatedat" => query.SortDescending ? q.OrderByDescending(p => p.FechaActualizacionUtc) : q.OrderBy(p => p.FechaActualizacionUtc),
+            "stock" => query.SortDescending ? q.OrderByDescending(p => p.Stock) : q.OrderBy(p => p.Stock),
+            _ => query.SortDescending ? q.OrderByDescending(p => p.Nombre) : q.OrderBy(p => p.Nombre),
+        };
+
+        // Pagination
+        int skip = query.Offset;
+        int take = query.NormalizedPageSize;
+
+        var items = await q
+            .Skip(skip)
+            .Take(take)
+            .Select(p => new ProductDto
+            {
+                Id = p.Id,
+                Name = p.Nombre,
+                Description = p.Descripcion,
+                Sku = p.Sku,
+                Price = p.Precio,
+                BasePrice = p.PrecioBase,
+                PromotionalPrice = p.PrecioPromocionalActual,
+                Currency = p.Moneda,
+                Stock = p.Stock,
+                IsActive = p.Activo,
+                IsFeatured = p.Destacado,
+                HasPromotion = p.PrecioPromocionalActual.HasValue,
+                CurrentDiscountPercentage = p.DescuentoPromocionalActual,
+                Slug = p.Slug,
+                MainImageUrl = p.ImagenPrincipalUrl,
+                ImageGallery = string.IsNullOrEmpty(p.GaleriaImagenesSerializadas) ? Array.Empty<string>() : System.Text.Json.JsonSerializer.Deserialize<string[]>(p.GaleriaImagenesSerializadas)!,
+                ProductType = Enum.TryParse<TipoProducto>(p.TipoProducto, true, out var tt) ? tt : TipoProducto.Fisico,
+                CategoryId = p.CategoriaId,
+                SubcategoryId = p.SubcategoriaId,
+                CreatedAtUtc = p.FechaCreacionUtc,
+                UpdatedAtUtc = p.FechaActualizacionUtc,
+                WeightKg = p.PesoKg,
+                HeightCm = p.AltoCm,
+                WidthCm = p.AnchoCm,
+                LengthCm = p.LargoCm,
+                RequiresShipping = p.RequiereEnvio,
+                FileFormat = p.FormatoArchivo,
+                FileSizeMb = p.TamanoMB,
+                RequiresLicense = p.RequiereLicencia
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return (items, total);
     }
 
     /// <inheritdoc />

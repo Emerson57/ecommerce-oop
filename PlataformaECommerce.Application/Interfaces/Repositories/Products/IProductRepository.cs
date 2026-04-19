@@ -1,4 +1,12 @@
-﻿using PlataformaECommerce.Domain.Entities.Products;
+﻿using System.Linq;
+using System.Text.Json;
+using PlataformaECommerce.Application.Features.Products.DTOs;
+using PlataformaECommerce.Application.Features.Products.Mappings;
+using PlataformaECommerce.Application.Features.Products.Queries;
+using PlataformaECommerce.Domain.Entities.Products;
+using PlataformaECommerce.Application.Features.Products.DTOs;
+using PlataformaECommerce.Application.Features.Products.Queries;
+using PlataformaECommerce.Domain.Enums;
 
 namespace PlataformaECommerce.Application.Interfaces.Repositories.Products;
 
@@ -157,6 +165,36 @@ public interface IProductRepository
     Task RemoveAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+
+    #endregion
+
+    #region Consultas avanzadas (proyecciones para listado)
+
+    /// <summary>
+    /// Consulta productos aplicando filtros, ordenamiento y paginación
+    /// y proyecta directamente a DTOs ligeros para listados.
+    /// </summary>
+    /// <returns>Tupla con items y total count.</returns>
+    Task<(IReadOnlyCollection<ProductDto> Items, int TotalCount)> QueryProductsAsync(
+        GetProductsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        // Default fallback implementation for tests and legacy code: materialize all and project in-memory.
+        // Implementations in Infrastructure should override for SQL execution.
+        ArgumentNullException.ThrowIfNull(query);
+        var list = await GetAllAsync(cancellationToken);
+        var filtered = list.AsEnumerable();
+
+        int total = filtered.Count();
+
+        var items = filtered
+            .Skip(query.Offset)
+            .Take(query.NormalizedPageSize)
+            .Select(p => p.ToProductDto())
+            .ToArray();
+
+        return (items, total);
+    }
 
     #endregion
 }

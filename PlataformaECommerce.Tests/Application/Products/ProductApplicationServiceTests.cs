@@ -499,6 +499,22 @@ public class ProductApplicationServiceTests
             _products.RemoveAll(product => product.Id == id);
             return Task.CompletedTask;
         }
+
+        public Task<(IReadOnlyCollection<ProductDto> Items, int TotalCount)> QueryProductsAsync(GetProductsQuery query, CancellationToken cancellationToken = default)
+        {
+            // Simple in-memory projection used for tests that exercise pagination metadata.
+            var filtered = _products.AsEnumerable();
+
+            int total = filtered.Count();
+
+            var items = filtered
+                .Skip(query.Offset)
+                .Take(query.NormalizedPageSize)
+                .Select(p => p.ToProductDto())
+                .ToArray();
+
+            return Task.FromResult<(IReadOnlyCollection<ProductDto>, int)>((items, total));
+        }
     }
 
     private sealed class FakeAuditTrailService : IAuditTrailService
