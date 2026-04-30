@@ -72,7 +72,7 @@ internal static class LegacyTenantMaintenanceCommands
         ArgumentNullException.ThrowIfNull(writer);
 
         writer.WriteLine("PlataformaECommerce.Maintenance commands:");
-        writer.WriteLine($"  {NormalizeLegacyTenantData} [--tenant=<tenantId>]  Ejecuta la corrección explícita de filas legacy sin tenant.");
+        writer.WriteLine($"  {NormalizeLegacyTenantData} [--tenant=<tenantId>]  Ejecuta la corrección explícita de filas legacy sin tenant (requiere Maintenance:LegacyTenantNormalization:Enabled=true).");
         writer.WriteLine($"  {InspectLegacyTenantData} [--tenant=<tenantId>]    Inspecciona de forma no destructiva si existen filas legacy pendientes.");
     }
 

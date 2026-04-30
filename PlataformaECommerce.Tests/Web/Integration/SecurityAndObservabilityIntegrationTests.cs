@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace PlataformaECommerce.Tests.Web.Integration;
 
@@ -130,6 +131,7 @@ public class SecurityAndObservabilityIntegrationTests
     [Test]
     public async Task SwaggerUi_Staging_SinAutenticacion_RedireccionaALogin()
     {
+        using EnvironmentVariableScope _ = CreateProductionSecretsEnvironmentScope();
         using WebApplicationFactory<Program> factory = CreateFactoryWithOpenApiSecurityEnvironment("Staging");
         using HttpClient client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -146,6 +148,7 @@ public class SecurityAndObservabilityIntegrationTests
     [Test]
     public async Task OpenApiJson_Staging_SinAutenticacion_Retorna401()
     {
+        using EnvironmentVariableScope _ = CreateProductionSecretsEnvironmentScope();
         using WebApplicationFactory<Program> factory = CreateFactoryWithOpenApiSecurityEnvironment("Staging");
         using HttpClient client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
@@ -233,15 +236,37 @@ public class SecurityAndObservabilityIntegrationTests
                 configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=PlataformaECommerceTests;User Id=sa;Password=StrongPassword#2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;",
-                    ["MongoDb:Enabled"] = bool.FalseString,
+                    ["MongoDb:Enabled"] = bool.TrueString,
+                    ["MongoDb:ConnectionString"] = "mongodb://localhost:27017",
+                    ["MongoDb:DatabaseName"] = "PlataformaECommerceAuditTests",
+                    ["MongoDb:AuditCollectionName"] = "audit_trail",
                     ["Jwt:Issuer"] = "PlataformaECommerce.Tests",
                     ["Jwt:Audience"] = "PlataformaECommerce.Tests.Clients",
                     ["Jwt:SigningKey"] = "IntegrationTestsSigningKey_With32Chars!",
                     ["DataProtection:ApplicationName"] = "PlataformaECommerce.Tests",
+                    ["Notifications:Smtp:Host"] = "smtp.tests.local",
+                    ["Notifications:Smtp:UserName"] = "smtp-user",
+                    ["Notifications:Smtp:Password"] = "smtp-password",
+                    ["Notifications:Smtp:FromAddress"] = "noreply@tests.local",
+                    ["Payments:Wompi:PublicKey"] = "pub_test_123",
+                    ["Payments:Wompi:IntegritySecret"] = "int_test_456",
                     ["OpenApiSecurity:EnabledInQualityAssurance"] = bool.TrueString,
                     ["OpenApiSecurity:RequireAuthorizationOutsideDevelopment"] = bool.TrueString,
                     ["OpenApiSecurity:RequiredPolicy"] = "SuperUserOnly"
                 });
+            });
+            builder.ConfigureServices(services =>
+            {
+                ServiceDescriptor[] startupTasksToRemove = services
+                    .Where(descriptor =>
+                        string.Equals(descriptor.ImplementationType?.Name, "InfrastructureVerificationStartupTask", StringComparison.Ordinal)
+                        || string.Equals(descriptor.ImplementationType?.Name, "TenantCatalogWarmupStartupTask", StringComparison.Ordinal))
+                    .ToArray();
+
+                foreach (ServiceDescriptor startupTaskDescriptor in startupTasksToRemove)
+                {
+                    services.Remove(startupTaskDescriptor);
+                }
             });
         });
     }
@@ -252,6 +277,48 @@ public class SecurityAndObservabilityIntegrationTests
         string physicalDirectory = Path.Combine(webProjectRoot, "wwwroot", uploadsDirectory.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(physicalDirectory);
         return physicalDirectory;
+    }
+
+    private static EnvironmentVariableScope CreateProductionSecretsEnvironmentScope()
+    {
+        return new EnvironmentVariableScope(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings__DefaultConnection"] = "Server=localhost,1433;Database=PlataformaECommerceTests;User Id=sa;Password=StrongPassword#2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;",
+            ["Jwt__SigningKey"] = "IntegrationTestsSigningKey_With32Chars!",
+            ["Payments__Wompi__PublicKey"] = "pub_test_123",
+            ["Payments__Wompi__IntegritySecret"] = "int_test_456",
+            ["Notifications__Smtp__Host"] = "smtp.tests.local",
+            ["Notifications__Smtp__UserName"] = "smtp-user",
+            ["Notifications__Smtp__Password"] = "smtp-password",
+            ["Notifications__Smtp__FromAddress"] = "noreply@tests.local"
+        });
+    }
+
+    private sealed class EnvironmentVariableScope : IDisposable
+    {
+        private readonly IReadOnlyDictionary<string, string?> _originalValues;
+
+        public EnvironmentVariableScope(IReadOnlyDictionary<string, string?> variables)
+        {
+            ArgumentNullException.ThrowIfNull(variables);
+
+            Dictionary<string, string?> originalValues = new(StringComparer.Ordinal);
+            foreach ((string key, string? value) in variables)
+            {
+                originalValues[key] = Environment.GetEnvironmentVariable(key);
+                Environment.SetEnvironmentVariable(key, value);
+            }
+
+            _originalValues = originalValues;
+        }
+
+        public void Dispose()
+        {
+            foreach ((string key, string? value) in _originalValues)
+            {
+                Environment.SetEnvironmentVariable(key, value);
+            }
+        }
     }
 
     private sealed record RateLimitPayload(string Mensaje, int Codigo, string TraceId);

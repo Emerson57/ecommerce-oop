@@ -120,13 +120,13 @@ public static class InfrastructureServiceRegistration
         services
             .AddOptions<SmtpEmailSettings>()
             .Bind(configuration.GetSection(SmtpEmailSettings.SectionName))
-            .Validate(settings => HasValidSmtpSettings(settings), "La configuración SMTP contiene valores inválidos para la entrega de notificaciones por correo.")
+            .Validate(settings => HasValidSmtpSettings(settings, hostEnvironment), BuildSmtpValidationMessage(hostEnvironment))
             .ValidateOnStart();
 
         services
             .AddOptions<WompiPaymentGatewaySettings>()
             .Bind(configuration.GetSection(WompiPaymentGatewaySettings.SectionName))
-            .Validate(settings => HasValidWompiSettings(settings), "La configuración de pagos Wompi contiene valores inválidos para el entorno actual.")
+            .Validate(settings => HasValidWompiSettings(settings, hostEnvironment), BuildWompiValidationMessage(hostEnvironment))
             .ValidateOnStart();
     }
 
@@ -462,9 +462,20 @@ public static class InfrastructureServiceRegistration
         });
     }
 
-    private static bool HasValidWompiSettings(WompiPaymentGatewaySettings settings)
+    private static bool HasValidWompiSettings(WompiPaymentGatewaySettings settings, IHostEnvironment hostEnvironment)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
+
+        if (!hostEnvironment.IsDevelopment())
+        {
+            return Uri.TryCreate(settings.CheckoutBaseUrl, UriKind.Absolute, out Uri? productionCheckoutUri)
+                && productionCheckoutUri.Scheme == Uri.UriSchemeHttps
+                && Uri.TryCreate(settings.TransactionsApiBaseUrl, UriKind.Absolute, out Uri? productionTransactionsUri)
+                && productionTransactionsUri.Scheme == Uri.UriSchemeHttps
+                && !string.IsNullOrWhiteSpace(settings.PublicKey)
+                && !string.IsNullOrWhiteSpace(settings.IntegritySecret);
+        }
 
         if (!settings.Enabled)
         {
@@ -480,9 +491,19 @@ public static class InfrastructureServiceRegistration
             && !string.IsNullOrWhiteSpace(settings.IntegritySecret);
     }
 
-    private static bool HasValidSmtpSettings(SmtpEmailSettings settings)
+    private static bool HasValidSmtpSettings(SmtpEmailSettings settings, IHostEnvironment hostEnvironment)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
+
+        if (!hostEnvironment.IsDevelopment())
+        {
+            return !string.IsNullOrWhiteSpace(settings.Host)
+                && settings.Port is >= 1 and <= 65535
+                && !string.IsNullOrWhiteSpace(settings.UserName)
+                && !string.IsNullOrWhiteSpace(settings.Password)
+                && !string.IsNullOrWhiteSpace(settings.FromAddress);
+        }
 
         if (!settings.Enabled)
         {
@@ -492,6 +513,24 @@ public static class InfrastructureServiceRegistration
         return !string.IsNullOrWhiteSpace(settings.Host)
             && settings.Port is >= 1 and <= 65535
             && !string.IsNullOrWhiteSpace(settings.FromAddress);
+    }
+
+    private static string BuildWompiValidationMessage(IHostEnvironment hostEnvironment)
+    {
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
+
+        return hostEnvironment.IsDevelopment()
+            ? "La configuración de pagos Wompi contiene valores inválidos para el entorno actual."
+            : "En Production, Payments:Wompi requiere CheckoutBaseUrl y TransactionsApiBaseUrl HTTPS, además de PublicKey e IntegritySecret.";
+    }
+
+    private static string BuildSmtpValidationMessage(IHostEnvironment hostEnvironment)
+    {
+        ArgumentNullException.ThrowIfNull(hostEnvironment);
+
+        return hostEnvironment.IsDevelopment()
+            ? "La configuración SMTP contiene valores inválidos para la entrega de notificaciones por correo."
+            : "En Production, Notifications:Smtp requiere Host, UserName, Password y FromAddress válidos.";
     }
 
     private sealed class NullAuditRepository : IAuditRepository

@@ -82,7 +82,54 @@ public class InfrastructureServiceRegistrationTests
         Assert.That(exception.Message, Does.Contain("auditoría MongoDB solo puede deshabilitarse en Development"));
     }
 
-    private static IConfiguration BuildConfiguration(string signingKey, bool mongoEnabled = true, string? mongoConnectionString = "mongodb://mongo.integration.internal:27017")
+    [Test]
+    public void AddInfrastructure_ProductionSinPublicKeyWompi_LanzaOptionsValidationException()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = BuildConfiguration(signingKey: new string('x', 32), wompiPublicKey: string.Empty);
+        FakeHostEnvironment hostEnvironment = new(Environments.Production);
+
+        services.AddInfrastructure(configuration, hostEnvironment);
+
+        OptionsValidationException exception = Assert.Throws<OptionsValidationException>(() =>
+        {
+            using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
+            _ = provider.GetRequiredService<IOptions<WompiPaymentGatewaySettings>>().Value;
+        })!;
+
+        Assert.That(exception.Message, Does.Contain("Payments:Wompi"));
+        Assert.That(exception.Message, Does.Contain("PublicKey"));
+    }
+
+    [Test]
+    public void AddInfrastructure_ProductionSinPasswordSmtp_LanzaOptionsValidationException()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = BuildConfiguration(signingKey: new string('x', 32), smtpPassword: string.Empty);
+        FakeHostEnvironment hostEnvironment = new(Environments.Production);
+
+        services.AddInfrastructure(configuration, hostEnvironment);
+
+        OptionsValidationException exception = Assert.Throws<OptionsValidationException>(() =>
+        {
+            using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
+            _ = provider.GetRequiredService<IOptions<SmtpEmailSettings>>().Value;
+        })!;
+
+        Assert.That(exception.Message, Does.Contain("Notifications:Smtp"));
+        Assert.That(exception.Message, Does.Contain("Password"));
+    }
+
+    private static IConfiguration BuildConfiguration(
+        string signingKey,
+        bool mongoEnabled = true,
+        string? mongoConnectionString = "mongodb://mongo.integration.internal:27017",
+        string wompiPublicKey = "pub_test_123",
+        string wompiIntegritySecret = "int_test_456",
+        string smtpHost = "smtp.integration.internal",
+        string smtpUserName = "smtp-user",
+        string smtpPassword = "smtp-password",
+        string smtpFromAddress = "noreply@integration.internal")
     {
         Dictionary<string, string?> values = new(StringComparer.Ordinal)
         {
@@ -99,7 +146,17 @@ public class InfrastructureServiceRegistrationTests
             ["Jwt:SigningKey"] = signingKey,
             ["Jwt:AccessTokenExpirationMinutes"] = "60",
             ["Jwt:RefreshTokenExpirationDays"] = "7",
-            ["Jwt:RequireHttpsMetadata"] = bool.TrueString
+            ["Jwt:RequireHttpsMetadata"] = bool.TrueString,
+            ["Payments:Wompi:Enabled"] = bool.FalseString,
+            ["Payments:Wompi:PublicKey"] = wompiPublicKey,
+            ["Payments:Wompi:IntegritySecret"] = wompiIntegritySecret,
+            ["Payments:Wompi:CheckoutBaseUrl"] = "https://checkout.wompi.co/p/",
+            ["Payments:Wompi:TransactionsApiBaseUrl"] = "https://production.wompi.co/v1/transactions/",
+            ["Notifications:Smtp:Enabled"] = bool.FalseString,
+            ["Notifications:Smtp:Host"] = smtpHost,
+            ["Notifications:Smtp:UserName"] = smtpUserName,
+            ["Notifications:Smtp:Password"] = smtpPassword,
+            ["Notifications:Smtp:FromAddress"] = smtpFromAddress
         };
 
         return new ConfigurationBuilder()

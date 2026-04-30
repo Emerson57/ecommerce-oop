@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
 
@@ -9,12 +10,14 @@ namespace PlataformaECommerce.Web.Initialization;
 /// </summary>
 public sealed class DevelopmentLegacyTenantDataNormalizer
 {
+    private const string ExecutionEnabledConfigurationKey = "Maintenance:LegacyTenantNormalization:Enabled";
     private static readonly EventId NoLegacyRowsDetectedEvent = new(41001, nameof(NoLegacyRowsDetectedEvent));
     private static readonly EventId LegacyRowsNormalizedEvent = new(41002, nameof(LegacyRowsNormalizedEvent));
 
     private readonly ECommerceDbContext _dbContext;
     private readonly ITenantContextAccessor _tenantContextAccessor;
     private readonly IHostEnvironment _hostEnvironment;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<DevelopmentLegacyTenantDataNormalizer> _logger;
 
     /// <summary>
@@ -24,11 +27,13 @@ public sealed class DevelopmentLegacyTenantDataNormalizer
         ECommerceDbContext dbContext,
         ITenantContextAccessor tenantContextAccessor,
         IHostEnvironment hostEnvironment,
+        IConfiguration configuration,
         ILogger<DevelopmentLegacyTenantDataNormalizer> logger)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _tenantContextAccessor = tenantContextAccessor ?? throw new ArgumentNullException(nameof(tenantContextAccessor));
         _hostEnvironment = hostEnvironment ?? throw new ArgumentNullException(nameof(hostEnvironment));
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -88,6 +93,14 @@ public sealed class DevelopmentLegacyTenantDataNormalizer
     /// </summary>
     public async Task NormalizeAsync(CancellationToken cancellationToken = default)
     {
+        if (!IsExplicitlyEnabled())
+        {
+            _logger.LogWarning(
+                "La normalización legacy por tenant requiere habilitación explícita con la clave de configuración '{ConfigurationKey}=true'. Operación omitida.",
+                ExecutionEnabledConfigurationKey);
+            return;
+        }
+
         LegacyTenantNormalizationInspectionResult inspectionResult = await InspectAsync(cancellationToken).ConfigureAwait(false);
         if (!inspectionResult.EnvironmentAllowsExecution)
         {
@@ -167,6 +180,11 @@ public sealed class DevelopmentLegacyTenantDataNormalizer
             _logger.LogError(exception, "Falló la normalización de datos legacy por tenant en Development.");
             throw;
         }
+    }
+
+    private bool IsExplicitlyEnabled()
+    {
+        return _configuration.GetValue<bool>(ExecutionEnabledConfigurationKey);
     }
 
     private async Task<LegacyTenantRowCounts> CountLegacyRowsAsync(CancellationToken cancellationToken)
