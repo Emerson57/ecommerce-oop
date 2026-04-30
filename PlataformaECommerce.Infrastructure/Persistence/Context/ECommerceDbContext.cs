@@ -35,6 +35,11 @@ public sealed class ECommerceDbContext : DbContext, IDataProtectionKeyContext
     #region DbSets
 
     /// <summary>
+    /// Representa la colección persistente de auditoría transversal del sistema.
+    /// </summary>
+    public DbSet<AuditEntryEntity> AuditEntries { get; set; } = null!;
+
+    /// <summary>
     /// Representa la colección persistente de claves de Data Protection compartidas por la aplicación.
     /// </summary>
     public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
@@ -139,6 +144,7 @@ public sealed class ECommerceDbContext : DbContext, IDataProtectionKeyContext
         modelBuilder.Entity<CartItemEntity>().HasQueryFilter(entity => entity.TenantId == CurrentTenantId);
         modelBuilder.Entity<OrderEntity>().HasQueryFilter(entity => entity.TenantId == CurrentTenantId);
         modelBuilder.Entity<OrderItemEntity>().HasQueryFilter(entity => entity.TenantId == CurrentTenantId);
+        modelBuilder.Entity<AuditEntryEntity>().HasQueryFilter(entity => entity.TenantId == CurrentTenantId);
     }
 
     /// <inheritdoc />

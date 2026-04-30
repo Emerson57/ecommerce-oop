@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
 using PlataformaECommerce.Application.Interfaces.Services.Auth;
 using PlataformaECommerce.Infrastructure.Configurations;
 using PlataformaECommerce.Infrastructure.DependencyInjection;
@@ -39,24 +38,6 @@ public class InfrastructureServiceRegistrationTests
     }
 
     [Test]
-    public async Task AddInfrastructure_DevelopmentConMongoDeshabilitado_RegistraAuditoriaNoOperativa()
-    {
-        ServiceCollection services = new();
-        IConfiguration configuration = BuildConfiguration(signingKey: string.Empty, mongoEnabled: false, mongoConnectionString: null);
-        FakeHostEnvironment hostEnvironment = new(Environments.Development);
-
-        services.AddLogging();
-        services.AddInfrastructure(configuration, hostEnvironment);
-
-        using ServiceProvider serviceProvider = services.BuildServiceProvider();
-        IAuditRepository auditRepository = serviceProvider.GetRequiredService<IAuditRepository>();
-
-        AuditSearchResult result = await auditRepository.SearchAsync(new AuditSearchFilter());
-
-        Assert.That(result.TotalCount, Is.Zero);
-    }
-
-    [Test]
     public void AddInfrastructure_ProductionSinClaveJwtPersistida_LanzaInvalidOperationException()
     {
         ServiceCollection services = new();
@@ -67,19 +48,6 @@ public class InfrastructureServiceRegistrationTests
             services.AddInfrastructure(configuration, hostEnvironment))!;
 
         Assert.That(exception.Message, Does.Contain("Jwt:SigningKey"));
-    }
-
-    [Test]
-    public void AddInfrastructure_ProductionConMongoDeshabilitado_LanzaInvalidOperationException()
-    {
-        ServiceCollection services = new();
-        IConfiguration configuration = BuildConfiguration(signingKey: new string('x', 32), mongoEnabled: false, mongoConnectionString: null);
-        FakeHostEnvironment hostEnvironment = new(Environments.Production);
-
-        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
-            services.AddInfrastructure(configuration, hostEnvironment))!;
-
-        Assert.That(exception.Message, Does.Contain("auditoría MongoDB solo puede deshabilitarse en Development"));
     }
 
     [Test]
@@ -122,8 +90,6 @@ public class InfrastructureServiceRegistrationTests
 
     private static IConfiguration BuildConfiguration(
         string signingKey,
-        bool mongoEnabled = true,
-        string? mongoConnectionString = "mongodb://mongo.integration.internal:27017",
         string wompiPublicKey = "pub_test_123",
         string wompiIntegritySecret = "int_test_456",
         string smtpHost = "smtp.integration.internal",
@@ -136,11 +102,6 @@ public class InfrastructureServiceRegistrationTests
             ["ConnectionStrings:DefaultConnection"] = "Server=tcp:sql.integration.internal,1433;Database=PlataformaECommerceTests;Encrypt=True;TrustServerCertificate=True;",
             ["DataProtection:ApplicationName"] = "PlataformaECommerce.Tests",
             ["DataProtection:KeyLifetimeDays"] = "30",
-            ["MongoDb:Enabled"] = mongoEnabled.ToString(),
-            ["MongoDb:ConnectionString"] = mongoConnectionString,
-            ["MongoDb:DatabaseName"] = "PlataformaECommerceAuditDb",
-            ["MongoDb:AuditCollectionName"] = "audit_trail",
-            ["MongoDb:EnsureIndexesOnStartup"] = bool.TrueString,
             ["Jwt:Issuer"] = "PlataformaECommerce.Web",
             ["Jwt:Audience"] = "PlataformaECommerce.Clients",
             ["Jwt:SigningKey"] = signingKey,

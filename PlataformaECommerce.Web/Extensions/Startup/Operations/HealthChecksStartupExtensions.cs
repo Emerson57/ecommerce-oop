@@ -1,9 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using PlataformaECommerce.Infrastructure.Mongo;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
-using PlataformaECommerce.Web.HealthChecks;
 
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
@@ -26,12 +24,6 @@ public static class HealthChecksStartupExtensions
         IHealthChecksBuilder healthChecksBuilder = services.AddHealthChecks()
             .AddCheck("self", () => HealthCheckResult.Healthy("La aplicación web se encuentra operativa."), tags: ["live"])
             .AddDbContextCheck<ECommerceDbContext>(name: "sql-server", tags: ["ready"]);
-
-        MongoDbSettings mongoDbSettings = configuration.GetSection(MongoDbSettings.SectionName).Get<MongoDbSettings>() ?? new MongoDbSettings();
-        if (mongoDbSettings.Enabled)
-        {
-            healthChecksBuilder.AddCheck<MongoDbHealthCheck>("mongo-audit", tags: ["ready"]);
-        }
 
         return services;
     }

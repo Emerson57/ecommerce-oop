@@ -5,7 +5,6 @@ internal static class SecretConfigurationAliases
     internal const string DatabasePrimaryConnectionString = "Secrets:Database:PrimaryConnectionString";
     // Alias: Secrets:Security:JwtSigningKey maps to configuration key 'Jwt:SigningKey'
     internal const string JwtSigningKey = "Secrets:Security:JwtSigningKey";
-    internal const string MongoDbConnectionString = "Secrets:Observability:MongoDbConnectionString";
     internal const string WompiPublicKey = "Secrets:Payments:WompiPublicKey";
     internal const string WompiIntegritySecret = "Secrets:Payments:WompiIntegritySecret";
     internal const string SmtpUserName = "Secrets:Notifications:SmtpUserName";
@@ -16,7 +15,6 @@ internal static class SecretConfigurationAliases
     [
         (DatabasePrimaryConnectionString, "ConnectionStrings:DefaultConnection"),
         (JwtSigningKey, "Jwt:SigningKey"),
-        (MongoDbConnectionString, "MongoDb:ConnectionString"),
         (WompiPublicKey, "Payments:Wompi:PublicKey"),
         (WompiIntegritySecret, "Payments:Wompi:IntegritySecret"),
         (SmtpUserName, "Notifications:Smtp:UserName"),

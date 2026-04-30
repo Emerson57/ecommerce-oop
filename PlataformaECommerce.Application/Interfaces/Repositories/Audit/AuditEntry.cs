@@ -6,7 +6,7 @@ namespace PlataformaECommerce.Application.Interfaces.Repositories.Audit;
 /// <remarks>
 /// Este modelo actúa como frontera semántica entre la capa Application y la infraestructura
 /// de auditoría, permitiendo registrar trazabilidad rica y reutilizable sin exponer detalles
-/// de MongoDB, BSON ni convenciones específicas de persistencia documental.
+/// del mecanismo de persistencia ni convenciones específicas del proveedor de datos.
 /// </remarks>
 public sealed record AuditEntry
 {

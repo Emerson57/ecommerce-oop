@@ -7,8 +7,8 @@ namespace PlataformaECommerce.Application.Interfaces.Repositories.Audit;
 /// <remarks>
 /// Esta abstracción pertenece a la capa Application y describe una frontera estable
 /// para la trazabilidad funcional de agregados como productos, usuarios, carritos
-/// y pedidos, evitando dependencia directa respecto de MongoDB u otros mecanismos
-/// concretos de almacenamiento documental.
+/// y pedidos, evitando dependencia directa respecto de mecanismos concretos
+/// de almacenamiento.
 /// </remarks>
 public interface IAuditRepository
 {

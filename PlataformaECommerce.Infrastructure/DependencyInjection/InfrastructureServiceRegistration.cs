@@ -8,10 +8,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using MongoDB.Driver;
 using PlataformaECommerce.Application.Interfaces.Persistence;
 using PlataformaECommerce.Application.Interfaces.Repositories.Audit;
 using PlataformaECommerce.Application.Interfaces.Repositories.Categories;
@@ -24,9 +22,8 @@ using PlataformaECommerce.Application.Interfaces.Services.Common;
 using PlataformaECommerce.Application.Interfaces.Services.Orders;
 using PlataformaECommerce.Application.Interfaces.Services.Users;
 using PlataformaECommerce.Infrastructure.Configurations;
-using PlataformaECommerce.Infrastructure.Mongo;
-using PlataformaECommerce.Infrastructure.Mongo.Repositories;
 using PlataformaECommerce.Infrastructure.Persistence.Context;
+using PlataformaECommerce.Infrastructure.Repositories.Audit;
 using PlataformaECommerce.Infrastructure.Repositories.Cart;
 using PlataformaECommerce.Infrastructure.Repositories.Categories;
 using PlataformaECommerce.Infrastructure.Repositories.Common;
@@ -45,8 +42,8 @@ namespace PlataformaECommerce.Infrastructure.DependencyInjection;
 /// de la capa Infrastructure dentro del contenedor de dependencias.
 /// </summary>
 /// <remarks>
-/// Esta clase consolida la configuración de persistencia transaccional sobre SQL Server,
-/// auditoría documental sobre MongoDB y los adaptadores de seguridad requeridos por la capa
+/// Esta clase consolida la configuración de persistencia transaccional sobre SQL Server
+/// y los adaptadores de seguridad requeridos por la capa
 /// Application, manteniendo una composición clara, consistente y profesional.
 /// </remarks>
 public static class InfrastructureServiceRegistration
@@ -55,7 +52,7 @@ public static class InfrastructureServiceRegistration
 
     /// <summary>
     /// Registra los servicios de infraestructura requeridos por la solución,
-    /// incluyendo persistencia SQL Server, auditoría MongoDB y adaptadores
+    /// incluyendo persistencia SQL Server y adaptadores
     /// de seguridad basados en JWT y contexto HTTP.
     /// </summary>
     /// <param name="services">Colección de servicios de la aplicación.</param>
@@ -73,7 +70,6 @@ public static class InfrastructureServiceRegistration
 
         RegisterOptions(services, configuration, hostEnvironment);
         RegisterPersistence(services, configuration, hostEnvironment);
-        RegisterMongo(services, configuration, hostEnvironment);
         RegisterSecurity(services, configuration, hostEnvironment);
         RegisterPayments(services, configuration);
 
@@ -95,12 +91,6 @@ public static class InfrastructureServiceRegistration
             .AddOptions<SaaSPlatformOptions>()
             .Bind(configuration.GetSection(SaaSPlatformOptions.SectionName))
             .Validate(options => HasValidSaaSSettings(options), "La configuración SaaS contiene tenants, planes o features inválidos para aislamiento de datos y operación comercial.")
-            .ValidateOnStart();
-
-        services
-            .AddOptions<MongoDbSettings>()
-            .Bind(configuration.GetSection(MongoDbSettings.SectionName))
-            .Validate(settings => HasValidMongoDbSettings(settings, hostEnvironment), BuildMongoValidationMessage(hostEnvironment))
             .ValidateOnStart();
 
         services
@@ -156,48 +146,8 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IAuditRepository, SqlAuditRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-    }
-
-    /// <summary>
-    /// Registra la infraestructura documental utilizada para auditoría sobre MongoDB.
-    /// </summary>
-    /// <param name="services">Colección de servicios.</param>
-    private static void RegisterMongo(
-        IServiceCollection services,
-        IConfiguration configuration,
-        IHostEnvironment hostEnvironment)
-    {
-        MongoDbSettings mongoSettings = configuration
-            .GetSection(MongoDbSettings.SectionName)
-            .Get<MongoDbSettings>()
-            ?? throw new InvalidOperationException("No se encontró la configuración de MongoDB requerida por la solución.");
-
-        if (!mongoSettings.Enabled)
-        {
-            if (!hostEnvironment.IsDevelopment())
-            {
-                throw new InvalidOperationException("La auditoría MongoDB solo puede deshabilitarse en Development. En entornos no locales debe permanecer habilitada.");
-            }
-
-            services.TryAddSingleton<IAuditRepository, NullAuditRepository>();
-            return;
-        }
-
-        services.AddSingleton<IMongoClient>(serviceProvider =>
-        {
-            MongoDbSettings settings = serviceProvider.GetRequiredService<IOptions<MongoDbSettings>>().Value;
-            return new MongoClient(settings.ConnectionString);
-        });
-
-        services.AddSingleton<IMongoDatabase>(serviceProvider =>
-        {
-            IMongoClient client = serviceProvider.GetRequiredService<IMongoClient>();
-            MongoDbSettings settings = serviceProvider.GetRequiredService<IOptions<MongoDbSettings>>().Value;
-            return client.GetDatabase(settings.DatabaseName);
-        });
-
-        services.AddScoped<IAuditRepository, MongoAuditRepository>();
     }
 
     /// <summary>
@@ -284,23 +234,6 @@ public static class InfrastructureServiceRegistration
             && settings.KeyLifetimeDays is >= 7 and <= 365;
     }
 
-    private static bool HasValidMongoDbSettings(MongoDbSettings settings, IHostEnvironment hostEnvironment)
-    {
-        if (settings is null)
-        {
-            return false;
-        }
-
-        if (!settings.Enabled)
-        {
-            return hostEnvironment.IsDevelopment();
-        }
-
-        return !string.IsNullOrWhiteSpace(settings.ConnectionString)
-            && !string.IsNullOrWhiteSpace(settings.DatabaseName)
-            && !string.IsNullOrWhiteSpace(settings.AuditCollectionName);
-    }
-
     private static bool HasValidSaaSSettings(SaaSPlatformOptions settings)
     {
         if (settings is null)
@@ -380,13 +313,6 @@ public static class InfrastructureServiceRegistration
             && tenant.EnabledFeatureIds
                 .Where(featureId => !string.IsNullOrWhiteSpace(featureId))
                 .All(featureCatalog.Contains));
-    }
-
-    private static string BuildMongoValidationMessage(IHostEnvironment hostEnvironment)
-    {
-        return hostEnvironment.IsDevelopment()
-            ? "La configuración MongoDB requiere `DatabaseName` y `AuditCollectionName` siempre. Si `MongoDb:Enabled` es true, también requiere `ConnectionString`. En Development puede deshabilitarse estableciendo `MongoDb:Enabled=false`."
-            : "La configuración MongoDB requiere `Enabled=true`, `ConnectionString`, `DatabaseName` y `AuditCollectionName` válidos en entornos no locales.";
     }
 
     private static bool HasValidJwtSettings(JwtSettings settings, IHostEnvironment hostEnvironment)
@@ -533,61 +459,4 @@ public static class InfrastructureServiceRegistration
             : "En Production, Notifications:Smtp requiere Host, UserName, Password y FromAddress válidos.";
     }
 
-    private sealed class NullAuditRepository : IAuditRepository
-    {
-        private static int _warningLogged;
-        private readonly ILogger<NullAuditRepository> _logger;
-
-        public NullAuditRepository(ILogger<NullAuditRepository> logger)
-        {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        }
-
-        Task IAuditRepository.RegisterEventAsync(AuditEntry entry, CancellationToken cancellationToken)
-        {
-            ArgumentNullException.ThrowIfNull(entry);
-            LogDisabledAuditWarning();
-            return Task.CompletedTask;
-        }
-
-        Task<IReadOnlyCollection<AuditEntry>> IAuditRepository.GetHistoryAsync(Guid aggregateId, string aggregateType, CancellationToken cancellationToken)
-        {
-            if (aggregateId == Guid.Empty)
-            {
-                throw new ArgumentException("El identificador del agregado auditado es obligatorio.", nameof(aggregateId));
-            }
-
-            if (string.IsNullOrWhiteSpace(aggregateType))
-            {
-                throw new ArgumentException("El tipo de agregado auditado es obligatorio.", nameof(aggregateType));
-            }
-
-            LogDisabledAuditWarning();
-            return Task.FromResult<IReadOnlyCollection<AuditEntry>>(Array.Empty<AuditEntry>());
-        }
-
-        Task<AuditSearchResult> IAuditRepository.SearchAsync(AuditSearchFilter filter, CancellationToken cancellationToken)
-        {
-            ArgumentNullException.ThrowIfNull(filter);
-            LogDisabledAuditWarning();
-
-            return Task.FromResult(new AuditSearchResult
-            {
-                Items = Array.Empty<AuditEntry>(),
-                TotalCount = 0,
-                PageNumber = filter.PageNumber <= 0 ? 1 : filter.PageNumber,
-                PageSize = filter.PageSize <= 0 ? 25 : filter.PageSize
-            });
-        }
-
-        private void LogDisabledAuditWarning()
-        {
-            if (Interlocked.Exchange(ref _warningLogged, 1) == 1)
-            {
-                return;
-            }
-
-            _logger.LogWarning("La auditoría MongoDB está deshabilitada en Development. Los eventos de auditoría no se persistirán hasta configurar `MongoDb:ConnectionString` y habilitar nuevamente el proveedor.");
-        }
-    }
 }
