@@ -1,3 +1,5 @@
+using PlataformaECommerce.Web.Configuration;
+
 namespace PlataformaECommerce.Web.Extensions.Startup;
 
 /// <summary>
@@ -14,6 +16,7 @@ public static class ApplicationHostBuilderExtensions
         ArgumentNullException.ThrowIfNull(args);
 
         builder.ConfigureWebApplicationConfiguration(args);
+        AllowedHostsConfigurationGuard.Validate(builder.Configuration, builder.Environment);
         builder.ConfigureWebApplicationLogging();
         builder.Services.AddWebApplicationModules(builder.Configuration, builder.Environment);
 

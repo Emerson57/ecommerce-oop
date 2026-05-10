@@ -20,6 +20,9 @@ RUN apt-get update \
     && useradd --create-home --shell /usr/sbin/nologin appuser \
     && rm -rf /var/lib/apt/lists/*
 
+# AllowedHosts: definir en orquestación (no usar '*'). Ejemplo:
+#   AllowedHosts=midominio.com;www.midominio.com;127.0.0.1
+# Incluya dominios de tenants (SaaS:Tenants:*:Hostnames) y 127.0.0.1 si el healthcheck usa loopback. Ver docs/SECURITY.md.
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_EnableDiagnostics=0

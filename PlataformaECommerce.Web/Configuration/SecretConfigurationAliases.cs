@@ -10,6 +10,7 @@ internal static class SecretConfigurationAliases
     internal const string SmtpUserName = "Secrets:Notifications:SmtpUserName";
     internal const string SmtpPassword = "Secrets:Notifications:SmtpPassword";
     internal const string BootstrapSuperUserPassword = "Secrets:Bootstrap:SuperUserPassword";
+    internal const string AllowedHosts = "Secrets:Hosting:AllowedHosts";
 
     internal static IReadOnlyList<(string SourcePath, string DestinationPath)> Mappings { get; } =
     [
@@ -19,6 +20,7 @@ internal static class SecretConfigurationAliases
         (WompiIntegritySecret, "Payments:Wompi:IntegritySecret"),
         (SmtpUserName, "Notifications:Smtp:UserName"),
         (SmtpPassword, "Notifications:Smtp:Password"),
-        (BootstrapSuperUserPassword, "Bootstrap:SuperUser:Password")
+        (BootstrapSuperUserPassword, "Bootstrap:SuperUser:Password"),
+        (AllowedHosts, "AllowedHosts")
     ];
 }
