@@ -17,6 +17,7 @@ public static class ApplicationHostBuilderExtensions
 
         builder.ConfigureWebApplicationConfiguration(args);
         AllowedHostsConfigurationGuard.Validate(builder.Configuration, builder.Environment);
+        AdministratorCreationConfigurationGuard.Validate(builder.Configuration, builder.Environment);
         builder.ConfigureWebApplicationLogging();
         builder.Services.AddWebApplicationModules(builder.Configuration, builder.Environment);
 

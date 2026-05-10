@@ -131,13 +131,40 @@ public sealed class BootstrapSuperUserOptions : IValidatableObject
             return;
         }
 
-        if (password.Length >= PasswordPolicyRules.MinLength)
+        if (password.Length < PasswordPolicyRules.MinLength)
         {
+            validationResults.Add(new ValidationResult(
+                $"El bootstrap del super usuario requiere una contraseña de al menos {PasswordPolicyRules.MinLength} caracteres cuando está habilitado.",
+                [nameof(Password)]));
             return;
         }
 
-        validationResults.Add(new ValidationResult(
-            $"El bootstrap del super usuario requiere una contraseña de al menos {PasswordPolicyRules.MinLength} caracteres cuando está habilitado.",
-            [nameof(Password)]));
+        if (!PasswordPolicyRules.HasUppercase(password))
+        {
+            validationResults.Add(new ValidationResult(
+                "El bootstrap del super usuario requiere una contraseña con al menos una letra mayúscula.",
+                [nameof(Password)]));
+        }
+
+        if (!PasswordPolicyRules.HasLowercase(password))
+        {
+            validationResults.Add(new ValidationResult(
+                "El bootstrap del super usuario requiere una contraseña con al menos una letra minúscula.",
+                [nameof(Password)]));
+        }
+
+        if (!PasswordPolicyRules.HasDigit(password))
+        {
+            validationResults.Add(new ValidationResult(
+                "El bootstrap del super usuario requiere una contraseña con al menos un dígito.",
+                [nameof(Password)]));
+        }
+
+        if (!PasswordPolicyRules.HasSpecialCharacter(password))
+        {
+            validationResults.Add(new ValidationResult(
+                "El bootstrap del super usuario requiere una contraseña con al menos un carácter especial.",
+                [nameof(Password)]));
+        }
     }
 }

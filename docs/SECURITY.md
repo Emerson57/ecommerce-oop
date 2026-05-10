@@ -16,6 +16,7 @@ Este documento describe prácticas recomendadas para manejar secretos en desarro
 - Para keys anidadas use `__` (doble underscore) como separador. Ejemplo:
   - `Secrets__Database__PrimaryConnectionString`
   - `Secrets__Hosting__AllowedHosts` (alias hacia `AllowedHosts`)
+  - Bootstrap (alias opcionales hacia `Bootstrap:SuperUser`): `AdminBootstrap__Enabled`, `AdminBootstrap__Email`, `AdminBootstrap__Password`
 
 3) Producción
 - Use un secret manager del proveedor (Azure Key Vault, AWS Secrets Manager, GCP Secret Manager).
@@ -48,3 +49,15 @@ Este documento describe prácticas recomendadas para manejar secretos en desarro
 - **Staging / integración**: el archivo incluye `localhost` para que `WebApplicationFactory` y pruebas con `TestServer` sigan respondiendo con `Host: localhost`. En un staging público, sustituya o amplíe la lista con el hostname real del entorno.
 - **Production**: si `AllowedHosts` está vacío o contiene `*`, la aplicación **falla al iniciar** con un mensaje explícito (guardia en `ConfigureWebApplicationHost`).
 
+9) Creación de administradores y bootstrap del super usuario
+- **UI de alta (`/Admin/Users/Create`)**: solo está disponible si `Backoffice:Users:EnableAdministratorCreationUi` es `true` y el usuario tiene política `SuperUserOnly`. En **Production** y **Staging** la aplicación **no arranca** si esa opción está en `true` (evita despliegues con flujo interactivo de privilegios en entornos reales).
+- **Desarrollo**: `appsettings.Backoffice.Development.json` mantiene `EnableAdministratorCreationUi` en `true` para pruebas locales.
+- **Primer super usuario (bootstrap)**:
+  - Preferido: ejecutar el proyecto de mantenimiento una vez con el tenant correcto: `dotnet run --project PlataformaECommerce.Maintenance -- bootstrap-superuser` (ver ayuda del ejecutable para flags). El servicio `SuperUserBootstrapService` es **idempotente**: si ya existe un `SuperUsuario`, no crea duplicados.
+  - En **Production**, el arranque web con `Bootstrap:SuperUser:Enabled=true` exige además `Bootstrap:SuperUser:AllowInProduction=true` solo durante el primer despliegue; después debe deshabilitarse `Enabled` (el servicio lanza si queda habilitado cuando ya hay super usuario).
+- **Variables de entorno (alias hacia `Bootstrap:SuperUser`)** — útiles en pipelines sin escribir en disco:
+  - `AdminBootstrap__Enabled` → `Bootstrap:SuperUser:Enabled`
+  - `AdminBootstrap__Email` → `Bootstrap:SuperUser:Email`
+  - `AdminBootstrap__Password` → `Bootstrap:SuperUser:Password`
+  - Sigue existiendo el alias `Secrets:Bootstrap:SuperUserPassword` → `Bootstrap:SuperUser:Password` (User Secrets).
+- **Contraseña de bootstrap**: debe cumplir la misma composición mínima que el alta administrativa (longitud, mayúscula, minúscula, dígito y carácter especial). No registrar contraseñas en logs.

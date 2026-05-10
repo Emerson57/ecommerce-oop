@@ -57,6 +57,22 @@ public class BootstrapSuperUserOptionsValidationTests
         Assert.That(exception.Message, Does.Contain(BootstrapSuperUserOptions.SectionName));
     }
 
+    [Test]
+    public void AddInitializationServices_BootstrapHabilitadoConPasswordDebil_LanzaOptionsValidationException()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = BuildConfiguration(enabled: true, password: "abcdefgh");
+
+        services.AddInitializationServices(configuration);
+
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+
+        OptionsValidationException exception = Assert.Throws<OptionsValidationException>(() =>
+            _ = serviceProvider.GetRequiredService<IOptions<BootstrapSuperUserOptions>>().Value)!;
+
+        Assert.That(exception.Message, Does.Contain(nameof(BootstrapSuperUserOptions.Password)));
+    }
+
     private static IConfiguration BuildConfiguration(
         bool enabled,
         string name = "Super Admin",
