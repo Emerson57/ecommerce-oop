@@ -77,7 +77,7 @@ Configura estas variables únicamente para un bootstrap explícito y retíralas 
 - `Bootstrap__SuperUser__Area`
 
 ## Notas operativas
-- La aplicación vuelve a aplicar variables de entorno y argumentos al final del arranque para que siempre tengan precedencia sobre `appsettings*.json`.
+- Tras cargar archivos modulares y (en Development) overlays locales, el host aplica **variables de entorno y argumentos**, proyecta los **alias `Secrets:*`** hacia las claves runtime y **vuelve a aplicar** entorno y línea de comandos para que sigan teniendo la **máxima precedencia** sobre los valores proyectados.
 - Los alias `Secrets:*` permiten mantener nombres explícitos en secret managers mientras la aplicación sigue validando las secciones runtime originales al iniciar.
 - `appsettings.Development.local.json` debe permanecer solo en la máquina del desarrollador y fuera de Git.
 - La plantilla `appsettings.Development.local.example.json` conserva la estructura requerida sin exponer secretos reales.

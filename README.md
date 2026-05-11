@@ -14,6 +14,7 @@ La plataforma se encuentra en una etapa de consolidación profesional con las si
 - persistencia transaccional sobre `SQL Server` con `EF Core`;
 - auditoría sobre `MongoDB` para trazabilidad operativa;
 - configuración modular por dominio (`Security`, `Observability`, `Branding`, `Backoffice`, `SaaS`, `Payments`, `Infrastructure`);
+- secretos solo por variables de entorno, alias `Secrets:*` o proveedor seguro en entornos reales (ver [docs/production-secrets.md](docs/production-secrets.md));
 - composition root limpia en `Program.cs` y arranque organizado por extensiones;
 - preparación SaaS mediante catálogo de tenants, features, planes y aprovisionamiento controlado.
 
@@ -239,6 +240,7 @@ Y sus variantes por ambiente, por ejemplo:
 - `appsettings.SaaS.Development.json`
 - `appsettings.SaaS.Production.json` (tenant y hostnames de producción; placeholders hasta dominio final)
 - `appsettings.Branding.Production.json` (alineado con el tenant activo en producción)
+- `appsettings.Production.template.json` (referencia de claves sensibles; valores vacíos — no sustituye variables de entorno)
 
 Las secciones funcionales activas incluyen:
 

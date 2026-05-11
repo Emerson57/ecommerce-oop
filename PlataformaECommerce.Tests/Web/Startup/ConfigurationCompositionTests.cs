@@ -90,7 +90,7 @@ public class ConfigurationCompositionTests
     }
 
     [Test]
-    public void ConfigureApplicationConfiguration_Development_SecretAliasTienePrecedenciaSobreRuntimeEnvironmentVariable()
+    public void ConfigureApplicationConfiguration_Development_RuntimeJwtTienePrecedenciaSobreSecretAlias()
     {
         const string secretAliasEnvironmentVariableName = "Secrets__Security__JwtSigningKey";
         const string runtimeEnvironmentVariableName = "Jwt__SigningKey";
@@ -114,7 +114,7 @@ public class ConfigurationCompositionTests
 
             builder.ConfigureWebApplicationConfiguration(Array.Empty<string>());
 
-            Assert.That(builder.Configuration["Jwt:SigningKey"], Is.EqualTo(secretAliasEnvironmentVariableValue));
+            Assert.That(builder.Configuration["Jwt:SigningKey"], Is.EqualTo(runtimeEnvironmentVariableValue));
         }
         finally
         {

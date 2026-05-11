@@ -235,7 +235,7 @@ public class SecurityAndObservabilityIntegrationTests
             {
                 configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=PlataformaECommerceTests;User Id=sa;Password=StrongPassword#2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;",
+                    ["ConnectionStrings:DefaultConnection"] = "Server=localhost,1433;Database=PlataformaECommerceTests;User Id=sa;Password=TestOnly_LocalSql_Password_NotForProduction!;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;",
                     ["Jwt:Issuer"] = "PlataformaECommerce.Tests",
                     ["Jwt:Audience"] = "PlataformaECommerce.Tests.Clients",
                     ["Jwt:SigningKey"] = "IntegrationTestsSigningKey_With32Chars!",
@@ -279,7 +279,7 @@ public class SecurityAndObservabilityIntegrationTests
     {
         return new EnvironmentVariableScope(new Dictionary<string, string?>
         {
-            ["ConnectionStrings__DefaultConnection"] = "Server=localhost,1433;Database=PlataformaECommerceTests;User Id=sa;Password=StrongPassword#2026;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;",
+            ["ConnectionStrings__DefaultConnection"] = "Server=localhost,1433;Database=PlataformaECommerceTests;User Id=sa;Password=TestOnly_LocalSql_Password_NotForProduction!;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;",
             ["Jwt__SigningKey"] = "IntegrationTestsSigningKey_With32Chars!",
             ["Payments__Wompi__PublicKey"] = "pub_test_123",
             ["Payments__Wompi__IntegritySecret"] = "int_test_456",

@@ -22,6 +22,7 @@ Este documento describe prácticas recomendadas para manejar secretos en desarro
 - Use un secret manager del proveedor (Azure Key Vault, AWS Secrets Manager, GCP Secret Manager).
 - Preferir Managed Identity / IAM para que las aplicaciones no lleven credenciales de acceso a KeyVault en código.
 - Inyecte secretos como variables de entorno o configure el proveedor de Key Vault en `Program.cs`/configuración del host.
+- Lista de variables y plantillas: [production-secrets.md](production-secrets.md).
 
 4) Docker
 - Nunca `COPY` archivos locales con secretos en la imagen final.

@@ -1,0 +1,36 @@
+name: Gitleaks History Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * 0' # weekly
+  workflow_dispatch: {}
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks scan against history
+        uses: zricethezav/gitleaks-action@v2
+        id: gitleaks
+        with:
+          args: '--report=gitleaks-report.json --redact'
+
+      - name: Upload findings
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-findings
+          path: gitleaks-report.json
+
+      - name: Notify Slack on findings
+        if: failure() && secrets.SLACK_WEBHOOK_URL
+        uses: rtCamp/action-slack-notify@v2
+        with:
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: |
+            Gitleaks found potential secrets in repository ${{ github.repository }} on ref ${{ github.ref }}
+            See artifact 'gitleaks-findings' for details.
