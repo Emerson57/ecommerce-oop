@@ -93,6 +93,12 @@ public sealed class SaaSPlatformOptions
         public string AdminSidebarEndColor { get; set; } = string.Empty;
         public string LogoGlyph { get; set; } = string.Empty;
         public string Currency { get; set; } = "USD";
+
+        /// <summary>
+        /// Código de país ISO 3166-1 alpha-2 (p. ej. CO) para operación y cumplimiento comercial.
+        /// </summary>
+        public string Country { get; set; } = string.Empty;
+
         public string? PlanId { get; set; }
         public IList<string> EnabledFeatureIds { get; set; } = [];
         public IList<string> Hostnames { get; set; } = [];

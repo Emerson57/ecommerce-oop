@@ -68,6 +68,8 @@ public static class InfrastructureServiceRegistration
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(hostEnvironment);
 
+        services.TryAddSingleton<IHostEnvironment>(hostEnvironment);
+
         RegisterOptions(services, configuration, hostEnvironment);
         RegisterPersistence(services, configuration, hostEnvironment);
         RegisterSecurity(services, configuration, hostEnvironment);

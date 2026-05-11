@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using PlataformaECommerce.Application.Common.Security;
 using PlataformaECommerce.Application.Interfaces.Services.Common;
@@ -14,16 +15,19 @@ public sealed class TenantContextAccessor : ITenantContextAccessor
     private static readonly AsyncLocal<string?> TenantOverride = new();
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IOptionsMonitor<SaaSPlatformOptions> _optionsMonitor;
+    private readonly IHostEnvironment _hostEnvironment;
 
     /// <summary>
     /// Inicializa una nueva instancia de <see cref="TenantContextAccessor"/>.
     /// </summary>
     public TenantContextAccessor(
         IHttpContextAccessor httpContextAccessor,
-        IOptionsMonitor<SaaSPlatformOptions> optionsMonitor)
+        IOptionsMonitor<SaaSPlatformOptions> optionsMonitor,
+        IHostEnvironment hostEnvironment)
     {
         _httpContextAccessor = httpContextAccessor ?? throw new ArgumentNullException(nameof(httpContextAccessor));
         _optionsMonitor = optionsMonitor ?? throw new ArgumentNullException(nameof(optionsMonitor));
+        _hostEnvironment = hostEnvironment ?? throw new ArgumentNullException(nameof(hostEnvironment));
     }
 
     /// <inheritdoc />
@@ -99,6 +103,14 @@ public sealed class TenantContextAccessor : ITenantContextAccessor
         if (activeTenantId is not null)
         {
             return activeTenantId;
+        }
+
+        if (!_hostEnvironment.IsDevelopment())
+        {
+            throw new InvalidOperationException(
+                "No se pudo resolver el tenant activo de forma explícita (ActiveTenantId, cabecera configurada, host o claims). "
+                + "En entornos que no son Development no se permite usar el primer tenant de la lista como respaldo implícito. "
+                + "Revise SaaS:ActiveTenantId, SaaS:Tenants y la resolución por host.");
         }
 
         return enabledTenants.First().TenantId.Trim();

@@ -65,6 +65,8 @@ La plataforma ya incorpora estructuras de configuración orientadas a SaaS:
 
 El runtime actual sigue estando orientado a una experiencia web principal sobre una instancia configurada de forma controlada. Es decir, la solución está **preparada para SaaS**, pero no debe presentarse todavía como una plataforma multi-tenant totalmente desacoplada a nivel de operación y aislamiento extremo en todos los escenarios.
 
+En **Production**, el arranque valida la sección `SaaS` y la coherencia con `ClientExperience:ClientId` (sin identidades de demostración ni dominios reservados cuando corresponde). Los placeholders comerciales viven en `appsettings.SaaS.Production.json` y `appsettings.Branding.Production.json`; sustituya dominio, correos y `TenantId` reales vía configuración o variables de entorno. Detalle operativo y ejemplos `SaaS__Tenants__0__*` en `docs/SECURITY.md` (secciones 10 y 11).
+
 ## Arquitectura
 
 La solución sigue `Clean Architecture` con una separación estricta de responsabilidades:
@@ -235,6 +237,8 @@ Y sus variantes por ambiente, por ejemplo:
 - `appsettings.Security.Development.json`
 - `appsettings.Branding.Development.json`
 - `appsettings.SaaS.Development.json`
+- `appsettings.SaaS.Production.json` (tenant y hostnames de producción; placeholders hasta dominio final)
+- `appsettings.Branding.Production.json` (alineado con el tenant activo en producción)
 
 Las secciones funcionales activas incluyen:
 
