@@ -141,6 +141,14 @@ public static class SaaSPlatformProductionGuard
             {
                 errors.Add($"BootstrapSuperUserEmail del tenant '{tid}' no es válido para producción: {bootError}");
             }
+
+            if (tenant.Provisioning.SeedDemoCatalog)
+            {
+                errors.Add(
+                    $"En Production el tenant '{tid}' no puede tener {nameof(tenant.Provisioning.SeedDemoCatalog)} en true. "
+                    + "Desactívelo en configuración; el catálogo demo solo es aceptable en entornos no productivos. "
+                    + "La siembra controlada se ejecuta con el proyecto Maintenance, no al publicar sin revisión.");
+            }
         }
 
         SaaSPlatformOptions.TenantOptions? active = enabledTenants.FirstOrDefault(t =>

@@ -436,3 +436,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# EF Core: scripts SQL generados localmente (no versionar artefactos con datos sensibles)
+artifacts/sql/*.sql

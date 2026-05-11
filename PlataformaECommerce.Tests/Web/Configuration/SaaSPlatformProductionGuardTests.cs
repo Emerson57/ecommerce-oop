@@ -35,6 +35,20 @@ internal sealed class SaaSPlatformProductionGuardTests
     }
 
     [Test]
+    public void Validate_ProductionConSeedDemoCatalogHabilitado_LanzaInvalidOperationException()
+    {
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddJsonStream(OpenEmbeddedJson("""{"SaaS":{"ActiveTenantId":"main-store","ResolveTenantFromHost":true,"Tenants":[{"TenantId":"main-store","Enabled":true,"DisplayName":"X","StorefrontName":"X","BackofficeName":"X","StorefrontTagline":"X","LegalCompanyName":"X","SupportEmail":"soporte@midominio.com","SupportPhone":"1","SupportHours":"h","SupportSla":"s","PrimaryColor":"#111","AccentColor":"#222","AdminSidebarStartColor":"#333","AdminSidebarEndColor":"#444","LogoGlyph":"N","Currency":"COP","Country":"CO","Hostnames":["midominio.com"],"Provisioning":{"BootstrapSuperUserEmail":"admin@midominio.com","SeedDemoCatalog":true}}]}}"""))
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ClientExperience:ClientId"] = "main-store" })
+            .Build();
+
+        InvalidOperationException? ex = Assert.Throws<InvalidOperationException>(() =>
+            SaaSPlatformProductionGuard.Validate(configuration, new FakeHostEnvironment(Environments.Production)));
+
+        Assert.That(ex!.Message, Does.Contain("SeedDemoCatalog"));
+    }
+
+    [Test]
     public void Validate_DevelopmentConTenantDemo_NoLanza()
     {
         IConfigurationRoot configuration = new ConfigurationBuilder()

@@ -15,6 +15,7 @@ La plataforma se encuentra en una etapa de consolidación profesional con las si
 - auditoría sobre `MongoDB` para trazabilidad operativa;
 - configuración modular por dominio (`Security`, `Observability`, `Branding`, `Backoffice`, `SaaS`, `Payments`, `Infrastructure`);
 - secretos solo por variables de entorno, alias `Secrets:*` o proveedor seguro en entornos reales (ver [docs/production-secrets.md](docs/production-secrets.md));
+- esquema SQL: migraciones EF Core y procedimiento de despliegue en [docs/database-migrations.md](docs/database-migrations.md);
 - composition root limpia en `Program.cs` y arranque organizado por extensiones;
 - preparación SaaS mediante catálogo de tenants, features, planes y aprovisionamiento controlado.
 

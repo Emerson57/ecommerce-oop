@@ -21,6 +21,10 @@ No almacenar secretos en `appsettings.json`. Configura secretos y cadenas sensib
 - `ClientExperience`
 - `Observability`
 
+## Base de datos y migraciones EF Core
+
+Después de configurar la cadena de conexión, aplique el esquema con las migraciones del proyecto `PlataformaECommerce.Infrastructure`. El procedimiento detallado (comandos `dotnet ef`, script idempotente, backup y checklist de Production) está en [database-migrations.md](database-migrations.md).
+
 ## Branding por cliente
 La instancia actual trabaja en modo monocliente configurable. Ajusta la sección `ClientExperience` para personalizar:
 - `ClientId`
@@ -44,7 +48,7 @@ La instancia actual trabaja en modo monocliente configurable. Ajusta la sección
 ## Pasos de instalación
 1. Restaurar paquetes.
 2. Configurar secretos por ambiente.
-3. Aplicar migraciones manualmente.
+3. Aplicar migraciones manualmente (ver [database-migrations.md](database-migrations.md); incluya `--context ECommerceDbContext`).
 4. Arrancar la aplicación.
 5. Validar health checks.
 6. Validar acceso al backoffice.
@@ -53,13 +57,15 @@ La instancia actual trabaja en modo monocliente configurable. Ajusta la sección
 ```powershell
 dotnet restore
 dotnet build
-dotnet ef database update --project PlataformaECommerce.Infrastructure --startup-project PlataformaECommerce.Web
+dotnet ef database update --project PlataformaECommerce.Infrastructure --startup-project PlataformaECommerce.Web --context ECommerceDbContext
 dotnet run --project PlataformaECommerce.Web
 ```
 
+Para lista de migraciones, scripts idempotentes y checklist de Production, use el documento [database-migrations.md](database-migrations.md).
+
 ## Package Manager Console
 ```powershell
-Update-Database -Project PlataformaECommerce.Infrastructure -StartupProject PlataformaECommerce.Web
+Update-Database -Project PlataformaECommerce.Infrastructure -StartupProject PlataformaECommerce.Web -Context ECommerceDbContext
 ```
 
 ## Verificaciones posteriores
